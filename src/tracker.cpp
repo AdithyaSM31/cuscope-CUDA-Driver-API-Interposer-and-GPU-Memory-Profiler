@@ -131,9 +131,17 @@ void Tracker::fill(Snapshot& s) const {
   s.invalid_frees = invalid_frees_;
 }
 
-Tracker& tracker() {
+namespace {
+
+Tracker*& tracker_slot() {
   static Tracker* t = new Tracker();
-  return *t;
+  return t;
 }
+
+}  // namespace
+
+Tracker& tracker() { return *tracker_slot(); }
+
+void tracker_after_fork_child() { tracker_slot() = new Tracker(); }  // the old one is leaked on purpose
 
 }  // namespace cuscope

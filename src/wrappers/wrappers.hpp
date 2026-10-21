@@ -14,9 +14,46 @@
 #include "cuscope/cuscope.h"
 #include "guard.hpp"
 #include "hook_table.hpp"
+#include "model.hpp"
+#include "recorder.hpp"
 #include "stats.hpp"
 
 namespace cuscope {
+
+// One Record per wrapper call the program makes. The constructor starts the
+// clock, done() stops it right after the real call (so cuscope's own
+// bookkeeping is not counted), and the destructor pushes the record. Calls
+// cuscope makes itself are not recorded.
+class ApiRecord {
+ public:
+  explicit ApiRecord(HookId api) : enabled_(!in_internal()) {
+    rec.type = RecType::ApiCall;
+    rec.api = api;
+    if (enabled_) rec.cpu_ns = now_ns();
+  }
+  ApiRecord(const ApiRecord&) = delete;
+  ApiRecord& operator=(const ApiRecord&) = delete;
+
+  void done() {
+    if (enabled_ && end_ns_ == 0) end_ns_ = now_ns();
+  }
+
+  ~ApiRecord() {
+    if (!enabled_) return;
+    done();
+    const uint64_t elapsed = end_ns_ - rec.cpu_ns;
+    rec.dur_ns = elapsed > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(elapsed);
+    record(rec);
+  }
+
+  Record rec{};
+
+ private:
+  bool enabled_;
+  uint64_t end_ns_ = 0;
+};
+
+inline uint64_t handle(const void* p) { return reinterpret_cast<uint64_t>(p); }
 
 // Counts a wrapper invocation, unless cuscope itself made the call.
 inline void note_call() {

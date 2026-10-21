@@ -1,29 +1,52 @@
-// Launch hooks. Pass-through for now; GPU timing (Task 10) records each
-// launch's span on its stream.
+// Launch hooks. Each launch is recorded with its function, stream and a
+// correlation id; GPU timing (Task 10) adds the launch's span on its stream.
 #include "wrappers.hpp"
 
 namespace cuscope {
+namespace {
+
+// A launch that the driver rejected never ran, so it stays a plain API call.
+void describe_launch(ApiRecord& rec, CUresult result, RecType type, uint64_t func, CUstream stream) {
+  rec.done();
+  rec.rec.func = func;
+  rec.rec.stream = handle(stream);
+  if (result == CUDA_SUCCESS) {
+    rec.rec.type = type;
+    rec.rec.corr = next_corr();
+  }
+}
+
+}  // namespace
 
 template <int V>
 CUresult cs_cuLaunchKernel(CUfunction f, unsigned int gridDimX, unsigned int gridDimY, unsigned int gridDimZ,
                            unsigned int blockDimX, unsigned int blockDimY, unsigned int blockDimZ,
                            unsigned int sharedMemBytes, CUstream hStream, void** kernelParams, void** extra) {
   note_call();
-  return forward<V, decltype(&::cuLaunchKernel)>(H_cuLaunchKernel, f, gridDimX, gridDimY, gridDimZ, blockDimX,
-                                                 blockDimY, blockDimZ, sharedMemBytes, hStream, kernelParams,
-                                                 extra);
+  ApiRecord rec(H_cuLaunchKernel);
+  CUresult r = forward<V, decltype(&::cuLaunchKernel)>(H_cuLaunchKernel, f, gridDimX, gridDimY, gridDimZ, blockDimX,
+                                                       blockDimY, blockDimZ, sharedMemBytes, hStream, kernelParams,
+                                                       extra);
+  describe_launch(rec, r, RecType::Launch, handle(f), hStream);
+  return r;
 }
 
 template <int V>
 CUresult cs_cuLaunchKernelEx(const CUlaunchConfig* config, CUfunction f, void** kernelParams, void** extra) {
   note_call();
-  return forward<V, decltype(&::cuLaunchKernelEx)>(H_cuLaunchKernelEx, config, f, kernelParams, extra);
+  ApiRecord rec(H_cuLaunchKernelEx);
+  CUresult r = forward<V, decltype(&::cuLaunchKernelEx)>(H_cuLaunchKernelEx, config, f, kernelParams, extra);
+  describe_launch(rec, r, RecType::Launch, handle(f), config != nullptr ? config->hStream : nullptr);
+  return r;
 }
 
 template <int V>
 CUresult cs_cuGraphLaunch(CUgraphExec hGraphExec, CUstream hStream) {
   note_call();
-  return forward<V, decltype(&::cuGraphLaunch)>(H_cuGraphLaunch, hGraphExec, hStream);
+  ApiRecord rec(H_cuGraphLaunch);
+  CUresult r = forward<V, decltype(&::cuGraphLaunch)>(H_cuGraphLaunch, hGraphExec, hStream);
+  describe_launch(rec, r, RecType::GraphLaunch, handle(hGraphExec), hStream);
+  return r;
 }
 
 void register_launch_hooks() {

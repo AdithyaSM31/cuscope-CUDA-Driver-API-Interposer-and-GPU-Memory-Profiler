@@ -82,4 +82,8 @@ class Tracker {
 // still works in exit handlers that run after static destructors.
 Tracker& tracker();
 
+// In a forked child: start a new, empty tracker. The parent's allocations are
+// not the child's, and another thread may have held a shard lock at the fork.
+void tracker_after_fork_child();
+
 }  // namespace cuscope

@@ -59,6 +59,11 @@ def assert_passthrough(prog: str, *args: str) -> None:
     assert under.stdout == plain.stdout, f"stdout changed under cuscope:\n{plain.stdout!r}\n{under.stdout!r}"
 
 
+def _kernel_key(name: str) -> str:
+    # A kernel with no known name is shown by its handle, which is an address.
+    return "<unnamed>" if name.startswith("0x") else name
+
+
 def normalize(report: dict) -> dict:
     """The parts of a report that must match between two runs of the same program:
     no pointers, times or stack ids."""
@@ -68,7 +73,7 @@ def normalize(report: dict) -> dict:
         "peak_bytes": report["peak_bytes"],
         "alloc_count": report["alloc_count"],
         "free_count": report["free_count"],
-        "kernels": sorted((k["name"], k["count"]) for k in report["kernels"]),
+        "kernels": sorted((_kernel_key(k["name"]), k["count"]) for k in report["kernels"]),
         "copies": sorted((c["dir"], c["pinned"], c["count"], c["bytes"]) for c in report["copies"]),
         "graph_launches": report["graph_launches"],
     }

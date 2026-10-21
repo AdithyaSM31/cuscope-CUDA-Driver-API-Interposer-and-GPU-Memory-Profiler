@@ -33,4 +33,9 @@ std::string demangle(const char* mangled);
 // initialisation so it never does on a wrapper's path.
 void warm_up_backtrace();
 
+// pthread_atfork handlers: hold the stack-table lock across fork. The child
+// keeps the parent's stacks (they are only addresses and stay valid).
+void stacks_before_fork();
+void stacks_after_fork();
+
 }  // namespace cuscope

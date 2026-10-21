@@ -1,4 +1,4 @@
-// Synchronisation and context-teardown hooks. Pass-through for now; Task 11
+// Synchronisation and context-teardown hooks, recorded as API calls. Task 11
 // flushes pending GPU events here before a context goes away.
 #include "wrappers.hpp"
 
@@ -7,6 +7,8 @@ namespace cuscope {
 template <int V>
 CUresult cs_cuStreamSynchronize(CUstream hStream) {
   note_call();
+  ApiRecord rec(H_cuStreamSynchronize);
+  rec.rec.stream = handle(hStream);
   return forward<V, decltype(&::cuStreamSynchronize)>(H_cuStreamSynchronize, hStream);
 }
 
@@ -15,24 +17,29 @@ CUresult cs_cuStreamSynchronize(CUstream hStream) {
 template <int V>
 CUresult cs_cuCtxSynchronize() {
   note_call();
+  ApiRecord rec(H_cuCtxSynchronize);
   return forward<V, decltype(&::cuCtxSynchronize)>(H_cuCtxSynchronize);
 }
 
 template <int V>
 CUresult cs_cuCtxDestroy(CUcontext ctx) {
   note_call();
+  ApiRecord rec(H_cuCtxDestroy);
+  rec.rec.ptr = handle(ctx);
   return forward<V, decltype(&::cuCtxDestroy)>(H_cuCtxDestroy, ctx);
 }
 
 template <int V>
 CUresult cs_cuDevicePrimaryCtxRelease(CUdevice dev) {
   note_call();
+  ApiRecord rec(H_cuDevicePrimaryCtxRelease);
   return forward<V, decltype(&::cuDevicePrimaryCtxRelease)>(H_cuDevicePrimaryCtxRelease, dev);
 }
 
 template <int V>
 CUresult cs_cuDevicePrimaryCtxReset(CUdevice dev) {
   note_call();
+  ApiRecord rec(H_cuDevicePrimaryCtxReset);
   return forward<V, decltype(&::cuDevicePrimaryCtxReset)>(H_cuDevicePrimaryCtxReset, dev);
 }
 

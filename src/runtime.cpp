@@ -2,10 +2,12 @@
 #include "guard.hpp"
 #include "log.hpp"
 #include "model.hpp"
+#include "recorder.hpp"
 #include "stacks.hpp"
 #include "trace_writer.hpp"
 #include "tracker.hpp"
 
+#include <pthread.h>
 #include <unistd.h>
 
 #include <cstdlib>
@@ -19,10 +21,30 @@ void write_report_at_exit() {
   Snapshot s;
   s.pid = static_cast<int>(getpid());
   s.mode = mode_name(config().mode);
+  collector_stop_and_drain(s);  // first, so no record arrives after the drain
   tracker().finalize();
   tracker().fill(s);
   s.stacks = symbolize_all();
   write_trace_file(s, expand_out_path(config().out, s.pid));
+}
+
+// fork() copies only the calling thread. Every cuscope lock is taken before
+// the fork, so none can be held by a thread that does not exist in the child;
+// the child then starts with empty state of its own.
+void before_fork() {
+  stacks_before_fork();
+  recorder_before_fork();
+}
+
+void after_fork_parent() {
+  recorder_after_fork_parent();
+  stacks_after_fork();
+}
+
+void after_fork_child() {
+  recorder_after_fork_child();
+  stacks_after_fork();
+  tracker_after_fork_child();
 }
 
 // Runs when the dynamic loader initialises libcuscope.so, before main().
@@ -38,6 +60,7 @@ __attribute__((constructor)) void cuscope_ctor() {
 
   warm_up_backtrace();
   tracker();  // create it now rather than inside the first allocation
+  pthread_atfork(before_fork, after_fork_parent, after_fork_child);
 
   // Registered after config() and tracker() are built, so this handler runs
   // before their destructors (exit runs handlers in reverse order). The CUDA

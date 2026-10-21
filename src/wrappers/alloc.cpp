@@ -1,4 +1,5 @@
-// Allocation hooks: forward the call, then tell the tracker what happened.
+// Allocation hooks: forward the call, then tell the tracker and the timeline
+// what happened.
 //
 // Allocations are recorded only when the driver succeeds. A free removes the
 // allocation from the tracker *before* the real call, because the driver may
@@ -22,8 +23,22 @@ uint64_t current_ctx() {
   return get_current(&ctx) == CUDA_SUCCESS ? reinterpret_cast<uint64_t>(ctx) : 0;
 }
 
-void track_alloc(uint64_t ptr, uint64_t bytes, AllocKind kind) {
-  tracker().on_alloc(AllocInfo{ptr, bytes, kind, capture_caller_stack(), current_ctx()});
+// Fills in an allocation's record and, if it succeeded, tracks it.
+CUresult after_alloc(ApiRecord& rec, CUresult result, uint64_t ptr, uint64_t bytes, AllocKind kind) {
+  rec.done();
+  rec.rec.bytes = bytes;
+  rec.rec.aux = static_cast<uint8_t>(kind);
+  if (result != CUDA_SUCCESS) {
+    rec.rec.type = RecType::AllocFailed;
+    return result;
+  }
+  if (in_internal()) return result;
+  const uint32_t stack = capture_caller_stack();
+  tracker().on_alloc(AllocInfo{ptr, bytes, kind, stack, current_ctx()});
+  rec.rec.type = RecType::Alloc;
+  rec.rec.ptr = ptr;
+  rec.rec.stack_id = stack;
+  return result;
 }
 
 // Runs real_free (the forwarded call) with the bookkeeping around it.
@@ -34,66 +49,78 @@ void track_alloc(uint64_t ptr, uint64_t bytes, AllocKind kind) {
 // does not hook; that is a gap in cuscope's view, not a bug in the program,
 // so it is not reported.
 template <class RealFree>
-CUresult tracked_free(uint64_t ptr, RealFree&& real_free) {
-  if (ptr == 0 || in_internal()) return real_free();  // freeing null is a no-op
+CUresult tracked_free(ApiRecord& rec, uint64_t ptr, RealFree&& real_free) {
+  rec.rec.ptr = ptr;
+  if (ptr == 0 || in_internal()) {  // freeing null is a no-op
+    CUresult result = real_free();
+    rec.done();
+    return result;
+  }
   std::optional<AllocInfo> freed = tracker().on_free(ptr);
   CUresult result = real_free();
-  if (result != CUDA_SUCCESS) {
+  rec.done();
+  if (result == CUDA_SUCCESS) {
     if (freed) {
-      tracker().restore(*freed);
-    } else {
-      tracker().on_invalid_free(ptr, capture_caller_stack());
+      rec.rec.type = RecType::Free;
+      rec.rec.bytes = freed->bytes;
+      rec.rec.aux = static_cast<uint8_t>(freed->kind);
     }
+  } else if (freed) {
+    tracker().restore(*freed);
+  } else {
+    const uint32_t stack = capture_caller_stack();
+    tracker().on_invalid_free(ptr, stack);
+    rec.rec.type = RecType::InvalidFree;
+    rec.rec.stack_id = stack;
   }
   return result;
 }
-
-// Records a successful allocation unless cuscope itself made the call.
-CUresult after_alloc(CUresult result, uint64_t ptr, uint64_t bytes, AllocKind kind) {
-  if (result == CUDA_SUCCESS && !in_internal()) track_alloc(ptr, bytes, kind);
-  return result;
-}
-
-uint64_t as_u64(const void* p) { return reinterpret_cast<uint64_t>(p); }
 
 }  // namespace
 
 template <int V>
 CUresult cs_cuMemAlloc(CUdeviceptr* dptr, size_t bytesize) {
   note_call();
+  ApiRecord rec(H_cuMemAlloc);
   CUresult r = forward<V, decltype(&::cuMemAlloc)>(H_cuMemAlloc, dptr, bytesize);
-  return after_alloc(r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Device);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Device);
 }
 
 template <int V>
 CUresult cs_cuMemAllocPitch(CUdeviceptr* dptr, size_t* pPitch, size_t WidthInBytes, size_t Height,
                             unsigned int ElementSizeBytes) {
   note_call();
+  ApiRecord rec(H_cuMemAllocPitch);
   CUresult r = forward<V, decltype(&::cuMemAllocPitch)>(H_cuMemAllocPitch, dptr, pPitch, WidthInBytes, Height,
                                                         ElementSizeBytes);
-  if (r != CUDA_SUCCESS) return r;
-  return after_alloc(r, *dptr, static_cast<uint64_t>(*pPitch) * Height, AllocKind::Device);
+  const bool ok = r == CUDA_SUCCESS;
+  return after_alloc(rec, r, ok ? *dptr : 0, ok ? static_cast<uint64_t>(*pPitch) * Height : 0, AllocKind::Device);
 }
 
 template <int V>
 CUresult cs_cuMemFree(CUdeviceptr dptr) {
   note_call();
-  return tracked_free(dptr, [&] { return forward<V, decltype(&::cuMemFree)>(H_cuMemFree, dptr); });
+  ApiRecord rec(H_cuMemFree);
+  return tracked_free(rec, dptr, [&] { return forward<V, decltype(&::cuMemFree)>(H_cuMemFree, dptr); });
 }
 
 template <int V>
 CUresult cs_cuMemAllocAsync(CUdeviceptr* dptr, size_t bytesize, CUstream hStream) {
   note_call();
+  ApiRecord rec(H_cuMemAllocAsync);
+  rec.rec.stream = handle(hStream);
   CUresult r = forward<V, decltype(&::cuMemAllocAsync)>(H_cuMemAllocAsync, dptr, bytesize, hStream);
-  return after_alloc(r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async);
 }
 
 template <int V>
 CUresult cs_cuMemAllocFromPoolAsync(CUdeviceptr* dptr, size_t bytesize, CUmemoryPool pool, CUstream hStream) {
   note_call();
+  ApiRecord rec(H_cuMemAllocFromPoolAsync);
+  rec.rec.stream = handle(hStream);
   CUresult r = forward<V, decltype(&::cuMemAllocFromPoolAsync)>(H_cuMemAllocFromPoolAsync, dptr, bytesize, pool,
                                                                 hStream);
-  return after_alloc(r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async);
 }
 
 // Stream-ordered: the memory is released when the stream reaches the free,
@@ -101,34 +128,41 @@ CUresult cs_cuMemAllocFromPoolAsync(CUdeviceptr* dptr, size_t bytesize, CUmemory
 template <int V>
 CUresult cs_cuMemFreeAsync(CUdeviceptr dptr, CUstream hStream) {
   note_call();
-  return tracked_free(dptr, [&] { return forward<V, decltype(&::cuMemFreeAsync)>(H_cuMemFreeAsync, dptr, hStream); });
+  ApiRecord rec(H_cuMemFreeAsync);
+  rec.rec.stream = handle(hStream);
+  return tracked_free(rec, dptr,
+                      [&] { return forward<V, decltype(&::cuMemFreeAsync)>(H_cuMemFreeAsync, dptr, hStream); });
 }
 
 template <int V>
 CUresult cs_cuMemAllocManaged(CUdeviceptr* dptr, size_t bytesize, unsigned int flags) {
   note_call();
+  ApiRecord rec(H_cuMemAllocManaged);
   CUresult r = forward<V, decltype(&::cuMemAllocManaged)>(H_cuMemAllocManaged, dptr, bytesize, flags);
-  return after_alloc(r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Managed);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Managed);
 }
 
 template <int V>
 CUresult cs_cuMemAllocHost(void** pp, size_t bytesize) {
   note_call();
+  ApiRecord rec(H_cuMemAllocHost);
   CUresult r = forward<V, decltype(&::cuMemAllocHost)>(H_cuMemAllocHost, pp, bytesize);
-  return after_alloc(r, r == CUDA_SUCCESS ? as_u64(*pp) : 0, bytesize, AllocKind::HostPinned);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? handle(*pp) : 0, bytesize, AllocKind::HostPinned);
 }
 
 template <int V>
 CUresult cs_cuMemHostAlloc(void** pp, size_t bytesize, unsigned int Flags) {
   note_call();
+  ApiRecord rec(H_cuMemHostAlloc);
   CUresult r = forward<V, decltype(&::cuMemHostAlloc)>(H_cuMemHostAlloc, pp, bytesize, Flags);
-  return after_alloc(r, r == CUDA_SUCCESS ? as_u64(*pp) : 0, bytesize, AllocKind::HostPinned);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? handle(*pp) : 0, bytesize, AllocKind::HostPinned);
 }
 
 template <int V>
 CUresult cs_cuMemFreeHost(void* p) {
   note_call();
-  return tracked_free(as_u64(p), [&] { return forward<V, decltype(&::cuMemFreeHost)>(H_cuMemFreeHost, p); });
+  ApiRecord rec(H_cuMemFreeHost);
+  return tracked_free(rec, handle(p), [&] { return forward<V, decltype(&::cuMemFreeHost)>(H_cuMemFreeHost, p); });
 }
 
 void register_alloc_hooks() {

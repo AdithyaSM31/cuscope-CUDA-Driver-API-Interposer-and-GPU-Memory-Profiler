@@ -262,4 +262,7 @@ void warm_up_backtrace() {
   backtrace(frames, 2);
 }
 
+void stacks_before_fork() { g_stacks_mu.lock(); }
+void stacks_after_fork() { g_stacks_mu.unlock(); }
+
 }  // namespace cuscope

@@ -113,6 +113,29 @@ def test_real_gpa_is_never_own_wrapper(mimic):
     assert r.stats["hooked_calls"] >= 2
 
 
+# ---- Task 9: recorder, collector, fork safety ----
+
+@pytest.mark.parametrize("mode", MODES)
+def test_fork_child_has_no_inherited_leaks(mimic, mode):
+    # Review Focus 4: a forked child (a dataloader worker, a subprocess that
+    # inherits LD_PRELOAD) writes its own trace and does not report the
+    # parent's allocations as its leaks.
+    r = mimic("fork", mode)
+    assert r.code == 0, r.stderr
+    assert len(r.traces) == 2, sorted(r.traces)
+    parent = r.trace["cuscope"]
+    child = next(t["cuscope"] for pid, t in r.traces.items() if t is not r.trace)
+    assert [l["bytes"] for l in parent["leaks"]] == [1 << 20]
+    assert child["leaks"] == []
+    assert child["alloc_count"] == 0
+
+
+def test_api_calls_recorded_in_mock(mimic):
+    r = mimic("dlsym_gpa", "shim")
+    names = [e["name"] for e in r.trace["traceEvents"] if e["ph"] == "X"]
+    assert names.count("cuMemAlloc") == 1 and names.count("cuMemFree") == 1
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     for scenario in ["dlsym_gpa", "ptsz", "old_version", "gpa_self", "fork"]:
         for mode in ["direct", "shim"]:
