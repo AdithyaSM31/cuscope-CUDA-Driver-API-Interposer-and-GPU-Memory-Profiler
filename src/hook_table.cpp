@@ -30,6 +30,7 @@ void register_all() {
   register_memcpy_hooks();
   register_launch_hooks();
   register_teardown_hooks();
+  register_name_hooks();
   for (int id = 0; id < H_COUNT; ++id) {
     if (g_wrappers[id][kLegacy] == nullptr) {
       log_msg("hook %s has no wrapper; its calls pass through unrecorded", kSpecs[id].base);

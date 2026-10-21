@@ -76,6 +76,7 @@ void register_alloc_hooks();
 void register_memcpy_hooks();
 void register_launch_hooks();
 void register_teardown_hooks();
+void register_name_hooks();
 
 }  // namespace cuscope
 

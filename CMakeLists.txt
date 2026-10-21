@@ -56,7 +56,8 @@ set(CUSCOPE_SOURCES
   src/wrappers/alloc.cpp
   src/wrappers/memcpy.cpp
   src/wrappers/launch.cpp
-  src/wrappers/teardown.cpp)
+  src/wrappers/teardown.cpp
+  src/wrappers/names.cpp)
 add_library(cuscope SHARED ${CUSCOPE_SOURCES})
 target_include_directories(cuscope PRIVATE src include ${CUDA_DRIVER_INCLUDE})
 target_compile_definitions(cuscope PRIVATE CUSCOPE_VERSION="${PROJECT_VERSION}")

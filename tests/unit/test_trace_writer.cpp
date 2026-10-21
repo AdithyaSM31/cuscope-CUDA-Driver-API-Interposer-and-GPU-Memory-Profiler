@@ -65,6 +65,36 @@ TEST(TraceWriter, ApiEventCarriesCorrelationId) {
   EXPECT_EQ(events_with(write(s), "X")[0]["args"]["corr"], 5);
 }
 
+TEST(TraceWriter, FlowArrowFromLaunchToGpuSpan) {
+  Snapshot s;
+  s.pid = 1;
+  Record launch = make_record(RecType::Launch, H_cuLaunchKernel, 1000, 10);
+  launch.tid = 7;
+  launch.corr = 3;
+  Record untimed = make_record(RecType::Launch, H_cuLaunchKernel, 2000, 10);
+  untimed.corr = 4;  // no span: no arrow
+  s.records = {launch, untimed};
+  GpuSpan span{};
+  span.corr = 3;
+  span.start_ns = 5000;
+  span.end_ns = 6000;
+  span.api = H_cuLaunchKernel;
+  s.spans.push_back(span);
+
+  json trace = write(s);
+  auto starts = events_with(trace, "s");
+  auto finishes = events_with(trace, "f");
+  ASSERT_EQ(starts.size(), 1u);
+  ASSERT_EQ(finishes.size(), 1u);
+  EXPECT_EQ(starts[0]["id"], 3);
+  EXPECT_EQ(finishes[0]["id"], 3);
+  EXPECT_EQ(starts[0]["tid"], 7);                     // on the launching thread...
+  EXPECT_DOUBLE_EQ(starts[0]["ts"].get<double>(), 1.0);  // ...inside the launch call
+  EXPECT_GE(finishes[0]["tid"].get<int64_t>(), 1000000);  // on the GPU track
+  EXPECT_DOUBLE_EQ(finishes[0]["ts"].get<double>(), 5.0);
+  EXPECT_EQ(finishes[0]["bp"], "e");  // binds to the enclosing GPU slice
+}
+
 TEST(TraceWriter, MemoryCounterRisesAndFalls) {
   Snapshot s;
   Record alloc = make_record(RecType::Alloc, H_cuMemAlloc, 1000);

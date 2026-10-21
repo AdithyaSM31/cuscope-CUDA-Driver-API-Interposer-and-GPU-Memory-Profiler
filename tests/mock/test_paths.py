@@ -198,6 +198,23 @@ def test_primary_release_that_keeps_context_does_not(mimic):
     assert [(l["bytes"], l["at_ctx_teardown"]) for l in r.trace["cuscope"]["leaks"]] == [(1 << 20, False)]
 
 
+# ---- Task 12: kernel names and flow arrows ----
+
+def test_kernel_name_from_driver(mimic):
+    # The mock's cuFuncGetName returns the mangled "_Z11mock_kernelv".
+    r = mimic("launch", "shim")
+    assert r.code == 0, r.stderr
+    assert [s["name"] for s in gpu_spans(r.trace)] == ["mock_kernel()"]
+    assert r.trace["cuscope"]["kernels"][0]["name"] == "mock_kernel()"
+
+
+def test_flow_arrow_links_launch_to_span(mimic):
+    r = mimic("launch", "shim")
+    flows = [e for e in r.trace["traceEvents"] if e["ph"] in ("s", "f")]
+    assert sorted(e["ph"] for e in flows) == ["f", "s"]
+    assert flows[0]["id"] == flows[1]["id"] == gpu_spans(r.trace)[0]["args"]["corr"]
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     # Every call the program made reaches the driver unchanged. Event calls are
     # left out: from Task 10 on, cuscope records its own timing events.

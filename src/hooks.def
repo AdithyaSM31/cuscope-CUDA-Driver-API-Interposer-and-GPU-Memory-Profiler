@@ -50,3 +50,8 @@ HOOK(cuCtxDestroy,              "cuCtxDestroy_v2",              nullptr,        
 // wrapper fits, but only a hook resolved at 7000 sees the runtime's calls.
 HOOK(cuDevicePrimaryCtxRelease, "cuDevicePrimaryCtxRelease",    nullptr,                     7000)
 HOOK(cuDevicePrimaryCtxReset,   "cuDevicePrimaryCtxReset",      nullptr,                     7000)
+
+// Kernel names (wrappers/names.cpp): the calls that hand out function handles
+HOOK(cuModuleGetFunction,       "cuModuleGetFunction",          nullptr,                     CUDA_VERSION)
+HOOK(cuLibraryGetKernel,        "cuLibraryGetKernel",           nullptr,                     CUDA_VERSION)
+HOOK(cuKernelGetFunction,       "cuKernelGetFunction",          nullptr,                     CUDA_VERSION)

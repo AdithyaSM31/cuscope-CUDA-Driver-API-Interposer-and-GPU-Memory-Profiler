@@ -4,6 +4,7 @@
 #include "wrappers.hpp"
 
 #include "gputimer.hpp"
+#include "names.hpp"
 
 namespace cuscope {
 namespace {
@@ -23,6 +24,7 @@ void finish_launch(ApiRecord& rec, CUresult result, RecType type, uint64_t func,
   }
   rec.rec.type = type;
   rec.rec.corr = next_corr();
+  if (type == RecType::Launch && !in_internal()) note_kernel(func);
   if (timed) {
     GpuSpan meta{};
     meta.corr = rec.rec.corr;

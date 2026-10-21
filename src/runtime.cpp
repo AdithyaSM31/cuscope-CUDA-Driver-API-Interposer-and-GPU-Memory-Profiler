@@ -3,6 +3,7 @@
 #include "guard.hpp"
 #include "log.hpp"
 #include "model.hpp"
+#include "names.hpp"
 #include "recorder.hpp"
 #include "stacks.hpp"
 #include "trace_writer.hpp"
@@ -25,6 +26,7 @@ void write_report_at_exit() {
   collector_stop_and_drain(s);  // first, so no record arrives after the drain
   gputimer_finish();            // then resolve events of contexts still alive
   gputimer_fill(s);
+  fill_kernel_names(s);
   tracker().finalize();
   tracker().fill(s);
   s.stacks = symbolize_all();

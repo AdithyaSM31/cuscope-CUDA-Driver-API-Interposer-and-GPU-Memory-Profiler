@@ -63,6 +63,27 @@ def test_multistream_tracks():
         assert s["ts"] >= launch_ts[s["args"]["corr"]] - 100, (s["ts"], launch_ts[s["args"]["corr"]])
 
 
+def test_multistream_named():
+    trace = trace_of("multistream")
+    assert [s["name"] for s in gpu_spans(trace)] == ["spin_kernel(long long)"] * 4
+    assert [(k["name"], k["count"]) for k in trace["cuscope"]["kernels"]] == [("spin_kernel(long long)", 4)]
+    assert trace["cuscope"]["unresolved_events"] == 0
+
+
+def test_kernel_names_in_alloc_mode():
+    # Names do not depend on GPU timing.
+    kernels = trace_of("hello_static", mode="alloc")["cuscope"]["kernels"]
+    assert [k["name"] for k in kernels] == ["vec_add(float const*, float const*, float*, int)"]
+
+
+def test_flow_arrows_for_every_timed_launch():
+    trace = trace_of("multistream")
+    starts = [e["id"] for e in trace["traceEvents"] if e["ph"] == "s"]
+    finishes = [e["id"] for e in trace["traceEvents"] if e["ph"] == "f"]
+    spans = [s["args"]["corr"] for s in gpu_spans(trace)]
+    assert sorted(starts) == sorted(finishes) == sorted(spans)
+
+
 def test_alloc_mode_skips_gpu_timing():
     trace = trace_of("multistream", mode="alloc")
     assert gpu_spans(trace) == []

@@ -87,8 +87,18 @@ void write_cpu_events(const Snapshot& s, EventList& events) {
   }
 }
 
+// Where each correlated call happened on the CPU, for flow arrows.
+struct CallSite {
+  uint64_t cpu_ns;
+  uint32_t tid;
+};
+
 void write_gpu_events(const Snapshot& s, EventList& events) {
   const std::string pid = std::to_string(s.pid);
+  std::map<uint64_t, CallSite> calls;  // corr -> launching call
+  for (const Record& r : s.records) {
+    if (r.corr != 0) calls[r.corr] = {r.cpu_ns, r.tid};
+  }
   std::map<uint64_t, int64_t> stream_tid;  // stream handle -> track, in order of first use
   for (const GpuSpan& span : s.spans) {
     auto [it, added] = stream_tid.try_emplace(span.stream, kGpuTidBase + static_cast<int64_t>(stream_tid.size()));
@@ -101,6 +111,17 @@ void write_gpu_events(const Snapshot& s, EventList& events) {
     events.add("{\"name\":" + quoted(span_name(s, span)) + ",\"cat\":\"gpu\",\"ph\":\"X\",\"ts\":" +
                micros(span.start_ns) + ",\"dur\":" + micros(dur) + ",\"pid\":" + pid + ",\"tid\":" + tid +
                ",\"args\":{\"corr\":" + std::to_string(span.corr) + "}}");
+
+    // An arrow from the call (flow start inside the API slice) to the GPU
+    // work (flow end bound to the enclosing GPU slice).
+    auto call = calls.find(span.corr);
+    if (span.corr == 0 || call == calls.end()) continue;
+    const std::string id = std::to_string(span.corr);
+    events.add("{\"name\":\"launch\",\"cat\":\"flow\",\"ph\":\"s\",\"id\":" + id + ",\"ts\":" +
+               micros(call->second.cpu_ns) + ",\"pid\":" + pid + ",\"tid\":" + std::to_string(call->second.tid) +
+               "}");
+    events.add("{\"name\":\"launch\",\"cat\":\"flow\",\"ph\":\"f\",\"bp\":\"e\",\"id\":" + id + ",\"ts\":" +
+               micros(span.start_ns) + ",\"pid\":" + pid + ",\"tid\":" + tid + "}");
   }
 }
 
