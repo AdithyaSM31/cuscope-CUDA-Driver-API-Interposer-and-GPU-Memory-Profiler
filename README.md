@@ -7,7 +7,10 @@ cuscope records every GPU allocation, copy and kernel launch of an unmodified CU
 CUDA driver, and gives you a leak report, memory and timing summaries, and a timeline for
 [Perfetto](https://ui.perfetto.dev).
 
-<!-- Perfetto GIF: docs/img/perfetto.gif (multistream: four GPU tracks, flow arrows, memory counter) -->
+![cuscope trace of tests/cuda/multistream in Perfetto: four concurrent kernels on four GPU stream tracks](docs/img/perfetto-multistream.webp)
+
+*`tests/cuda/multistream` in Perfetto: the launch and synchronise calls on the CPU thread,
+and four 5 ms kernels running at once on four GPU stream tracks.*
 
 ## Quickstart
 
@@ -49,17 +52,51 @@ Completeness: dropped=0 unresolved=0 untimed=0
 
 ## How it works
 
-<!--
-Written by the author. Points to cover (details in docs/DESIGN.md):
-- the three ways a program reaches libcuda: exported symbols, dlsym on the libcuda handle,
-  and cuGetProcAddress by base name, version and flags
-- the WSL libcuda.so.1 is a loader shim that itself calls dlsym: the libcuda caller check, and
-  the libcudart.so.13 prefix bug the census found
-- wrapping a pointer only when it is exactly the variant resolved at start-up (per-hook
-  version in hooks.def), and how check_exports.py proves every hook's signature
-- recording: per-thread ring buffers, a collector thread, CUDA events with clock alignment,
-  and why an extra exit handler is needed on WSL
--->
+![architecture](docs/img/architecture.svg)
+
+Every CUDA program reaches the GPU through the driver, `libcuda.so.1`, which is always loaded
+dynamically, even when the CUDA runtime is linked statically. cuscope is loaded ahead of it
+with `LD_PRELOAD` and catches driver calls on all three paths a program can take:
+
+1. **By symbol name.** A program linked with `-lcuda` calls `cuMemAlloc_v2` directly. cuscope
+   exports the same names, and the dynamic linker binds to the preloaded library first.
+2. **Through `dlsym`.** The CUDA runtime does not call driver functions by name. It `dlopen`s
+   libcuda and fetches `cuGetProcAddress` with `dlsym` on that handle, a lookup `LD_PRELOAD`
+   never sees. So cuscope overrides `dlsym` itself and hands back its own `cuGetProcAddress`.
+3. **Through `cuGetProcAddress`.** The runtime then asks for every driver function by base
+   name, CUDA version and stream flags. cuscope calls the real lookup and returns a wrapper
+   instead of the real pointer.
+
+**The WSL loader shim.** On WSL, `libcuda.so.1` is not the driver but a small loader that
+fills its own table of over 700 driver functions by calling `dlsym` on the real driver. If cuscope's
+override handed the shim a wrapper, the wrapper would call the shim, which would call the
+wrapper, forever. The override therefore checks which module called it and passes libcuda's
+own lookups straight through. That check has to match `libcuda.` exactly: the first version
+matched the prefix `libcuda`, which also matches the shared runtime, `libcudart.so.13`, so
+every program built with `-cudart shared` (and PyTorch's main runtime) went through
+unrecorded. The symbol census on the real GPU caught it.
+
+**Wrapping only the right function.** A wrapper is written for one C signature, but the same
+base name can mean different functions. The runtime asks for `cuMemAlloc` at version 3020,
+and at version 13000 the driver's `cuCtxSynchronize` is a different function with an extra
+argument. So at start-up cuscope resolves, for each hooked function and both stream variants,
+the exact pointer its wrapper was written for (the version is listed per hook in
+`src/hooks.def`). At lookup time it compares pointers, not version numbers: an exact match
+gets the wrapper, and anything else passes through untouched. Each wrapper's signature is
+checked against `cuda.h` at compile time, and `tools/check_exports.py` checks every hook
+against the installed driver.
+
+**Recording.** A wrapper forwards the call unchanged and returns its result, then writes one
+64-byte record into a ring buffer owned by its thread. Recording never blocks: a full ring
+drops the record and counts it. A collector thread drains the rings every 2 ms. In `full`
+mode each launch and copy also gets a CUDA event before and after it on its stream; the
+collector converts them to times on the CPU clock using a reference event recorded when the
+context was first seen. On WSL the driver shuts itself down at exit before the CUDA runtime's
+own cleanup, so cuscope registers an exit handler after the driver's, which runs first and
+collects every pending event while the driver still answers. At exit cuscope writes the
+Chrome Trace JSON and prints the summary.
+
+[docs/DESIGN.md](docs/DESIGN.md) has the details, including the bugs these choices fixed.
 
 ## Validation
 

@@ -30,7 +30,7 @@ function by base name, CUDA version and stream flags. A handle lookup never cons
 ### The WSL loader shim
 
 On WSL, `/usr/lib/wsl/lib/libcuda.so.1` is a 188 KB loader. It `dlopen`s the real driver
-(`libcuda.so.1.1`) and fills a table of 728 functions with `dlsym`, through cuscope's override.
+(`libcuda.so.1.1`) and fills a table of over 700 functions with `dlsym`, through cuscope's override.
 Handing it a wrapper would make the wrapper call the shim and the shim call the wrapper,
 forever. So the override first asks `dladdr` which module called it, and passes through
 everything libcuda asks for itself. The census counted 739 such lookups per process.
