@@ -20,3 +20,54 @@ def test_direct_baseline_without_cuscope(direct_mimic):
     assert r.code == 0, r.stderr
     assert r.stdout.startswith("OK direct")
     assert r.mock["alloc_v2"] == 1 and r.mock["free_"] == 1
+
+
+# ---- Task 3: dlsym override and census ----
+
+@pytest.mark.parametrize("mode", MODES)
+def test_dlsym_returns_gpa_wrapper(mimic, mode):
+    r = mimic("dlsym_gpa", mode)
+    assert r.code == 0, r.stderr
+    assert r.stats["dlsym_wrapped"] >= 1
+
+
+def test_shim_lookups_pass_through(mimic):
+    # The WSL-style shim resolves cuGetProcAddress_v2 from its constructor.
+    # Handing it a wrapper would make the wrapper call itself forever.
+    r = mimic("dlsym_gpa", "shim")
+    assert r.code == 0, r.stderr
+    assert ["dlsym", "cuGetProcAddress_v2", "libcuda.so.1", "caller-libcuda"] in r.census
+
+
+@pytest.mark.parametrize("mode", MODES)
+def test_dlsym_default_during_init(mimic, mode):
+    # Review Focus 1: dlsym(RTLD_DEFAULT, "cuGetProcAddress_v2") before libcuda
+    # is loaded. cuscope must load libcuda itself (the shim's constructor then
+    # calls dlsym re-entrantly) and must not return its own export as "real".
+    r = mimic("dlsym_default", mode)
+    assert r.code == 0, r.stderr
+    assert r.stdout.startswith("OK dlsym_default")
+    assert r.stats["dlsym_wrapped"] >= 1
+
+
+@pytest.mark.parametrize("mode", MODES)
+def test_libcudart_caller_is_not_libcuda(mimic, mode):
+    # Found by the real-GPU census: "libcudart.so.13" starts with "libcuda", so a
+    # prefix match passed the shared runtime's lookups through unrecorded.
+    r = mimic("via_cudart", mode)
+    assert r.code == 0, r.stderr
+    assert r.stats["dlsym_wrapped"] >= 1
+    assert ["dlsym", "cuGetProcAddress_v2", "libcudart.so.13", "wrap"] in r.census
+
+
+def test_census_records_gpa(mimic):
+    r = mimic("dlsym_gpa", "direct")
+    assert r.code == 0, r.stderr
+    assert any(row[:3] == ["gpa", "cuMemAlloc", "13000"] for row in r.census), r.census
+
+
+def test_preloaded_runs_keep_program_behaviour(mimic):
+    for scenario in ["dlsym_gpa", "ptsz", "old_version", "gpa_self", "fork"]:
+        for mode in ["direct", "shim"]:
+            base, under = mimic(scenario, mode, preload=False), mimic(scenario, mode)
+            assert (under.code, under.mock) == (base.code, base.mock), (scenario, mode)

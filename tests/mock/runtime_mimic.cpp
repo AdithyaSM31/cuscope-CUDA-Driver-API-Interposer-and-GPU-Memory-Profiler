@@ -51,8 +51,16 @@ Fn get(const char* symbol, int version = CUDA_VERSION,
 
 // via_default: first ask dlsym(RTLD_DEFAULT, ...) before libcuda is loaded,
 // the order that exercises cuscope loading libcuda itself.
-void open_driver(bool via_default) {
+// via_cudart: let the fake libcudart.so.13 make the dlsym call, as -cudart shared does.
+void open_driver(bool via_default, bool via_cudart) {
   if (via_default) g_gpa = reinterpret_cast<GpaFn>(dlsym(RTLD_DEFAULT, "cuGetProcAddress_v2"));
+  if (via_cudart) {
+    void* cudart = dlopen(FAKE_CUDART_PATH, RTLD_NOW);
+    if (cudart == nullptr) die("dlopen fake libcudart", dlerror());
+    auto get_gpa = reinterpret_cast<void* (*)()>(dlsym(cudart, "fake_cudart_get_gpa"));
+    if (get_gpa == nullptr) die("dlsym fake_cudart_get_gpa", dlerror());
+    g_gpa = reinterpret_cast<GpaFn>(get_gpa());
+  }
   g_driver = dlopen("libcuda.so.1", RTLD_NOW);
   if (g_driver == nullptr) die("dlopen libcuda.so.1", dlerror());
   if (g_gpa == nullptr) g_gpa = reinterpret_cast<GpaFn>(dlsym(g_driver, "cuGetProcAddress_v2"));
@@ -82,10 +90,11 @@ void launch(CUstream stream, cuuint64_t flags = CU_GET_PROC_ADDRESS_LEGACY_STREA
 
 void run(const char* scenario) {
   const bool via_default = std::strcmp(scenario, "dlsym_default") == 0;
-  open_driver(via_default);
+  const bool via_cudart = std::strcmp(scenario, "via_cudart") == 0;
+  open_driver(via_default, via_cudart);
   CUcontext ctx = init_context();
 
-  if (std::strcmp(scenario, "dlsym_gpa") == 0 || via_default) {
+  if (std::strcmp(scenario, "dlsym_gpa") == 0 || via_default || via_cudart) {
     release(alloc(4096));
   } else if (std::strcmp(scenario, "ptsz") == 0) {
     CUdeviceptr p = alloc(64);

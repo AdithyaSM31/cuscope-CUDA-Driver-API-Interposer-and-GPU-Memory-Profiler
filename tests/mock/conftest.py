@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 BUILD = Path(os.environ.get("CUSCOPE_BUILD", REPO / "build"))
 TIMEOUT_S = 10
 
-SCENARIOS = ["dlsym_gpa", "dlsym_default", "ptsz", "old_version", "gpa_self",
+SCENARIOS = ["dlsym_gpa", "dlsym_default", "via_cudart", "ptsz", "old_version", "gpa_self",
              "capture", "launch", "copy", "teardown", "fork"]
 MODES = ["direct", "shim"]
 

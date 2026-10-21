@@ -25,9 +25,21 @@ set_target_properties(mock_shim PROPERTIES
   OUTPUT_NAME cuda SUFFIX ".so.1"
   LIBRARY_OUTPUT_DIRECTORY ${MOCK_DIR}/shim)
 
+# A fake shared runtime named like the real one: build/mock/rt/libcudart.so.13.
+add_library(fake_cudart SHARED fake_cudart.cpp)
+target_link_libraries(fake_cudart PRIVATE dl)
+# A tail call (jmp dlsym) would make the program, not this library, look like
+# dlsym's caller; the real libcudart makes a normal call.
+target_compile_options(fake_cudart PRIVATE -fno-optimize-sibling-calls)
+set_target_properties(fake_cudart PROPERTIES
+  OUTPUT_NAME cudart SUFFIX ".so.13"
+  LIBRARY_OUTPUT_DIRECTORY ${MOCK_DIR}/rt)
+
 add_executable(runtime_mimic runtime_mimic.cpp)
 target_include_directories(runtime_mimic PRIVATE ${CUDA_DRIVER_INCLUDE} ${PROJECT_SOURCE_DIR}/include)
+target_compile_definitions(runtime_mimic PRIVATE FAKE_CUDART_PATH="$<TARGET_FILE:fake_cudart>")
 target_link_libraries(runtime_mimic PRIVATE dl)
+add_dependencies(runtime_mimic fake_cudart)
 set_target_properties(runtime_mimic PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${MOCK_DIR})
 
 # Linked with -lcuda against the mock; LD_LIBRARY_PATH picks the mode at run time.

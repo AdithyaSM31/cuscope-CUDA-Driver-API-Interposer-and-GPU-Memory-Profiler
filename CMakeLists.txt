@@ -33,7 +33,8 @@ find_package(Threads REQUIRED)
 add_library(cuscope_core OBJECT
   src/log.cpp
   src/config.cpp
-  src/stats.cpp)
+  src/stats.cpp
+  src/census.cpp)
 target_include_directories(cuscope_core PUBLIC src include ${CUDA_DRIVER_INCLUDE})
 target_compile_definitions(cuscope_core PUBLIC CUSCOPE_VERSION="${PROJECT_VERSION}")
 target_compile_options(cuscope_core PRIVATE -Wall -Wextra -fvisibility=hidden -fvisibility-inlines-hidden)
@@ -41,7 +42,9 @@ target_compile_options(cuscope_core PRIVATE -Wall -Wextra -fvisibility=hidden -f
 # The preload library: core objects plus the interception layer.
 set(CUSCOPE_SOURCES
   $<TARGET_OBJECTS:cuscope_core>
-  src/runtime.cpp)
+  src/runtime.cpp
+  src/loader.cpp
+  src/intercept.cpp)
 add_library(cuscope SHARED ${CUSCOPE_SOURCES})
 target_include_directories(cuscope PRIVATE src include ${CUDA_DRIVER_INCLUDE})
 target_compile_definitions(cuscope PRIVATE CUSCOPE_VERSION="${PROJECT_VERSION}")
