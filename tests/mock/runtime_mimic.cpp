@@ -124,6 +124,16 @@ void run(const char* scenario) {
     alloc(1 << 20);  // deliberately not freed
     launch(nullptr);
     CHECK(get<decltype(&cuCtxDestroy)>("cuCtxDestroy")(ctx));
+  } else if (std::strcmp(scenario, "release_destroys") == 0) {
+    // The only reference: releasing it destroys the primary context.
+    alloc(1 << 20);  // deliberately not freed
+    CHECK(get<decltype(&cuDevicePrimaryCtxRelease)>("cuDevicePrimaryCtxRelease")(0));
+  } else if (std::strcmp(scenario, "release_keeps") == 0) {
+    // A second reference keeps the context alive across one release.
+    CUcontext again = nullptr;
+    CHECK(get<decltype(&cuDevicePrimaryCtxRetain)>("cuDevicePrimaryCtxRetain")(&again, 0));
+    alloc(1 << 20);  // deliberately not freed
+    CHECK(get<decltype(&cuDevicePrimaryCtxRelease)>("cuDevicePrimaryCtxRelease")(0));
   } else if (std::strcmp(scenario, "fork") == 0) {
     alloc(1 << 20);  // deliberately not freed; the child must not report it
     std::fflush(stdout);

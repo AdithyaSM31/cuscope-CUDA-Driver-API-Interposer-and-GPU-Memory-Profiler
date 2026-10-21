@@ -34,6 +34,7 @@ int g_ctx_refs = 0;
 bool g_ctx_destroyed = false;
 uint64_t g_ctx_generation = 0;  // bumped on destroy; events from older generations are invalid
 uint32_t g_next_v1_ptr = 0x10000;
+uint64_t g_completed_until_ns = 0;  // work recorded up to here has finished (in-order streams)
 thread_local CUcontext t_current = nullptr;
 
 // Heap-allocated and never freed, so the mock still works from exit handlers
@@ -65,7 +66,12 @@ int event_delay() {
 }
 
 bool event_alive(const MockEvent* e) { return e->generation == g_ctx_generation && !g_ctx_destroyed; }
-bool event_ready(const MockEvent* e) { return e->synced || e->queries >= event_delay(); }
+
+// Like a real stream, work completes in order: once an event is known to be
+// complete, so is everything recorded before it.
+bool event_ready(const MockEvent* e) {
+  return e->synced || e->queries >= event_delay() || (e->t_ns != 0 && e->t_ns <= g_completed_until_ns);
+}
 
 void destroy_context_locked() {
   g_ctx_destroyed = true;
@@ -290,6 +296,7 @@ MOCK_API CUresult cuEventSynchronize(CUevent ev) {
   std::lock_guard<std::mutex> lock(g_mu);
   if (!event_alive(e)) return CUDA_ERROR_INVALID_CONTEXT;
   e->synced = true;
+  if (e->t_ns > g_completed_until_ns) g_completed_until_ns = e->t_ns;
   return CUDA_SUCCESS;
 }
 

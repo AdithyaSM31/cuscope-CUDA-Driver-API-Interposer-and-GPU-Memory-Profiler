@@ -1,5 +1,7 @@
 """The timeline: API spans, the device-memory counter, and (later) GPU spans."""
 
+import pytest
+
 from harness import assert_passthrough, run
 
 MiB = 1 << 20
@@ -65,6 +67,33 @@ def test_alloc_mode_skips_gpu_timing():
     trace = trace_of("multistream", mode="alloc")
     assert gpu_spans(trace) == []
     assert sum(k["count"] for k in trace["cuscope"]["kernels"]) == 4
+
+
+PROGRAMS = ["hello_static", "hello_shared", "leak", "double_free", "async_pool",
+            "multistream", "multithread", "bandwidth", "graph_capture", "device_reset"]
+
+
+@pytest.mark.parametrize("prog", PROGRAMS)
+def test_every_event_resolved(prog):
+    report = trace_of(prog)["cuscope"]
+    assert report["unresolved_events"] == 0
+    assert report["dropped_records"] == 0
+
+
+def test_context_reset_marks_leaks_at_teardown():
+    # cudaDeviceReset destroys the primary context while the driver is alive:
+    # the 1 MiB still held then was freed by the driver with the context.
+    leaks = trace_of("device_reset")["cuscope"]["leaks"]
+    assert sorted((l["bytes"], l["at_ctx_teardown"]) for l in leaks) == [(1 << 20, True), (2 << 20, False)]
+
+
+def test_leaks_at_exit_on_wsl_are_exit_leaks():
+    # On WSL the driver shuts itself down at exit before the CUDA runtime
+    # releases its context (that release returns CUDA_ERROR_DEINITIALIZED),
+    # so no teardown is observed: unfreed memory is reported as leaked at exit.
+    leaks = trace_of("leak")["cuscope"]["leaks"]
+    assert sorted(l["bytes"] for l in leaks) == [1 << 20, 3 << 20]
+    assert not any(l["at_ctx_teardown"] for l in leaks), leaks
 
 
 def test_graph_capture():

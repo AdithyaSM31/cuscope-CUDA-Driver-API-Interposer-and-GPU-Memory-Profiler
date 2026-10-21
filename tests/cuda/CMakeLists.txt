@@ -17,6 +17,7 @@ cuscope_cuda_test(async_pool async_pool.cu Static)
 cuscope_cuda_test(multistream multistream.cu Static)
 cuscope_cuda_test(bandwidth bandwidth.cu Static)
 cuscope_cuda_test(graph_capture graph_capture.cu Static)
+cuscope_cuda_test(device_reset device_reset.cu Static)
 
 # Host-only C++ program using the runtime API from eight threads.
 add_executable(multithread multithread.cpp)

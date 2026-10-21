@@ -170,6 +170,34 @@ def test_capturing_stream_not_timed(mimic):
     assert r.trace["cuscope"]["gpu_untimed"] == 1
 
 
+# ---- Task 11: context teardown ----
+
+def test_ctx_destroy_flushes_pending(mimic):
+    # Events never complete on their own here, so only the flush in the
+    # cuCtxDestroy hook (waiting on them before the real destroy) resolves them.
+    r = mimic("teardown", "shim", env={"MOCK_EVENT_DELAY_QUERIES": "1000000"})
+    assert r.code == 0, r.stderr
+    report = r.trace["cuscope"]
+    assert len(gpu_spans(r.trace)) == 1
+    assert report["unresolved_events"] == 0
+    assert [(l["bytes"], l["at_ctx_teardown"]) for l in report["leaks"]] == [(1 << 20, True)]
+
+
+@pytest.mark.parametrize("mode", MODES)
+def test_primary_release_that_destroys_marks_leaks(mimic, mode):
+    r = mimic("release_destroys", mode)
+    assert r.code == 0, r.stderr
+    assert [(l["bytes"], l["at_ctx_teardown"]) for l in r.trace["cuscope"]["leaks"]] == [(1 << 20, True)]
+
+
+def test_primary_release_that_keeps_context_does_not(mimic):
+    # Release is reference counted: with another reference held, the context
+    # and its memory live on, so the allocation is a plain leak at exit.
+    r = mimic("release_keeps", "shim")
+    assert r.code == 0, r.stderr
+    assert [(l["bytes"], l["at_ctx_teardown"]) for l in r.trace["cuscope"]["leaks"]] == [(1 << 20, False)]
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     # Every call the program made reaches the driver unchanged. Event calls are
     # left out: from Task 10 on, cuscope records its own timing events.

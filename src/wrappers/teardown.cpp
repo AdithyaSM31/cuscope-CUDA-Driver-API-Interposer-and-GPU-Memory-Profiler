@@ -3,11 +3,58 @@
 // Before a context can go away, its pending GPU events are resolved: the CUDA
 // runtime destroys its context in its own exit cleanup, which runs before
 // cuscope's exit handler, and an event cannot be read once its context is gone.
+//
+// After a context really is destroyed, the driver has freed all its memory, so
+// whatever the program still held there becomes a leak marked at_ctx_teardown.
 #include "wrappers.hpp"
 
 #include "gputimer.hpp"
+#include "tracker.hpp"
 
 namespace cuscope {
+namespace {
+
+bool primary_active(CUdevice dev) {
+  static const auto get_state = CS_DRIVER_FN(cuDevicePrimaryCtxGetState);
+  unsigned int flags = 0;
+  int active = 0;
+  return get_state != nullptr && get_state(dev, &flags, &active) == CUDA_SUCCESS && active != 0;
+}
+
+// The device's primary context, if it is active; 0 otherwise. Release and
+// Reset name only the device, so cuscope reads the handle with a Retain and an
+// immediate Release: the reference count ends where it started. Only done when
+// the context is active, because Retain on an inactive device would create one.
+uint64_t active_primary_ctx(CUdevice dev) {
+  static const auto retain = CS_DRIVER_FN(cuDevicePrimaryCtxRetain);
+  static const auto release = CS_DRIVER_FN(cuDevicePrimaryCtxRelease);
+  if (retain == nullptr || release == nullptr || !primary_active(dev)) return 0;
+  CUcontext ctx = nullptr;
+  if (retain(&ctx, dev) != CUDA_SUCCESS) return 0;
+  release(dev);
+  return handle(ctx);
+}
+
+// Shared by Release and Reset. Both may destroy the primary context (Release
+// only when it drops the last reference); afterwards the driver says which.
+template <class RealCall>
+CUresult primary_teardown(CUdevice dev, RealCall&& real_call) {
+  if (in_internal()) return real_call();
+  uint64_t primary = 0;
+  {
+    InternalScope internal;
+    primary = active_primary_ctx(dev);
+  }
+  gpu_flush_device(dev);
+  CUresult result = real_call();
+  if (result == CUDA_SUCCESS && primary != 0) {
+    InternalScope internal;
+    if (!primary_active(dev)) tracker().on_ctx_teardown(primary);
+  }
+  return result;
+}
+
+}  // namespace
 
 template <int V>
 CUresult cs_cuStreamSynchronize(CUstream hStream) {
@@ -32,7 +79,10 @@ CUresult cs_cuCtxDestroy(CUcontext ctx) {
   if (!in_internal()) gpu_flush_ctx(handle(ctx));
   ApiRecord rec(H_cuCtxDestroy);
   rec.rec.ptr = handle(ctx);
-  return forward<V, decltype(&::cuCtxDestroy)>(H_cuCtxDestroy, ctx);
+  CUresult r = forward<V, decltype(&::cuCtxDestroy)>(H_cuCtxDestroy, ctx);
+  rec.done();
+  if (r == CUDA_SUCCESS && !in_internal()) tracker().on_ctx_teardown(handle(ctx));
+  return r;
 }
 
 // Release may or may not destroy the primary context (it is reference
@@ -41,17 +91,23 @@ CUresult cs_cuCtxDestroy(CUcontext ctx) {
 template <int V>
 CUresult cs_cuDevicePrimaryCtxRelease(CUdevice dev) {
   note_call();
-  if (!in_internal()) gpu_flush_device(dev);
   ApiRecord rec(H_cuDevicePrimaryCtxRelease);
-  return forward<V, decltype(&::cuDevicePrimaryCtxRelease)>(H_cuDevicePrimaryCtxRelease, dev);
+  return primary_teardown(dev, [&] {
+    CUresult r = forward<V, decltype(&::cuDevicePrimaryCtxRelease)>(H_cuDevicePrimaryCtxRelease, dev);
+    rec.done();
+    return r;
+  });
 }
 
 template <int V>
 CUresult cs_cuDevicePrimaryCtxReset(CUdevice dev) {
   note_call();
-  if (!in_internal()) gpu_flush_device(dev);
   ApiRecord rec(H_cuDevicePrimaryCtxReset);
-  return forward<V, decltype(&::cuDevicePrimaryCtxReset)>(H_cuDevicePrimaryCtxReset, dev);
+  return primary_teardown(dev, [&] {
+    CUresult r = forward<V, decltype(&::cuDevicePrimaryCtxReset)>(H_cuDevicePrimaryCtxReset, dev);
+    rec.done();
+    return r;
+  });
 }
 
 void register_teardown_hooks() {
