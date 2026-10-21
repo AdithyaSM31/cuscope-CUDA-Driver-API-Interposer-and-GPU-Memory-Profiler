@@ -65,6 +65,15 @@ Config parse_config(const GetenvFn& getenv_fn) {
     }
   }
 
+  if (const char* v = getenv_fn("CUSCOPE_FLUSH_TIMEOUT_MS"); v != nullptr) {
+    long long n = 0;
+    if (!parse_int(v, &n) || n < 0 || n > UINT32_MAX) {
+      warn(c, "CUSCOPE_FLUSH_TIMEOUT_MS", v, "2000");
+    } else {
+      c.flush_timeout_ms = static_cast<uint32_t>(n);
+    }
+  }
+
   return c;
 }
 

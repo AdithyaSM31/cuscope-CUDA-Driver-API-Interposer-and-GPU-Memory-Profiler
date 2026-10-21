@@ -77,6 +77,9 @@ void fill_kernel_names(Snapshot& s) {
   }
 }
 
+void names_before_fork() { g_names_mu.lock(); }
+void names_after_fork() { g_names_mu.unlock(); }
+
 // ---- Hooks: the name map ----
 
 template <int V>

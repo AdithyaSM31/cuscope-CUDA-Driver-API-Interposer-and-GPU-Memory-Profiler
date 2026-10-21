@@ -128,6 +128,22 @@ def test_fork_child_has_no_inherited_leaks(mimic, mode):
     assert [l["bytes"] for l in parent["leaks"]] == [1 << 20]
     assert child["leaks"] == []
     assert (child["alloc_count"], child["free_count"]) == (1, 1)  # its own calls only
+    # Nor does it inherit the parent's GPU timing state (final review, I2).
+    assert len(gpu_spans(r.trace)) == 1
+    child_trace = next(t for t in r.traces.values() if t is not r.trace)
+    assert gpu_spans(child_trace) == []
+    assert (child["unresolved_events"], child["gpu_untimed"]) == (0, 0)
+
+
+@pytest.mark.parametrize("mode", MODES)
+def test_fork_child_without_cuda_work_writes_nothing(mimic, mode):
+    # Final review, I2: a child that only runs inherited cleanup (the CUDA
+    # runtime releasing its context at exit) did no CUDA work of its own, so
+    # it writes no trace, let alone one holding the parent's data.
+    r = mimic("fork_quiet", mode)
+    assert r.code == 0, r.stderr
+    assert r.trace is not None
+    assert len(r.traces) == 1, sorted(r.traces)
 
 
 def test_api_calls_recorded_in_mock(mimic):
@@ -173,9 +189,10 @@ def test_capturing_stream_not_timed(mimic):
 # ---- Task 11: context teardown ----
 
 def test_ctx_destroy_flushes_pending(mimic):
-    # Events never complete on their own here, so only the flush in the
-    # cuCtxDestroy hook (waiting on them before the real destroy) resolves them.
-    r = mimic("teardown", "shim", env={"MOCK_EVENT_DELAY_QUERIES": "1000000"})
+    # Events complete only after 200 queries here, far more than the collector
+    # makes before the program destroys its context, so only the flush in the
+    # cuCtxDestroy hook (polling them before the real destroy) resolves them.
+    r = mimic("teardown", "shim", env={"MOCK_EVENT_DELAY_QUERIES": "200"})
     assert r.code == 0, r.stderr
     report = r.trace["cuscope"]
     assert len(gpu_spans(r.trace)) == 1
@@ -255,11 +272,31 @@ def test_copies_are_not_sampled(mimic):
     assert len(gpu_spans(r.trace)) == 1 and r.trace["cuscope"]["gpu_untimed"] == 0
 
 
+# ---- Final review: polling cost and bounded exit ----
+
+def test_polling_stops_at_first_unfinished_event_per_stream(mimic):
+    # Events on one stream complete in order, so one unfinished event means
+    # every later one on that stream is unfinished too: querying them all on
+    # every 2 ms poll (with the lock held) stalls the program's launches.
+    r = mimic("launch200", "shim", env={"MOCK_EVENT_DELAY_QUERIES": "1000000", "CUSCOPE_FLUSH_TIMEOUT_MS": "50"})
+    assert r.code == 0, r.stderr
+    assert r.mock["event_query"] < 1000, r.mock["event_query"]  # 200 per poll before the fix
+
+
+def test_exit_flush_is_bounded(mimic):
+    # Work that never completes must not hold the process at exit: after the
+    # flush timeout the remaining events are counted as unresolved.
+    r = mimic("launch200", "shim", env={"MOCK_EVENT_DELAY_QUERIES": "1000000", "CUSCOPE_FLUSH_TIMEOUT_MS": "50"})
+    assert r.code == 0, r.stderr
+    assert r.trace["cuscope"]["unresolved_events"] == 200
+    assert gpu_spans(r.trace) == []
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     # Every call the program made reaches the driver unchanged. Event calls are
     # left out: from Task 10 on, cuscope records its own timing events.
     def program_calls(mock: dict) -> dict:
-        return {k: v for k, v in mock.items() if not k.startswith("event_record")}
+        return {k: v for k, v in mock.items() if not k.startswith(("event_record", "event_query"))}
 
     for scenario in ["dlsym_gpa", "ptsz", "old_version", "gpa_self", "fork"]:
         for mode in ["direct", "shim"]:

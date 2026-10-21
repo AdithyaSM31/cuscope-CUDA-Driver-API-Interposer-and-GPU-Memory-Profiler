@@ -60,6 +60,41 @@ def test_no_report_without_cuda(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
+def test_ctrl_c_lets_the_program_finish_its_own_shutdown(tmp_path):
+    # Review finding I3: on Ctrl-C the CLI killed the program 0.25 s later,
+    # before it (and cuscope's exit handler) could finish. Ctrl-C reaches the
+    # whole foreground process group; the program decides what to do with it.
+    import signal
+    import time
+    marker = tmp_path / "shut-down"
+    code = ("import signal, sys, time\n"
+            "def stop(*_):\n"
+            "    time.sleep(1)\n"
+            f"    open({str(marker)!r}, 'w').close()\n"
+            "    sys.exit(5)\n"
+            "signal.signal(signal.SIGINT, stop)\n"
+            "print('ready', flush=True)\n"
+            "time.sleep(30)\n")
+    run_env = {k: v for k, v in os.environ.items() if not k.startswith("CUSCOPE_") and k != "LD_PRELOAD"}
+    run_env["CUSCOPE_LIB"] = str(BUILD / "libcuscope.so")
+    proc = subprocess.Popen([sys.executable, str(CLI), "run", "--", sys.executable, "-c", code], env=run_env,
+                            stdout=subprocess.PIPE, text=True, start_new_session=True)
+    try:
+        assert proc.stdout.readline() == "ready\n"
+        os.killpg(proc.pid, signal.SIGINT)
+        assert proc.wait(timeout=10) == 5
+    finally:
+        if proc.poll() is None:
+            os.killpg(proc.pid, signal.SIGKILL)
+    time.sleep(0.2)
+    assert marker.exists()
+
+
+def test_run_of_missing_command_exits_127():
+    r = cuscope("run", "--", "/nonexistent/program")
+    assert r.returncode == 127 and "command not found" in r.stderr
+
+
 def test_run_without_command_is_an_error():
     r = cuscope("run")
     assert r.returncode == 2 and "command" in r.stderr

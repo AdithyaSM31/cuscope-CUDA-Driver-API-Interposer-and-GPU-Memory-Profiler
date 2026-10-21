@@ -63,6 +63,15 @@ TEST(Config, InvalidValuesFallBack) {
   EXPECT_EQ(parse_config(env({{"CUSCOPE_SAMPLE_EVERY", "-5"}})).sample_every, 1u);
 }
 
+TEST(Config, FlushTimeout) {
+  EXPECT_EQ(parse_config(env({})).flush_timeout_ms, 2000u);
+  EXPECT_EQ(parse_config(env({{"CUSCOPE_FLUSH_TIMEOUT_MS", "250"}})).flush_timeout_ms, 250u);
+  EXPECT_EQ(parse_config(env({{"CUSCOPE_FLUSH_TIMEOUT_MS", "0"}})).flush_timeout_ms, 0u);
+  auto bad = parse_config(env({{"CUSCOPE_FLUSH_TIMEOUT_MS", "-1"}}));
+  EXPECT_EQ(bad.flush_timeout_ms, 2000u);
+  EXPECT_EQ(bad.warnings.size(), 1u);
+}
+
 TEST(Config, EmptyOutKeepsDefault) {
   EXPECT_EQ(parse_config(env({{"CUSCOPE_OUT", ""}})).out, "cuscope-%p.json");
 }

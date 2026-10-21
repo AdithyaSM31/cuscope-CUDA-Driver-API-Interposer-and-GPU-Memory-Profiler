@@ -115,22 +115,33 @@ void prepare_lookup() {
 
 }  // namespace
 
-// Path 2. glibc declares dlsym noexcept (__THROW), so the definition must match.
-extern "C" CUSCOPE_API void* dlsym(void* handle, const char* symbol) noexcept {
+// Path 2. The exported dlsym is the assembly trampoline in
+// dlsym_trampoline.S; this function decides what it does. Every lookup that
+// is not cuscope's business is answered by *forwarding*: the trampoline jumps
+// to the real dlsym with the original return address still on the stack, so
+// glibc resolves RTLD_NEXT and RTLD_DEFAULT for the real caller.
+struct DlsymDecision {
+  void* value;       // the answer, when forward_to is null
+  void* forward_to;  // the real dlsym, to jump to with the original arguments
+};
+
+extern "C" __attribute__((visibility("hidden"))) DlsymDecision cuscope_dlsym_decide(void* handle, const char* symbol,
+                                                                                     const void* caller) noexcept {
   cuscope::DlsymFn real = cuscope::real_dlsym();
-  if (real == nullptr) return nullptr;
+  if (real == nullptr) return {nullptr, nullptr};
+  const DlsymDecision forward{nullptr, reinterpret_cast<void*>(real)};
+  if (symbol == nullptr) return forward;
 
   // libcuda's own lookups (the WSL shim filling its table from the real
   // driver) must get real functions. A wrapper here would forward to the shim,
   // which would forward back to the wrapper, forever. This branch must not
   // touch libcuda_handle(): it can run inside that function's dlopen.
-  const char* caller = nullptr;
-  if (caller_is_libcuda(__builtin_return_address(0), &caller)) {
-    cuscope::census_dlsym(symbol, caller, "caller-libcuda");
-    return real(handle, symbol);
+  const char* module = nullptr;
+  if (caller_is_libcuda(caller, &module)) {
+    cuscope::census_dlsym(symbol, module, "caller-libcuda");
+    return forward;
   }
 
-  // glibc declares symbol nonnull, so there is no null check to make here.
   GpaVer ver;
   if (is_gpa_name(symbol, &ver)) {
     // Pseudo-handles would find cuscope's own export first, so resolve those
@@ -138,26 +149,29 @@ extern "C" CUSCOPE_API void* dlsym(void* handle, const char* symbol) noexcept {
     void* source = (handle == RTLD_DEFAULT || handle == RTLD_NEXT) ? cuscope::libcuda_handle() : handle;
     void* found = source ? real(source, symbol) : nullptr;
     if (found == nullptr || cuscope::inside_cuscope(found)) {
-      cuscope::census_dlsym(symbol, caller, "pass");
-      return found;
+      cuscope::census_dlsym(symbol, module, "pass");
+      return {found, nullptr};
     }
     cuscope::set_real_gpa(ver, found);
     cuscope::stats::dlsym_wrapped++;
-    cuscope::census_dlsym(symbol, caller, "wrap");
-    return gpa_wrapper(ver);
+    cuscope::census_dlsym(symbol, module, "wrap");
+    return {gpa_wrapper(ver), nullptr};
   }
 
-  // A hooked driver export fetched by name gets its wrapper, as it would
-  // through path 1. The wrapper resolves the real function on first call.
+  // A hooked driver export fetched by name from a specific handle gets its
+  // wrapper, as it would through path 1. Pseudo-handles depend on the caller,
+  // so those go to glibc; it finds cuscope's export first, which is the same
+  // wrapper. Specific handles do not depend on the caller, so asking here is
+  // exact.
   int variant = 0;
   int id = cuscope::find_hook_by_export(symbol, &variant);
-  if (id < 0) return real(handle, symbol);
+  if (id < 0 || handle == RTLD_DEFAULT || handle == RTLD_NEXT) return forward;
   void* found = real(handle, symbol);
   void* wrapper = found ? cuscope::hook_wrapper(static_cast<cuscope::HookId>(id), variant) : nullptr;
-  if (wrapper == nullptr) return found;
+  if (wrapper == nullptr) return {found, nullptr};
   cuscope::stats::dlsym_wrapped++;
-  cuscope::census_dlsym(symbol, caller, "wrap");
-  return wrapper;
+  cuscope::census_dlsym(symbol, module, "wrap");
+  return {wrapper, nullptr};
 }
 
 // Path 3. cuda.h turns this name into cuGetProcAddress_v2.

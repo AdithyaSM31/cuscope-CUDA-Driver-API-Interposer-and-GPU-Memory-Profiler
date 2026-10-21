@@ -58,14 +58,20 @@ void write_report_at_exit() {
 void before_fork() {
   stacks_before_fork();
   recorder_before_fork();
+  gputimer_before_fork();
+  names_before_fork();
 }
 
 void after_fork_parent() {
+  names_after_fork();
+  gputimer_after_fork_parent();
   recorder_after_fork_parent();
   stacks_after_fork();
 }
 
 void after_fork_child() {
+  names_after_fork();
+  gputimer_after_fork_child();
   recorder_after_fork_child();
   stacks_after_fork();
   tracker_after_fork_child();

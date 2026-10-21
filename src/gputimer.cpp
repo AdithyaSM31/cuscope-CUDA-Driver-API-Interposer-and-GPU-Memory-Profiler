@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <mutex>
+#include <unistd.h>
 #include <unordered_map>
 #include <vector>
 
@@ -28,6 +29,7 @@ struct CtxState {
   CUevent reference = nullptr;
   uint64_t reference_cpu_ns = 0;
 
+  std::mutex poll_mu;         // one poller at a time; taken before mu, never by launches
   std::mutex mu;
   std::vector<CUevent> pool;  // idle events
   size_t created = 0;         // events created for this context
@@ -52,6 +54,7 @@ struct DriverFns {
   decltype(&::cuEventQuery) event_query = nullptr;
   decltype(&::cuEventSynchronize) event_sync = nullptr;
   decltype(&::cuEventElapsedTime) elapsed = nullptr;
+  decltype(&::cuThreadExchangeStreamCaptureMode) exchange_capture_mode = nullptr;  // optional
   bool ok = false;
 };
 
@@ -69,6 +72,7 @@ const DriverFns& fns() {
     d.event_query = CS_DRIVER_FN(cuEventQuery);
     d.event_sync = CS_DRIVER_FN(cuEventSynchronize);
     d.elapsed = CS_DRIVER_FN(cuEventElapsedTime);
+    d.exchange_capture_mode = CS_DRIVER_FN(cuThreadExchangeStreamCaptureMode);
     d.ok = d.ctx_get_current && d.ctx_set_current && d.ctx_get_device && d.event_create && d.event_record[0] &&
            d.event_record[1] && d.is_capturing[0] && d.is_capturing[1] && d.event_query && d.event_sync &&
            d.elapsed;
@@ -98,20 +102,52 @@ class ScopedContext {
   bool ok_ = false;
 };
 
+// Puts this thread in relaxed stream-capture mode for the scope, then
+// restores its previous mode. While any thread captures a graph in global mode
+// (PyTorch's default), event queries and synchronisation from *other* threads
+// are prohibited and invalidate that capture; a thread in relaxed mode is
+// exempt. cuscope's own event bookkeeping must never break a program's graph.
+class RelaxedCapture {
+ public:
+  RelaxedCapture() {
+    if (fns().exchange_capture_mode == nullptr) return;
+    mode_ = CU_STREAM_CAPTURE_MODE_RELAXED;
+    active_ = fns().exchange_capture_mode(&mode_) == CUDA_SUCCESS;  // mode_ now holds the previous mode
+  }
+  ~RelaxedCapture() {
+    if (active_) fns().exchange_capture_mode(&mode_);
+  }
+  RelaxedCapture(const RelaxedCapture&) = delete;
+  RelaxedCapture& operator=(const RelaxedCapture&) = delete;
+
+ private:
+  CUstreamCaptureMode mode_ = CU_STREAM_CAPTURE_MODE_RELAXED;
+  bool active_ = false;
+};
+
+// Results that mean "not now" rather than "never": the event has not
+// completed, or a capture made the query unsafe at this moment.
+bool retry_later(CUresult r) {
+  return r == CUDA_ERROR_NOT_READY || r == CUDA_ERROR_STREAM_CAPTURE_UNSUPPORTED ||
+         r == CUDA_ERROR_STREAM_CAPTURE_IMPLICIT;
+}
+
 // ---- Process-wide state (heap, never destroyed) ----
 
 std::mutex g_states_mu;
-std::unordered_map<uint64_t, CtxState*>& states() {
+std::unordered_map<uint64_t, CtxState*>*& states_slot() {
   static auto* m = new std::unordered_map<uint64_t, CtxState*>();
-  return *m;
+  return m;
 }
+std::unordered_map<uint64_t, CtxState*>& states() { return *states_slot(); }
 std::atomic<uint64_t> g_generation{1};  // bumped whenever a context is forgotten
 
 std::mutex g_spans_mu;
-std::vector<GpuSpan>& spans() {
+std::vector<GpuSpan>*& spans_slot() {
   static auto* v = new std::vector<GpuSpan>();
-  return *v;
+  return v;
 }
+std::vector<GpuSpan>& spans() { return *spans_slot(); }
 
 std::atomic<uint64_t> g_unresolved{0};
 std::atomic<uint64_t> g_untimed{0};
@@ -143,6 +179,7 @@ void register_exit_flush_once() {
 // measured from it. Runs once per context, so the wait is a one-off cost.
 CtxState* create_state(CUcontext ctx) {
   const DriverFns& f = fns();
+  RelaxedCapture relaxed;
   auto* st = new CtxState();
   st->ctx = ctx;
   CUdevice dev = -1;
@@ -181,6 +218,7 @@ bool take_events(CtxState* st, CUevent* a, CUevent* b) {
   std::lock_guard<std::mutex> lock(st->mu);
   if (st->retired) return false;
   while (st->pool.size() < 2 && st->created < kPoolMax) {
+    RelaxedCapture relaxed;
     const size_t batch = std::min(kPoolBatch, kPoolMax - st->created);
     for (size_t i = 0; i < batch; ++i) {
       CUevent ev = nullptr;
@@ -219,29 +257,73 @@ bool resolve(const CtxState* st, const Pending& p, GpuSpan* out) {
   return true;
 }
 
-// Resolves whatever has completed. With wait, first waits for each end event
-// (teardown and exit, when nothing may be left behind).
-void poll_state(CtxState* st, bool wait) {
-  std::lock_guard<std::mutex> lock(st->mu);
-  if (st->pending.empty()) return;
-  ScopedContext scoped(st->ctx);
-  std::vector<GpuSpan> done;
+uint64_t deadline_after_flush_timeout() { return now_ns() + uint64_t{config().flush_timeout_ms} * 1000000; }
+
+// One pass over `batch`: resolves what has completed and leaves the rest in
+// it. Work on a stream completes in order, so after the first unfinished
+// event on a stream the later ones are not queried: a deep queue costs one
+// query per stream per pass, not one per event.
+void query_pass(const CtxState* st, bool ctx_ok, std::vector<Pending>& batch, std::vector<GpuSpan>& done,
+                std::vector<CUevent>& idle) {
+  std::vector<uint64_t> busy_streams;
   std::vector<Pending> still;
-  for (const Pending& p : st->pending) {
-    CUresult r = scoped.ok() ? (wait ? fns().event_sync(p.end) : fns().event_query(p.end)) : CUDA_ERROR_INVALID_CONTEXT;
+  for (const Pending& p : batch) {
+    if (std::find(busy_streams.begin(), busy_streams.end(), p.meta.stream) != busy_streams.end()) {
+      still.push_back(p);
+      continue;
+    }
+    CUresult r = ctx_ok ? fns().event_query(p.end) : CUDA_ERROR_INVALID_CONTEXT;
     GpuSpan span;
     if (r == CUDA_SUCCESS && resolve(st, p, &span)) {
       done.push_back(span);
-      st->pool.push_back(p.start);
-      st->pool.push_back(p.end);
-    } else if (r == CUDA_ERROR_NOT_READY) {
+      idle.push_back(p.start);
+      idle.push_back(p.end);
+    } else if (retry_later(r)) {
       still.push_back(p);
+      busy_streams.push_back(p.meta.stream);
     } else {
       if (r != CUDA_SUCCESS) CS_LOG_ONCE("cannot query a GPU event (CUresult %d); it is counted as unresolved", r);
       g_unresolved.fetch_add(1, std::memory_order_relaxed);  // the driver can no longer tell us
     }
   }
-  st->pending.swap(still);
+  batch.swap(still);
+}
+
+// Resolves whatever has completed. With a deadline (teardown and exit), keeps
+// polling until everything has completed or the deadline passes; the program
+// is never held longer than that, even by a kernel that never finishes.
+//
+// The pending list is taken out under st->mu and queried without it, so the
+// program's launches (which take st->mu to add to the list) never wait on
+// the driver for cuscope.
+void poll_state(CtxState* st, uint64_t deadline_ns) {
+  std::lock_guard<std::mutex> poll_lock(st->poll_mu);
+  std::vector<Pending> batch;
+  {
+    std::lock_guard<std::mutex> lock(st->mu);
+    if (st->retired) return;
+    batch.swap(st->pending);
+  }
+  if (batch.empty()) return;
+
+  std::vector<GpuSpan> done;
+  std::vector<CUevent> idle;
+  {
+    ScopedContext scoped(st->ctx);
+    RelaxedCapture relaxed;
+    for (;;) {
+      query_pass(st, scoped.ok(), batch, done, idle);
+      if (batch.empty() || deadline_ns == 0 || now_ns() >= deadline_ns) break;
+      usleep(500);
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(st->mu);
+    st->pool.insert(st->pool.end(), idle.begin(), idle.end());
+    // Older than anything added meanwhile, so they go back in front.
+    st->pending.insert(st->pending.begin(), batch.begin(), batch.end());
+  }
   if (!done.empty()) {
     std::lock_guard<std::mutex> spans_lock(g_spans_mu);
     spans().insert(spans().end(), done.begin(), done.end());
@@ -257,22 +339,27 @@ std::vector<CtxState*> known_states() {
 
 // The collector's hook, every 2 ms.
 void poll_all() {
-  for (CtxState* st : known_states()) poll_state(st, /*wait=*/false);
+  for (CtxState* st : known_states()) poll_state(st, /*deadline_ns=*/0);
 }
 
-// Exit handler (see register_exit_flush_once): wait for and resolve every
-// pending event while the driver still answers. Contexts stay known; the
-// teardown hooks and gputimer_finish deal with whatever comes after.
+// Exit handler (see register_exit_flush_once): resolve every pending event
+// while the driver still answers, waiting at most CUSCOPE_FLUSH_TIMEOUT_MS in
+// all. Contexts stay known; the teardown hooks and gputimer_finish deal with
+// whatever comes after.
 void resolve_all_before_driver_exit() {
   InternalScope internal;
-  for (CtxState* st : known_states()) poll_state(st, /*wait=*/true);
+  const uint64_t deadline = deadline_after_flush_timeout();
+  for (CtxState* st : known_states()) poll_state(st, deadline);
 }
 
-// Removes the context from the map (so no new call uses it), resolves all its
-// pending events, and retires it. The CtxState itself is never freed: a
-// thread may still hold a pointer from its cache.
+// Removes the context from the map (so no new call uses it), resolves its
+// pending events (waiting at most CUSCOPE_FLUSH_TIMEOUT_MS), and retires it;
+// what is still pending then is counted as unresolved. The CtxState itself is
+// never freed: a thread may still hold a pointer from its cache.
 void flush_and_forget(CtxState* st) {
-  poll_state(st, /*wait=*/true);
+  InternalScope internal;
+  poll_state(st, deadline_after_flush_timeout());
+  std::lock_guard<std::mutex> poll_lock(st->poll_mu);
   std::lock_guard<std::mutex> lock(st->mu);
   st->retired = true;
   g_unresolved.fetch_add(st->pending.size(), std::memory_order_relaxed);
@@ -390,6 +477,29 @@ void gputimer_fill(Snapshot& s) {
   }
   s.unresolved_events = g_unresolved.load(std::memory_order_relaxed);
   s.gpu_untimed = g_untimed.load(std::memory_order_relaxed);
+}
+
+void gputimer_before_fork() {
+  g_states_mu.lock();
+  g_spans_mu.lock();
+}
+
+void gputimer_after_fork_parent() {
+  g_spans_mu.unlock();
+  g_states_mu.unlock();
+}
+
+void gputimer_after_fork_child() {
+  // The parent's contexts are not usable in the child (CUDA does not survive
+  // fork) and its spans are the parent's to report. The old containers and
+  // CtxStates are leaked: another thread may have been mid-update.
+  states_slot() = new std::unordered_map<uint64_t, CtxState*>();
+  spans_slot() = new std::vector<GpuSpan>();
+  g_generation.fetch_add(1, std::memory_order_relaxed);  // invalidates this thread's cached state
+  g_unresolved.store(0, std::memory_order_relaxed);
+  g_untimed.store(0, std::memory_order_relaxed);
+  g_spans_mu.unlock();
+  g_states_mu.unlock();
 }
 
 }  // namespace cuscope

@@ -54,6 +54,19 @@ set_target_properties(direct_mimic PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${MOCK_DIR}
   SKIP_BUILD_RPATH TRUE)
 
+# Programs that use dlsym's caller-dependent handles (RTLD_NEXT, RTLD_DEFAULT
+# from an RTLD_LOCAL plugin): cuscope's override must keep them working.
+add_library(rtld_wrap SHARED rtld_wrap.c)
+target_link_libraries(rtld_wrap PRIVATE dl)
+add_library(rtld_dep SHARED rtld_dep.c)
+add_library(rtld_plugin SHARED rtld_plugin.c)
+target_link_libraries(rtld_plugin PRIVATE rtld_dep dl)
+add_executable(rtld_app rtld_app.c)
+target_link_libraries(rtld_app PRIVATE rtld_wrap dl)
+target_compile_definitions(rtld_app PRIVATE RTLD_PLUGIN_PATH="$<TARGET_FILE:rtld_plugin>")
+add_dependencies(rtld_app rtld_plugin)
+set_target_properties(rtld_app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${MOCK_DIR})
+
 add_test(NAME mock_suite
   COMMAND python3 -m pytest -p no:cacheprovider -q ${CMAKE_CURRENT_SOURCE_DIR})
 set_tests_properties(mock_suite PROPERTIES

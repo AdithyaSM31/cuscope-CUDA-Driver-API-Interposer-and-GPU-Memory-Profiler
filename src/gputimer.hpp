@@ -58,4 +58,10 @@ void gputimer_finish();
 // Resolved spans, unresolved_events and gpu_untimed.
 void gputimer_fill(Snapshot& s);
 
+// fork(): take the timer's locks before, release them after; the child starts
+// with no contexts, spans or counts of its own.
+void gputimer_before_fork();
+void gputimer_after_fork_parent();
+void gputimer_after_fork_child();
+
 }  // namespace cuscope

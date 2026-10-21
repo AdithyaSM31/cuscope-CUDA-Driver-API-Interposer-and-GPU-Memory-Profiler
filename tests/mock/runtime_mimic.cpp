@@ -115,6 +115,11 @@ void run(const char* scenario) {
   } else if (std::strcmp(scenario, "launch") == 0) {
     launch(nullptr);
     CHECK(get<decltype(&cuStreamSynchronize)>("cuStreamSynchronize")(nullptr));
+  } else if (std::strcmp(scenario, "launch200") == 0) {
+    // A deep queue: 200 launches on one stream, then 50 ms of host work while
+    // cuscope's collector polls.
+    for (int i = 0; i < 200; ++i) launch(nullptr);
+    usleep(50 * 1000);
   } else if (std::strcmp(scenario, "launch8") == 0) {
     for (int i = 0; i < 8; ++i) launch(nullptr);
     CHECK(get<decltype(&cuStreamSynchronize)>("cuStreamSynchronize")(nullptr));
@@ -139,6 +144,8 @@ void run(const char* scenario) {
     CHECK(get<decltype(&cuDevicePrimaryCtxRelease)>("cuDevicePrimaryCtxRelease")(0));
   } else if (std::strcmp(scenario, "fork") == 0) {
     alloc(1 << 20);  // deliberately not freed; the child must not report it
+    launch(nullptr);  // timed; its span must not show up in the child's trace
+    usleep(20 * 1000);
     std::fflush(stdout);
     pid_t child = fork();
     if (child < 0) die("fork", std::strerror(errno));
@@ -147,6 +154,23 @@ void run(const char* scenario) {
       // shows the child's report is its own: one allocation, freed.
       release(alloc(4096));
       std::exit(0);  // exit handlers run
+    }
+    int status = 0;
+    if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+      die("child", "did not exit cleanly");
+    }
+  } else if (std::strcmp(scenario, "fork_quiet") == 0) {
+    // A child that does no CUDA work of its own but runs the CUDA runtime's
+    // inherited exit cleanup, which releases the primary context.
+    alloc(1 << 20);
+    launch(nullptr);
+    usleep(20 * 1000);
+    std::fflush(stdout);
+    pid_t child = fork();
+    if (child < 0) die("fork", std::strerror(errno));
+    if (child == 0) {
+      get<decltype(&cuDevicePrimaryCtxRelease)>("cuDevicePrimaryCtxRelease")(0);
+      std::exit(0);
     }
     int status = 0;
     if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {

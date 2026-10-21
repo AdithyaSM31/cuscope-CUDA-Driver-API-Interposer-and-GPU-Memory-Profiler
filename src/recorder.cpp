@@ -12,6 +12,7 @@
 
 #include "guard.hpp"
 #include "ring.hpp"
+#include "stats.hpp"
 
 namespace cuscope {
 namespace {
@@ -116,6 +117,7 @@ uint64_t next_corr() { return g_next_corr.fetch_add(1, std::memory_order_relaxed
 void set_collector_poll(void (*poll)()) { g_collector_poll.store(poll, std::memory_order_release); }
 
 void record(Record r) {
+  if (r.type != RecType::ApiCall) stats::work_calls.fetch_add(1, std::memory_order_relaxed);
   ThreadRing* tr = this_thread_ring();
   if (!g_collector_running.load(std::memory_order_acquire)) start_collector();
   r.tid = tr->tid;

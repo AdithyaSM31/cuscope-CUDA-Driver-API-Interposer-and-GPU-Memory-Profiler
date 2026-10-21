@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(cuscope VERSION 0.1.0 LANGUAGES C CXX)
+project(cuscope VERSION 0.1.0 LANGUAGES C CXX ASM)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -75,6 +75,7 @@ set(CUSCOPE_SOURCES
   src/runtime.cpp
   src/loader.cpp
   src/intercept.cpp
+  src/dlsym_trampoline.S
   src/hook_table.cpp
   src/gputimer.cpp
   src/wrappers/alloc.cpp

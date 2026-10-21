@@ -26,4 +26,9 @@ void alias_kernel_name(uint64_t function, uint64_t kernel);
 // Functions without one keep showing their handle.
 void fill_kernel_names(Snapshot& s);
 
+// fork(): hold the name map's lock across it. The child keeps the map; a
+// handle the parent named names the same function if the child launches it.
+void names_before_fork();
+void names_after_fork();
+
 }  // namespace cuscope

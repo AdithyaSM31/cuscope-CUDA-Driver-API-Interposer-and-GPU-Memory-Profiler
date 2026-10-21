@@ -140,6 +140,39 @@ def test_leaks_at_exit_on_wsl_are_exit_leaks():
     assert not any(l["at_ctx_teardown"] for l in leaks), leaks
 
 
+def test_exit_with_kernel_running_is_bounded():
+    # Review finding I1: an unbounded wait at exit held the process until the
+    # GPU finished (or forever, for a kernel that never does).
+    import time
+    run("exit_busy", cuscope=False)  # warm-up: the first CUDA program after idle starts slowly
+    start = time.monotonic()
+    plain = run("exit_busy", cuscope=False)
+    plain_s = time.monotonic() - start
+    start = time.monotonic()
+    under = run("exit_busy", env={"CUSCOPE_FLUSH_TIMEOUT_MS": "200"})
+    under_s = time.monotonic() - start
+    assert plain.code == under.code == 3
+    assert under_s < plain_s + 0.8, (plain_s, under_s)
+    assert under.trace["cuscope"]["unresolved_events"] == 1
+
+
+def test_fork_child_without_cuda_work_writes_no_trace(tmp_path):
+    # Review finding I2: the child ran the inherited CUDA runtime cleanup and
+    # wrote a trace holding the parent's GPU span.
+    r = run("fork_after_cuda", out=tmp_path / "t-%p.json")
+    assert r.code == 0, r.stderr
+    traces = sorted(p.name for p in tmp_path.glob("t-*.json"))
+    assert len(traces) == 1, traces
+
+
+def test_capture_race_keeps_the_graph():
+    # Review finding C1: the collector's event queries invalidated a global-mode
+    # capture on another stream while timed work was pending.
+    r = run("capture_race")
+    assert r.code == 0 and "end capture cudaSuccess" in r.stdout, r.stdout + r.stderr
+    assert r.trace["cuscope"]["unresolved_events"] == 0
+
+
 def test_graph_capture():
     # Review Focus 2 on real hardware: if cuscope recorded events inside the
     # capture, the graph would have more than 3 nodes and stdout would change.

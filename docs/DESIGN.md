@@ -81,6 +81,17 @@ real `dlsym` (with `dlvsym`, so it never re-enters the override) and loading lib
 lookups resolve through libcuda, and no pointer inside `libcuscope.so` is ever accepted as
 "real".
 
+### The `dlsym` override
+
+`RTLD_NEXT` means "the next object after the caller", and glibc finds the caller from the
+return address of the `dlsym` call. A C++ override that calls the real `dlsym` makes
+`libcuscope.so` the caller, so `RTLD_NEXT` from any library (a malloc or pthread
+interposer, say) searched the wrong objects. The exported `dlsym` is therefore a small
+assembly trampoline (`src/dlsym_trampoline.S`): it asks `cuscope_dlsym_decide` whether to
+answer (a `cuGetProcAddress` name, or a hooked export looked up on libcuda's handle) and
+otherwise restores the arguments and jumps to the real `dlsym` with the caller's return
+address still on the stack.
+
 ## 3. Recording
 
 ```
@@ -107,6 +118,13 @@ wrapper (program thread)                     collector thread (every 2 ms)
   `reference_cpu_ns + cuEventElapsedTime(reference, event)`, where the reference event was
   recorded and waited for when the context was first seen. Calls on a stream being captured
   into a graph are never timed: an event there would become a node in the program's graph.
+  cuscope's own event calls run with the thread in relaxed capture mode: in the default
+  global mode, a query from another thread while one thread captures invalidates the
+  capture (PyTorch's CUDA graphs capture in global mode).
+- **Polling.** The collector takes a context's pending list out under its lock and queries
+  without it, so launches never wait on the driver for cuscope. Work on a stream completes
+  in order, so polling stops at the first unfinished event on each stream: a queue of 200
+  launches costs one query per poll, not 200.
   `CUSCOPE_SAMPLE_EVERY=N` times 1 in N launches; copies are always timed.
 - **Kernel names** are looked up at first launch (`cuFuncGetName`, then `cuKernelGetName`),
   with names from `cuModuleGetFunction` and `cuLibraryGetKernel` as a fallback.
@@ -116,25 +134,31 @@ wrapper (program thread)                     collector thread (every 2 ms)
 - **WSL exit order.** The driver registers its own exit cleanup when CUDA starts; on WSL it
   runs before the CUDA runtime's cleanup and before cuscope's handler, and every call after it
   returns `CUDA_ERROR_DEINITIALIZED`. cuscope therefore registers a second exit handler when
-  it first sees a context (after the driver's), which runs first and resolves every pending
-  event while the driver still answers. Without it, `multistream` lost all four spans.
+  it first sees a context (after the driver's), which runs first and resolves pending
+  events while the driver still answers. Without it, `multistream` lost all four spans.
+- **Bounded waits.** At exit and at context teardown cuscope polls pending events for at
+  most `CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) and counts what is left as unresolved: a
+  kernel that never finishes must not hold the program's exit.
 - **Context teardown.** `cuCtxDestroy`, `cuDevicePrimaryCtxRelease` and `Reset` flush the
   context's pending events before the real call and forget its timing state. When the context
   is really gone (checked with `cuDevicePrimaryCtxGetState` after a release), the memory still
   allocated there becomes leaks marked `at_ctx_teardown`. The primary context's handle is read
   with a Retain and Release only when it is active: Retain on an inactive device would create
   a context.
-- **Fork.** Every cuscope lock is taken before `fork()` and released on both sides; the child
-  starts with empty rings, records, tracker and counters. The collector is a raw `pthread`
-  with signals blocked, so the child never inherits a `std::thread` it cannot join.
-- **Quiet processes.** A process that never made a CUDA call writes no trace and no summary.
+- **Fork.** Every cuscope lock (recorder, stacks, GPU timer, kernel names) is taken before
+  `fork()` and released on both sides; the child starts with empty rings, records, tracker,
+  GPU timing state, spans and counters. The collector is a raw `pthread` with signals
+  blocked, so the child never inherits a `std::thread` it cannot join.
+- **Quiet processes.** A process that did no CUDA work (no allocation, free, copy or
+  launch) writes no trace and no summary. A forked child still runs the exit handlers it
+  inherited, the CUDA runtime's context release among them; that alone does not count.
 
 ## 5. Components
 
 | File | Job |
 |---|---|
 | `src/loader.cpp` | real `dlsym`, libcuda handle, real `cuGetProcAddress`, stage-2 resolution, `driver_proc` |
-| `src/intercept.cpp` | exported `dlsym` and `cuGetProcAddress(_v2)`: caller check, variant matching |
+| `src/intercept.cpp`, `src/dlsym_trampoline.S` | exported `dlsym` and `cuGetProcAddress(_v2)`: caller check, variant matching |
 | `src/hooks.def`, `src/hook_table.cpp` | the hook list (base, exports, version); wrapper and real pointers |
 | `src/wrappers/*.cpp` | alloc, memcpy, launch, teardown and name hooks; path-1 exports |
 | `src/tracker.cpp`, `src/stacks.cpp` | allocations, peaks, leaks, invalid frees; call-site stacks |
@@ -152,7 +176,9 @@ wrapper (program thread)                     collector thread (every 2 ms)
 - **GPU programs** (`tests/cuda`): each runs with and without cuscope, and stdout and exit code
   must match. Known answers: `leak` (two leaks, exact sizes and lines), `double_free`,
   `async_pool` (live bytes 8, 12, 4, 20, 16, 0 MiB), `multistream`, `multithread`, `bandwidth`
-  (pinned faster), `graph_capture` (still 3 nodes), `device_reset` (a teardown leak), and
+  (pinned faster), `graph_capture` (still 3 nodes), `device_reset` (a teardown leak),
+  `capture_race` (a global-mode capture while timed work is pending), `exit_busy` (exit with
+  a kernel running), `fork_after_cuda` (one trace, the parent's), and
   `hello` built static and shared, which must give identical reports.
 - **Driver checks**: `tools/check_exports.py`, and `tools/census.py` for the Day 2 gate.
 - **PyTorch** ([validation.md](validation.md)) and **overhead** ([overhead.md](overhead.md)).

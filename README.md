@@ -31,7 +31,10 @@ python3 cli/cuscope.py summary train.json        # leaks and invalid frees with 
 ```
 
 Options: `--mode alloc` (memory only, no GPU timing), `--sample-every N` (time 1 in N kernel
-launches), `--stack-depth N`, `--log FILE`. The program's stdout and exit code are unchanged.
+launches), `--stack-depth N`, `--log FILE`. The program's stdout and exit code are unchanged;
+`run` becomes the program (like `env`), so Ctrl-C and other signals go to it alone.
+`CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) bounds how long cuscope waits at exit and at
+context teardown for GPU work it is timing.
 
 What `cuscope summary` prints for `tests/cuda/leak.cu` (the summary at exit is the same,
 with `main (leak+0x8a7f)` in place of the source line):
@@ -93,7 +96,8 @@ mode each launch and copy also gets a CUDA event before and after it on its stre
 collector converts them to times on the CPU clock using a reference event recorded when the
 context was first seen. On WSL the driver shuts itself down at exit before the CUDA runtime's
 own cleanup, so cuscope registers an exit handler after the driver's, which runs first and
-collects every pending event while the driver still answers. At exit cuscope writes the
+collects pending events while the driver still answers, waiting at most
+`CUSCOPE_FLUSH_TIMEOUT_MS`. At exit cuscope writes the
 Chrome Trace JSON and prints the summary.
 
 [docs/DESIGN.md](docs/DESIGN.md) has the details, including the bugs these choices fixed.
@@ -150,14 +154,19 @@ microseconds each on WSL; real kernels hide most of it.
 - **Stream-ordered frees** (`cudaFreeAsync`) count as free when called, not when the stream
   reaches them.
 - **Exit.** The trace is written by an exit handler: `_exit`, `abort` and fatal signals leave
-  no trace. Records stay in memory until exit (64 bytes per call). On WSL the driver shuts
+  no trace. Records stay in memory until exit (64 bytes per call). GPU work still running
+  after `CUSCOPE_FLUSH_TIMEOUT_MS` at exit is counted in `unresolved_events`, not timed.
+  On WSL the driver shuts
   itself down before the CUDA runtime releases its context, so memory the program never freed
   is reported as leaked at exit; leaks at an explicit `cudaDeviceReset` are reported as freed
   at context teardown.
 - **Caller check.** cuscope tells libcuda's own `dlsym` calls apart by the caller's return
-  address; a library that tail-calls `dlsym` would be attributed to its caller.
-- **Processes that never call CUDA** (shells, compilers, worker processes that inherit
-  `LD_PRELOAD`) write no trace and no summary.
+  address; a library that tail-calls `dlsym` would be attributed to its caller. Every lookup
+  cuscope does not answer itself is a tail jump to the real `dlsym`, so `RTLD_NEXT` and
+  `RTLD_DEFAULT` behave as they would without cuscope.
+- **Processes that do no CUDA work** (shells, compilers, worker processes that inherit
+  `LD_PRELOAD`, a forked child whose only CUDA calls are the runtime's inherited exit
+  cleanup) write no trace and no summary. Work means an allocation, free, copy or launch.
 - **Sanitizers.** The ASan and TSan CI jobs run the unit tests only: a sanitizer runtime calls
   `dlsym` while initialising, which reaches cuscope's instrumented override too early.
 

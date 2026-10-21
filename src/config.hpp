@@ -17,6 +17,7 @@ struct Config {
   Mode mode = Mode::Full;               // CUSCOPE_MODE: alloc | full
   int stack_depth = 16;                 // CUSCOPE_STACK_DEPTH, clamped to 1..64
   uint32_t sample_every = 1;            // CUSCOPE_SAMPLE_EVERY, >= 1
+  uint32_t flush_timeout_ms = 2000;     // CUSCOPE_FLUSH_TIMEOUT_MS, >= 0
 
   // One message per variable that was invalid and fell back to its default.
   std::vector<std::string> warnings;

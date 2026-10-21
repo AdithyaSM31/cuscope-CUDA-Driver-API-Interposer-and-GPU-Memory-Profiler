@@ -62,14 +62,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         if value is not None:
             env[var] = str(value)
 
+    # Become the command, like `env` does: its exit code and signals are its
+    # own, and Ctrl-C reaches it alone, so it can shut down (and cuscope can
+    # write its report) at its own pace.
+    sys.stdout.flush()
+    sys.stderr.flush()
     try:
-        proc = subprocess.run(command, env=env)
+        os.execvpe(command[0], command, env)
     except FileNotFoundError:
         return fail(f"command not found: {command[0]}", 127)
-    except KeyboardInterrupt:
-        return 130
-    # Like a shell: a command killed by a signal exits with 128 + signal.
-    return proc.returncode if proc.returncode >= 0 else 128 - proc.returncode
+    except PermissionError:
+        return fail(f"command not executable: {command[0]}", 126)
 
 
 # ---- summary ----
