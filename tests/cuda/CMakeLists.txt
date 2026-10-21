@@ -23,6 +23,10 @@ add_executable(multithread multithread.cpp)
 target_compile_options(multithread PRIVATE -g)
 target_link_libraries(multithread PRIVATE CUDA::cudart_static Threads::Threads)
 
+add_test(NAME check_exports
+  COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/check_exports.py ${PROJECT_SOURCE_DIR}/src/hooks.def)
+set_tests_properties(check_exports PROPERTIES LABELS gpu)
+
 add_test(NAME gpu_suite
   COMMAND python3 -m pytest -p no:cacheprovider -q ${PROJECT_SOURCE_DIR}/tests/gpu)
 set_tests_properties(gpu_suite PROPERTIES

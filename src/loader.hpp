@@ -19,11 +19,31 @@ DlsymFn real_dlsym();
 // inside this function's own dlopen, and pthread_once would deadlock.
 void* libcuda_handle();
 
+// True if addr is inside libcuscope.so. A "real" driver function never is;
+// RTLD_DEFAULT lookups would otherwise find cuscope's own exports.
+bool inside_cuscope(const void* addr);
+
 // The real cuGetProcAddress entry points, by signature version:
 // V1 = (symbol, pfn, cudaVersion, flags), V2 adds symbolStatus.
 enum class GpaVer { V1 = 0, V2 = 1 };
 
 void set_real_gpa(GpaVer ver, void* fn);
 void* real_gpa(GpaVer ver);
+
+// real_gpa(ver), or else resolved from libcuda by export name (a program
+// linked with -lcuda calls cuscope's export without any dlsym). Null if
+// libcuda is unavailable.
+void* resolve_real_gpa(GpaVer ver);
+
+// Stage 2, once per process: register the wrappers, then resolve each hook's
+// real function for both stream variants through the real cuGetProcAddress at
+// the hook's version (hooks.def). Missing functions are logged once and their
+// hooks pass through.
+void ensure_loader();
+bool loader_ready();
+
+// Fallback when stage 2 has not resolved a hook: dlsym of the hook's export
+// name on libcuda. Never blocks on the loader. Null if not found.
+void* resolve_by_export(int hook_id, int variant);
 
 }  // namespace cuscope

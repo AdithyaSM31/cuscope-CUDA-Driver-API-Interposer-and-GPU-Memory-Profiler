@@ -44,7 +44,12 @@ set(CUSCOPE_SOURCES
   $<TARGET_OBJECTS:cuscope_core>
   src/runtime.cpp
   src/loader.cpp
-  src/intercept.cpp)
+  src/intercept.cpp
+  src/hook_table.cpp
+  src/wrappers/alloc.cpp
+  src/wrappers/memcpy.cpp
+  src/wrappers/launch.cpp
+  src/wrappers/teardown.cpp)
 add_library(cuscope SHARED ${CUSCOPE_SOURCES})
 target_include_directories(cuscope PRIVATE src include ${CUDA_DRIVER_INCLUDE})
 target_compile_definitions(cuscope PRIVATE CUSCOPE_VERSION="${PROJECT_VERSION}")

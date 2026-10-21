@@ -3,10 +3,9 @@
 // The CUDA runtime loads libcuda with dlopen and fetches cuGetProcAddress with
 // dlsym(handle, ...). A lookup on a specific handle never consults
 // LD_PRELOAD, so cuscope overrides dlsym itself and hands back its own
-// cuGetProcAddress. Every later driver lookup then passes through cuscope.
-//
-// Census stage: lookups are logged and passed through; only cuGetProcAddress
-// itself is wrapped.
+// cuGetProcAddress. Every later driver lookup then passes through cuscope,
+// which swaps in a wrapper when the returned pointer is the exact variant the
+// wrapper was written for (spec §4.3).
 #include <cuda.h>
 #include <dlfcn.h>
 
@@ -14,6 +13,8 @@
 
 #include "census.hpp"
 #include "cuscope/cuscope.h"
+#include "guard.hpp"
+#include "hook_table.hpp"
 #include "loader.hpp"
 #include "stats.hpp"
 
@@ -31,10 +32,6 @@ namespace {
 
 constexpr int kFirstV2GpaVersion = 12000;  // cuGetProcAddress_v2 arrived in CUDA 12.0
 constexpr int kNoStatus = -1;               // census value when the caller gave no status pointer
-
-const char* gpa_export_name(GpaVer ver) {
-  return ver == GpaVer::V1 ? "cuGetProcAddress" : "cuGetProcAddress_v2";
-}
 
 void* gpa_wrapper(GpaVer ver) {
   return ver == GpaVer::V1 ? reinterpret_cast<void*>(&cuscope_gpa_v1)
@@ -69,39 +66,51 @@ bool caller_is_libcuda(const void* return_address, const char** module) {
   return std::strncmp(base, "libcuda", 7) == 0 && (base[7] == '.' || base[7] == '_');
 }
 
-// The real cuGetProcAddress for ver, resolved from libcuda on first use when
-// no dlsym call has supplied it (a program linked with -lcuda calls cuscope's
-// export directly). Never returns cuscope's own wrapper.
-void* resolve_real_gpa(GpaVer ver) {
-  if (void* fn = cuscope::real_gpa(ver)) return fn;
-  void* lib = cuscope::libcuda_handle();
-  cuscope::DlsymFn real = cuscope::real_dlsym();
-  if (lib == nullptr || real == nullptr) return nullptr;
-  void* fn = real(lib, gpa_export_name(ver));
-  if (fn == nullptr || fn == gpa_wrapper(ver)) return nullptr;
-  cuscope::set_real_gpa(ver, fn);
-  return fn;
+// Swaps *pfn for a wrapper when it is exactly the function that wrapper was
+// written for. Any other pointer (an older version with a different
+// signature, an unhooked function) is returned untouched. Returns the census
+// action: "wrap", "mismatch" (hooked base name, different variant) or "pass".
+const char* wrap_if_matching(const char* symbol, void** pfn, int version) {
+  if (std::strcmp(symbol, "cuGetProcAddress") == 0) {
+    // Lookups made through the returned pointer must keep passing through
+    // cuscope, so the lookup function itself is always wrapped.
+    GpaVer ver = version >= kFirstV2GpaVersion ? GpaVer::V2 : GpaVer::V1;
+    if (*pfn == gpa_wrapper(ver)) return "pass";
+    if (cuscope::real_gpa(ver) == nullptr) cuscope::set_real_gpa(ver, *pfn);
+    *pfn = gpa_wrapper(ver);
+    cuscope::stats::gpa_wrapped++;
+    return "wrap";
+  }
+
+  int id = cuscope::find_hook_by_base(symbol);
+  if (id < 0 || !cuscope::loader_ready()) return "pass";
+  auto hook = static_cast<cuscope::HookId>(id);
+  for (int v = cuscope::kLegacy; v <= cuscope::kPerThread; ++v) {
+    void* wrapper = cuscope::hook_wrapper(hook, v);
+    if (wrapper != nullptr && *pfn == cuscope::hook_real(hook, v)) {
+      *pfn = wrapper;
+      cuscope::stats::gpa_wrapped++;
+      return "wrap";
+    }
+  }
+  cuscope::stats::gpa_passthrough++;
+  return "mismatch";
 }
 
-// Shared tail of both cuGetProcAddress wrappers. A request for
-// cuGetProcAddress itself gets cuscope's wrapper, so lookups made through the
-// returned pointer keep passing through cuscope.
+// Shared tail of both cuGetProcAddress wrappers.
 CUresult finish_lookup(const char* symbol, void** pfn, int version, cuuint64_t flags, CUresult result,
                        int status) {
   const char* action = "pass";
-  GpaVer ver;
-  if (result == CUDA_SUCCESS && pfn != nullptr && *pfn != nullptr && symbol != nullptr &&
-      std::strcmp(symbol, "cuGetProcAddress") == 0) {
-    ver = version >= kFirstV2GpaVersion ? GpaVer::V2 : GpaVer::V1;
-    if (*pfn != gpa_wrapper(ver)) {
-      if (cuscope::real_gpa(ver) == nullptr) cuscope::set_real_gpa(ver, *pfn);
-      *pfn = gpa_wrapper(ver);
-      cuscope::stats::gpa_wrapped++;
-      action = "wrap";
-    }
+  if (result == CUDA_SUCCESS && symbol != nullptr && pfn != nullptr && *pfn != nullptr) {
+    action = wrap_if_matching(symbol, pfn, version);
   }
   cuscope::census_gpa(symbol, version, flags, static_cast<int>(result), status, action);
   return result;
+}
+
+// Loads the real driver functions on the first lookup a program makes.
+void prepare_lookup() {
+  if (!cuscope::in_internal()) cuscope::ensure_loader();
 }
 
 }  // namespace
@@ -123,37 +132,50 @@ extern "C" CUSCOPE_API void* dlsym(void* handle, const char* symbol) noexcept {
 
   // glibc declares symbol nonnull, so there is no null check to make here.
   GpaVer ver;
-  if (!is_gpa_name(symbol, &ver)) return real(handle, symbol);
-
-  // Pseudo-handles would find cuscope's own export first, so resolve those
-  // through libcuda. Without libcuda the program would have got nullptr too.
-  void* source = (handle == RTLD_DEFAULT || handle == RTLD_NEXT) ? cuscope::libcuda_handle() : handle;
-  void* found = source ? real(source, symbol) : nullptr;
-  if (found == nullptr || found == gpa_wrapper(ver)) {
-    cuscope::census_dlsym(symbol, caller, "pass");
-    return found;
+  if (is_gpa_name(symbol, &ver)) {
+    // Pseudo-handles would find cuscope's own export first, so resolve those
+    // through libcuda. Without libcuda the program would have got nullptr too.
+    void* source = (handle == RTLD_DEFAULT || handle == RTLD_NEXT) ? cuscope::libcuda_handle() : handle;
+    void* found = source ? real(source, symbol) : nullptr;
+    if (found == nullptr || cuscope::inside_cuscope(found)) {
+      cuscope::census_dlsym(symbol, caller, "pass");
+      return found;
+    }
+    cuscope::set_real_gpa(ver, found);
+    cuscope::stats::dlsym_wrapped++;
+    cuscope::census_dlsym(symbol, caller, "wrap");
+    return gpa_wrapper(ver);
   }
 
-  cuscope::set_real_gpa(ver, found);
+  // A hooked driver export fetched by name gets its wrapper, as it would
+  // through path 1. The wrapper resolves the real function on first call.
+  int variant = 0;
+  int id = cuscope::find_hook_by_export(symbol, &variant);
+  if (id < 0) return real(handle, symbol);
+  void* found = real(handle, symbol);
+  void* wrapper = found ? cuscope::hook_wrapper(static_cast<cuscope::HookId>(id), variant) : nullptr;
+  if (wrapper == nullptr) return found;
   cuscope::stats::dlsym_wrapped++;
   cuscope::census_dlsym(symbol, caller, "wrap");
-  return gpa_wrapper(ver);
+  return wrapper;
 }
 
 // Path 3. cuda.h turns this name into cuGetProcAddress_v2.
 extern "C" CUSCOPE_API CUresult CUDAAPI cuGetProcAddress(const char* symbol, void** pfn, int version,
                                                          cuuint64_t flags,
                                                          CUdriverProcAddressQueryResult* status) {
-  auto real = reinterpret_cast<GpaV2Fn>(resolve_real_gpa(GpaVer::V2));
+  auto real = reinterpret_cast<GpaV2Fn>(cuscope::resolve_real_gpa(GpaVer::V2));
   if (real == nullptr) return CUDA_ERROR_NOT_INITIALIZED;
+  prepare_lookup();
   CUresult result = real(symbol, pfn, version, flags, status);
   return finish_lookup(symbol, pfn, version, flags, result,
                        status ? static_cast<int>(*status) : kNoStatus);
 }
 
 CUresult cuscope_gpa_v1(const char* symbol, void** pfn, int version, cuuint64_t flags) {
-  auto real = reinterpret_cast<GpaV1Fn>(resolve_real_gpa(GpaVer::V1));
+  auto real = reinterpret_cast<GpaV1Fn>(cuscope::resolve_real_gpa(GpaVer::V1));
   if (real == nullptr) return CUDA_ERROR_NOT_INITIALIZED;
+  prepare_lookup();
   CUresult result = real(symbol, pfn, version, flags);
   return finish_lookup(symbol, pfn, version, flags, result, kNoStatus);
 }

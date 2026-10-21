@@ -66,6 +66,53 @@ def test_census_records_gpa(mimic):
     assert any(row[:3] == ["gpa", "cuMemAlloc", "13000"] for row in r.census), r.census
 
 
+# ---- Task 6: loader, hook table, variant-matched wrappers ----
+
+@pytest.mark.parametrize("mode", MODES)
+def test_gpa_wraps_matching_variant(mimic, mode):
+    r = mimic("dlsym_gpa", mode)
+    assert r.code == 0, r.stderr
+    assert r.stats["gpa_wrapped"] >= 2 and r.stats["hooked_calls"] >= 2  # cuMemAlloc, cuMemFree
+    assert r.mock["alloc_v2"] == 1 and r.mock["free_"] == 1
+
+
+def test_ptsz_forwards_to_ptsz(mimic):
+    # Each wrapper forwards to the variant the program asked for.
+    r = mimic("ptsz", "shim")
+    assert r.code == 0, r.stderr
+    assert r.mock["memcpy_async_ptsz"] == 1 and r.mock["launch_ptsz"] == 1
+    assert r.mock["memcpy_async"] == 0 and r.mock["launch"] == 0
+
+
+def test_old_version_passthrough(mimic):
+    # cuMemAlloc at version 3000 is the 32-bit v1 function: wrapping it with the
+    # v2 signature would corrupt arguments, so it must come back untouched.
+    r = mimic("old_version", "shim")
+    assert r.code == 0, r.stderr
+    assert r.stats["gpa_passthrough"] >= 1 and r.mock["alloc_v1"] == 1
+    assert r.stats["hooked_calls"] == 0
+
+
+def test_gpa_self_lookup(mimic):
+    r = mimic("gpa_self", "shim")
+    assert r.code == 0, r.stderr
+    assert r.stats["hooked_calls"] >= 1
+
+
+def test_direct_exports(direct_mimic):
+    r = direct_mimic()
+    assert r.code == 0, r.stderr
+    assert r.stats["direct_calls"] >= 2  # cuMemAlloc_v2, cuMemFree_v2 by symbol name
+    assert r.mock["alloc_v2"] == 1 and r.mock["free_"] == 1
+
+
+def test_real_gpa_is_never_own_wrapper(mimic):
+    # Review Focus 1: RTLD_DEFAULT finds cuscope's own export first.
+    r = mimic("dlsym_default", "direct")
+    assert r.code == 0, r.stderr
+    assert r.stats["hooked_calls"] >= 2
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     for scenario in ["dlsym_gpa", "ptsz", "old_version", "gpa_self", "fork"]:
         for mode in ["direct", "shim"]:

@@ -3,6 +3,10 @@ set(MOCK_DIR ${CMAKE_BINARY_DIR}/mock)
 # The mock driver: build/mock/driver/libcuda.so.1.1, SONAME libcuda.so.1.
 add_library(mock_driver SHARED mock_driver.cpp)
 target_include_directories(mock_driver PRIVATE ${CUDA_DRIVER_INCLUDE})
+# Like the real driver, bind the mock's references to its own functions inside
+# the library. Without this, cuGetProcAddress would return cuscope's preloaded
+# exports of the same names instead of the mock's functions.
+target_link_options(mock_driver PRIVATE -Wl,-Bsymbolic)
 set_target_properties(mock_driver PROPERTIES
   OUTPUT_NAME cuda VERSION 1.1 SOVERSION 1
   LIBRARY_OUTPUT_DIRECTORY ${MOCK_DIR}/driver)

@@ -1,0 +1,52 @@
+// The hook table: every driver function cuscope wraps.
+//
+// HOOK(base, legacy_export, per_thread_export, version)
+//   base               name the runtime passes to cuGetProcAddress; its cuda.h
+//                      prototype is the wrapper's signature
+//   legacy_export      exported symbol of the legacy-stream variant
+//   per_thread_export  exported symbol of the per-thread-default-stream variant,
+//                      or nullptr if there is none (synchronous copies use _ptds,
+//                      stream-ordered calls _ptsz)
+//   version            cudaVersion at which cuGetProcAddress returns the function
+//                      with that prototype; CUDA_VERSION unless the driver has a
+//                      newer variant with a different signature (census finding 5)
+//
+// tools/check_exports.py proves every line against the installed driver.
+// Adding a hook: one line here, plus a wrapper and CS_REGISTER in src/wrappers/.
+
+// Allocation (wrappers/alloc.cpp)
+HOOK(cuMemAlloc,              "cuMemAlloc_v2",              nullptr,                         CUDA_VERSION)
+HOOK(cuMemAllocPitch,         "cuMemAllocPitch_v2",         nullptr,                         CUDA_VERSION)
+HOOK(cuMemFree,               "cuMemFree_v2",               nullptr,                         CUDA_VERSION)
+HOOK(cuMemAllocAsync,         "cuMemAllocAsync",            "cuMemAllocAsync_ptsz",          CUDA_VERSION)
+HOOK(cuMemAllocFromPoolAsync, "cuMemAllocFromPoolAsync",    "cuMemAllocFromPoolAsync_ptsz",  CUDA_VERSION)
+HOOK(cuMemFreeAsync,          "cuMemFreeAsync",             "cuMemFreeAsync_ptsz",           CUDA_VERSION)
+HOOK(cuMemAllocManaged,       "cuMemAllocManaged",          nullptr,                         CUDA_VERSION)
+HOOK(cuMemAllocHost,          "cuMemAllocHost_v2",          nullptr,                         CUDA_VERSION)
+HOOK(cuMemHostAlloc,          "cuMemHostAlloc",             nullptr,                         CUDA_VERSION)
+HOOK(cuMemFreeHost,           "cuMemFreeHost",              nullptr,                         CUDA_VERSION)
+
+// Copies (wrappers/memcpy.cpp)
+HOOK(cuMemcpy,                "cuMemcpy",                   "cuMemcpy_ptds",                 CUDA_VERSION)
+HOOK(cuMemcpyAsync,           "cuMemcpyAsync",              "cuMemcpyAsync_ptsz",            CUDA_VERSION)
+HOOK(cuMemcpyHtoD,            "cuMemcpyHtoD_v2",            "cuMemcpyHtoD_v2_ptds",          CUDA_VERSION)
+HOOK(cuMemcpyDtoH,            "cuMemcpyDtoH_v2",            "cuMemcpyDtoH_v2_ptds",          CUDA_VERSION)
+HOOK(cuMemcpyDtoD,            "cuMemcpyDtoD_v2",            "cuMemcpyDtoD_v2_ptds",          CUDA_VERSION)
+HOOK(cuMemcpyHtoDAsync,       "cuMemcpyHtoDAsync_v2",       "cuMemcpyHtoDAsync_v2_ptsz",     CUDA_VERSION)
+HOOK(cuMemcpyDtoHAsync,       "cuMemcpyDtoHAsync_v2",       "cuMemcpyDtoHAsync_v2_ptsz",     CUDA_VERSION)
+HOOK(cuMemcpyDtoDAsync,       "cuMemcpyDtoDAsync_v2",       "cuMemcpyDtoDAsync_v2_ptsz",     CUDA_VERSION)
+
+// Launches (wrappers/launch.cpp)
+HOOK(cuLaunchKernel,          "cuLaunchKernel",             "cuLaunchKernel_ptsz",           CUDA_VERSION)
+HOOK(cuLaunchKernelEx,        "cuLaunchKernelEx",           "cuLaunchKernelEx_ptsz",         CUDA_VERSION)
+HOOK(cuGraphLaunch,           "cuGraphLaunch",              "cuGraphLaunch_ptsz",            CUDA_VERSION)
+
+// Synchronisation and teardown (wrappers/teardown.cpp)
+HOOK(cuStreamSynchronize,       "cuStreamSynchronize",          "cuStreamSynchronize_ptsz",  CUDA_VERSION)
+HOOK(cuCtxSynchronize,          "cuCtxSynchronize",             nullptr,                     2000)
+HOOK(cuCtxDestroy,              "cuCtxDestroy_v2",              nullptr,                     CUDA_VERSION)
+// The CUDA runtime releases and resets its primary context through the v1
+// functions (it asks at version 7000). They have the _v2 prototype, so the
+// wrapper fits, but only a hook resolved at 7000 sees the runtime's calls.
+HOOK(cuDevicePrimaryCtxRelease, "cuDevicePrimaryCtxRelease",    nullptr,                     7000)
+HOOK(cuDevicePrimaryCtxReset,   "cuDevicePrimaryCtxReset",      nullptr,                     7000)
