@@ -84,6 +84,29 @@ def test_flow_arrows_for_every_timed_launch():
     assert sorted(starts) == sorted(finishes) == sorted(spans)
 
 
+def copy_stats(trace: dict) -> dict:
+    return {(c["dir"], c["pinned"]): c for c in trace["cuscope"]["copies"]}
+
+
+def test_hello_copies():
+    stats = copy_stats(trace_of("hello_static"))
+    assert {k: (v["count"], v["bytes"]) for k, v in stats.items()} == {
+        ("HtoD", False): (2, 2 * 4 * MiB), ("DtoH", False): (1, 4 * MiB)}
+
+
+def test_bandwidth_pinned_faster():
+    trace = trace_of("bandwidth")
+    stats = copy_stats(trace)
+    for direction in ("HtoD", "DtoH"):
+        pageable, pinned = stats[(direction, False)], stats[(direction, True)]
+        assert pageable["count"] == pinned["count"] == 5
+        assert pageable["bytes"] == pinned["bytes"] == 5 * 64 * MiB
+        assert pinned["gbps"] > pageable["gbps"] > 0, (direction, pinned["gbps"], pageable["gbps"])
+    copy_spans = [s for s in gpu_spans(trace) if "B" in s["name"].split()[-1:]]
+    assert len(copy_spans) == 20
+    assert trace["cuscope"]["unresolved_events"] == 0
+
+
 def test_alloc_mode_skips_gpu_timing():
     trace = trace_of("multistream", mode="alloc")
     assert gpu_spans(trace) == []

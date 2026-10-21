@@ -215,6 +215,28 @@ def test_flow_arrow_links_launch_to_span(mimic):
     assert flows[0]["id"] == flows[1]["id"] == gpu_spans(r.trace)[0]["args"]["corr"]
 
 
+# ---- Task 13: copy tracking ----
+
+def copies(trace: dict) -> list[tuple]:
+    return [(c["dir"], c["pinned"], c["count"], c["bytes"]) for c in trace["cuscope"]["copies"]]
+
+
+def test_copy_direction(mimic):
+    # A synchronous host-to-device copy from a std::vector (pageable memory).
+    r = mimic("copy", "shim")
+    assert r.code == 0, r.stderr
+    assert copies(r.trace) == [("HtoD", False, 1, 4096)]
+    assert [s["name"] for s in gpu_spans(r.trace)] == ["HtoD 4096 B"]
+
+
+def test_generic_copy_direction_from_pointers(mimic):
+    # cuMemcpyAsync says nothing about direction; cuscope asks the driver what
+    # each pointer is. Both are device allocations here.
+    r = mimic("ptsz", "shim")
+    assert r.code == 0, r.stderr
+    assert copies(r.trace) == [("DtoD", False, 1, 16)]
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     # Every call the program made reaches the driver unchanged. Event calls are
     # left out: from Task 10 on, cuscope records its own timing events.
