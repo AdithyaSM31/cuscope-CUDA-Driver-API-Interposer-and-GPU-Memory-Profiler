@@ -100,7 +100,7 @@ Consequence: cuscope's exported `dlsym` override **also receives the shim's own 
 
 The original doc keys by name, version and flags. Under WSL the shim returns real-driver pointers from `cuGetProcAddress`, not the shim's own export addresses, so variants can't be identified by comparing against `dlsym` results. The rule:
 
-- At init, for each hook and each flags value (`CU_GET_PROC_ADDRESS_DEFAULT`, `..._LEGACY_STREAM`, `..._PER_THREAD_DEFAULT_STREAM`), the loader calls the real `cuGetProcAddress(base, &p, 13000, flags)` and stores `p` as the expected real pointer for `(base, flags)`.
+- At init, for each hook and each stream variant (`CU_GET_PROC_ADDRESS_LEGACY_STREAM`, `..._PER_THREAD_DEFAULT_STREAM`), the loader calls the real `cuGetProcAddress(base, &p, hook_version, flags)` and stores `p` as the expected real pointer. `hook_version` is the version whose signature matches the base name's declaration in `cuda.h`. It is `CUDA_VERSION` (13000) unless `hooks.def` says otherwise. The Day 2 census found one exception: `cuCtxSynchronize` at 13000 returns `cuCtxSynchronize_v2(CUcontext)`, while `cuda.h` declares `cuCtxSynchronize(void)`, so it resolves at 2000. A GPU test checks every hook against the real driver.
 - At lookup time, if the real call returns exactly that pointer, the request is for the variant the wrapper's signature matches. Return the wrapper, which forwards to `p`.
 - If it returns a different pointer (for example an older version was requested), return the real pointer untouched. A wrapper with the wrong signature would corrupt arguments.
 - The Day 2 census confirms this rule against real traffic before Day 3 builds on it.
@@ -133,7 +133,17 @@ On first use (guarded by `pthread_once`): find the real `dlsym` via `dlvsym(RTLD
 - **Copies:** `cuMemcpy`, `cuMemcpyAsync`, `cuMemcpyHtoD`, `cuMemcpyDtoH`, `cuMemcpyDtoD` and their `Async` variants
 - **Launches:** `cuLaunchKernel`, `cuLaunchKernelEx`, `cuGraphLaunch`
 - **Sync and teardown:** `cuStreamSynchronize`, `cuCtxSynchronize`, `cuCtxDestroy`, `cuDevicePrimaryCtxRelease`, `cuDevicePrimaryCtxReset`
-- **Kernel names:** `cuFuncGetName`, with a fallback map from hooking `cuModuleGetFunction` and `cuLibraryGetKernel`
+- **Kernel names:** `cuFuncGetName`, with a fallback map from hooking `cuModuleGetFunction`, `cuLibraryGetKernel` and `cuKernelGetFunction`
+
+**Census result (2026-10-21, `docs/census/SUMMARY.md`):** the list above is final for Phase 1. `cuMemAllocHost` and `cuCtxDestroy` are never requested by the CUDA runtime, but they stay hooked for programs that call the driver API directly. The runtime also requests these, which are **not hooked in Phase 1** and are documented as limitations:
+- memsets (`cuMemsetD8/D32/D2D8` and their `Async` variants): not timed;
+- 2D/3D/peer/batched copies (`cuMemcpy2D/3D/Peer`, `cuMemcpy(3D)BatchAsync`): not tracked;
+- `cuLaunchCooperativeKernel` and `cuLaunchHostFunc`: not timed;
+- `cuMemHostRegister`: registered pinned memory, not an allocation;
+- `cuMemPool*`: pool reservations are invisible;
+- VMM (`cuMemCreate`/`cuMemMap`): already a non-goal.
+
+They are revisited only if the PyTorch cross-check shows a gap they would explain.
 
 ## 6. Data flow
 

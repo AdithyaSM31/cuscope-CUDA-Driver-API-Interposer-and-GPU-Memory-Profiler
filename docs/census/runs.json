@@ -1,0 +1,20 @@
+{
+  "static": {
+    "argv": "hello_static",
+    "rc_without": 0,
+    "rc_with": 0,
+    "stdout_identical": true
+  },
+  "shared": {
+    "argv": "hello_shared",
+    "rc_without": 0,
+    "rc_with": 0,
+    "stdout_identical": true
+  },
+  "pytorch": {
+    "argv": "import torch; x=torch.randn(1024,1024,device='cuda'); y=x@x; torch.cuda.synchronize(); print(y.sum().item()!=0)",
+    "rc_without": 0,
+    "rc_with": 0,
+    "stdout_identical": true
+  }
+}

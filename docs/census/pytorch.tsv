@@ -1,0 +1,2100 @@
+dlsym	cuGetProcAddress_v2	libcudart.so.13	wrap
+dlsym	D3DKMTEnumAdapters2	libcuda.so.1	caller-libcuda
+dlsym	D3DKMTEnumAdapters3	libcuda.so.1	caller-libcuda
+dlsym	D3DKMTQueryAdapterInfo	libcuda.so.1	caller-libcuda
+dlsym	cuInit	libcuda.so.1	caller-libcuda
+dlsym	cuDriverGetVersion	libcuda.so.1	caller-libcuda
+dlsym	cuGetExportTable	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuGetProcAddress	libcuda.so.1	caller-libcuda
+dlsym	cuGetProcAddress_v2	libcuda.so.1	caller-libcuda
+dlsym	cudbgGetAPI	libcuda.so.1	caller-libcuda
+dlsym	cudbgGetAPIVersion	libcuda.so.1	caller-libcuda
+dlsym	cudbgMain	libcuda.so.1	caller-libcuda
+dlsym	cudbgApiInit	libcuda.so.1	caller-libcuda
+dlsym	cudbgApiAttach	libcuda.so.1	caller-libcuda
+dlsym	cudbgApiDetach	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGet	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetCount	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetName	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetUuid	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetUuid_v2	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetLuid	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceComputeCapability	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceTotalMem	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceTotalMem_v2	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetProperties	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetHostAtomicCapabilities	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetTexture1DLinearMaxWidth	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxRetain	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxRelease	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxRelease_v2	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxSetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxSetFlags_v2	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxGetState	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxReset	libcuda.so.1	caller-libcuda
+dlsym	cuDevicePrimaryCtxReset_v2	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetExecAffinitySupport	libcuda.so.1	caller-libcuda
+dlsym	cuCtxCreate	libcuda.so.1	caller-libcuda
+dlsym	cuCtxCreate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuCtxCreate_v3	libcuda.so.1	caller-libcuda
+dlsym	cuCtxCreate_v4	libcuda.so.1	caller-libcuda
+dlsym	cuCtxAttach	libcuda.so.1	caller-libcuda
+dlsym	cuCtxDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuCtxDestroy_v2	libcuda.so.1	caller-libcuda
+dlsym	cuCtxDetach	libcuda.so.1	caller-libcuda
+dlsym	cuCtxSynchronize	libcuda.so.1	caller-libcuda
+dlsym	cuCtxPushCurrent	libcuda.so.1	caller-libcuda
+dlsym	cuCtxPushCurrent_v2	libcuda.so.1	caller-libcuda
+dlsym	cuCtxPopCurrent	libcuda.so.1	caller-libcuda
+dlsym	cuCtxPopCurrent_v2	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetDevice	libcuda.so.1	caller-libcuda
+dlsym	cuCtxSetCurrent	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetCurrent	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuCtxSetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetExecAffinity	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetId	libcuda.so.1	caller-libcuda
+dlsym	cuArrayCreate	libcuda.so.1	caller-libcuda
+dlsym	cuArrayCreate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuArrayGetDescriptor	libcuda.so.1	caller-libcuda
+dlsym	cuArrayGetDescriptor_v2	libcuda.so.1	caller-libcuda
+dlsym	cuArray3DCreate	libcuda.so.1	caller-libcuda
+dlsym	cuArray3DCreate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuArray3DGetDescriptor	libcuda.so.1	caller-libcuda
+dlsym	cuArray3DGetDescriptor_v2	libcuda.so.1	caller-libcuda
+dlsym	cuArrayGetSparseProperties	libcuda.so.1	caller-libcuda
+dlsym	cuArrayGetPlane	libcuda.so.1	caller-libcuda
+dlsym	cuArrayDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuMipmappedArrayCreate	libcuda.so.1	caller-libcuda
+dlsym	cuMipmappedArrayGetLevel	libcuda.so.1	caller-libcuda
+dlsym	cuMipmappedArrayGetSparseProperties	libcuda.so.1	caller-libcuda
+dlsym	cuMipmappedArrayDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuArrayGetMemoryRequirements	libcuda.so.1	caller-libcuda
+dlsym	cuMipmappedArrayGetMemoryRequirements	libcuda.so.1	caller-libcuda
+dlsym	cuMemAlloc	libcuda.so.1	caller-libcuda
+dlsym	cuMemAlloc_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocPitch	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocPitch_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocManaged	libcuda.so.1	caller-libcuda
+dlsym	cuMemFree	libcuda.so.1	caller-libcuda
+dlsym	cuMemFree_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetInfo	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetInfo_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetAddressRange	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetAddressRange_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetAttribute_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemPrefetchAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemPrefetchAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemAdvise_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemPrefetchAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemPrefetchAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemAdvise	libcuda.so.1	caller-libcuda
+dlsym	cuMemRangeGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuMemRangeGetAttributes	libcuda.so.1	caller-libcuda
+dlsym	cuPointerGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuPointerSetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuPointerGetAttributes	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocHost	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocHost_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemFreeHost	libcuda.so.1	caller-libcuda
+dlsym	cuMemHostAlloc	libcuda.so.1	caller-libcuda
+dlsym	cuMemHostGetDevicePointer	libcuda.so.1	caller-libcuda
+dlsym	cuMemHostGetDevicePointer_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemHostGetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuMemHostRegister	libcuda.so.1	caller-libcuda
+dlsym	cuMemHostRegister_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemHostUnregister	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoA	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoA_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoA_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoD	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoD_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoD_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoH	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoH_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoH_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoA	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoA_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoA_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoH	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoH_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoH_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoD	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoD_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoD_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoA	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoA_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoA_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoD	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoD_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoD_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2D	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2D_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2D_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2DUnaligned	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2DUnaligned_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2DUnaligned_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3D	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3D_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3D_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD8	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD8_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD8_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD16	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD16_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD16_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD32	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD32_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD32_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D8	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D8_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D8_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D16	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D16_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D16_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D32	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D32_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D32_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuFuncSetBlockShape	libcuda.so.1	caller-libcuda
+dlsym	cuFuncSetSharedSize	libcuda.so.1	caller-libcuda
+dlsym	cuFuncGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuFuncSetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuFuncSetCacheConfig	libcuda.so.1	caller-libcuda
+dlsym	cuFuncSetSharedMemConfig	libcuda.so.1	caller-libcuda
+dlsym	cuFuncGetModule	libcuda.so.1	caller-libcuda
+dlsym	cuFuncGetName	libcuda.so.1	caller-libcuda
+dlsym	cuFuncGetParamInfo	libcuda.so.1	caller-libcuda
+dlsym	cuFuncGetParamCount	libcuda.so.1	caller-libcuda
+dlsym	cuFuncIsLoaded	libcuda.so.1	caller-libcuda
+dlsym	cuFuncLoad	libcuda.so.1	caller-libcuda
+dlsym	cuModuleGetFunctionCount	libcuda.so.1	caller-libcuda
+dlsym	cuModuleEnumerateFunctions	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryGetKernelCount	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryEnumerateKernels	libcuda.so.1	caller-libcuda
+dlsym	cuParamSetSize	libcuda.so.1	caller-libcuda
+dlsym	cuParamSeti	libcuda.so.1	caller-libcuda
+dlsym	cuParamSetf	libcuda.so.1	caller-libcuda
+dlsym	cuParamSetv	libcuda.so.1	caller-libcuda
+dlsym	cuParamSetTexRef	libcuda.so.1	caller-libcuda
+dlsym	cuLaunch	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchGrid	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchGridAsync	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchKernel	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchKernel_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchKernelEx	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchKernelEx_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchCooperativeKernel	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchCooperativeKernel_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchCooperativeKernelMultiDevice	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchHostFunc	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchHostFunc_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuModuleLoad	libcuda.so.1	caller-libcuda
+dlsym	cuModuleLoadData	libcuda.so.1	caller-libcuda
+dlsym	cuModuleLoadDataEx	libcuda.so.1	caller-libcuda
+dlsym	cuModuleLoadFatBinary	libcuda.so.1	caller-libcuda
+dlsym	cuModuleUnload	libcuda.so.1	caller-libcuda
+dlsym	cuModuleGetFunction	libcuda.so.1	caller-libcuda
+dlsym	cuModuleGetGlobal	libcuda.so.1	caller-libcuda
+dlsym	cuModuleGetGlobal_v2	libcuda.so.1	caller-libcuda
+dlsym	cuModuleGetTexRef	libcuda.so.1	caller-libcuda
+dlsym	cuLinkCreate	libcuda.so.1	caller-libcuda
+dlsym	cuLinkCreate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuLinkAddData	libcuda.so.1	caller-libcuda
+dlsym	cuLinkAddData_v2	libcuda.so.1	caller-libcuda
+dlsym	cuLinkAddFile	libcuda.so.1	caller-libcuda
+dlsym	cuLinkAddFile_v2	libcuda.so.1	caller-libcuda
+dlsym	cuLinkComplete	libcuda.so.1	caller-libcuda
+dlsym	cuLinkDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuGLInit	libcuda.so.1	caller-libcuda
+dlsym	cuGLCtxCreate	libcuda.so.1	caller-libcuda
+dlsym	cuGLCtxCreate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGLGetDevices	libcuda.so.1	caller-libcuda
+dlsym	cuGLGetDevices_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGLMapBufferObject	libcuda.so.1	caller-libcuda
+dlsym	cuGLMapBufferObject_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGLMapBufferObject_v2_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuGLUnmapBufferObject	libcuda.so.1	caller-libcuda
+dlsym	cuGLRegisterBufferObject	libcuda.so.1	caller-libcuda
+dlsym	cuGLUnregisterBufferObject	libcuda.so.1	caller-libcuda
+dlsym	cuGLMapBufferObjectAsync	libcuda.so.1	caller-libcuda
+dlsym	cuGLMapBufferObjectAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGLMapBufferObjectAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuGLUnmapBufferObjectAsync	libcuda.so.1	caller-libcuda
+dlsym	cuGLSetBufferObjectMapFlags	libcuda.so.1	caller-libcuda
+dlsym	cuVDPAUGetDevice	libcuda.so.1	caller-libcuda
+dlsym	cuVDPAUCtxCreate	libcuda.so.1	caller-libcuda
+dlsym	cuVDPAUCtxCreate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsVDPAURegisterVideoSurface	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsVDPAURegisterOutputSurface	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsUnregisterResource	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsSubResourceGetMappedArray	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsResourceGetMappedMipmappedArray	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsResourceGetMappedPointer	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsResourceGetMappedPointer_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsResourceSetMapFlags	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsResourceSetMapFlags_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsMapResources	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsMapResources_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsUnmapResources	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsUnmapResources_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsGLRegisterBuffer	libcuda.so.1	caller-libcuda
+dlsym	cuGraphicsGLRegisterImage	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefCreate	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetAddress2D	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetAddress2D_v2	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetAddress2D_v3	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetArray	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetMipmappedArray	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetAddress	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetAddress_v2	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetFormat	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetAddressMode	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetFilterMode	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetMipmapFilterMode	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetMipmapLevelBias	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetMipmapLevelClamp	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetMaxAnisotropy	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefSetBorderColor	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetAddress	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetAddress_v2	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetArray	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetMipmappedArray	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetAddressMode	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetFilterMode	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetFormat	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetMipmapFilterMode	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetMipmapLevelBias	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetMipmapLevelClamp	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetMaxAnisotropy	libcuda.so.1	caller-libcuda
+dlsym	cuTexRefGetBorderColor	libcuda.so.1	caller-libcuda
+dlsym	cuModuleGetSurfRef	libcuda.so.1	caller-libcuda
+dlsym	cuSurfRefSetArray	libcuda.so.1	caller-libcuda
+dlsym	cuSurfRefGetArray	libcuda.so.1	caller-libcuda
+dlsym	cuEventCreate	libcuda.so.1	caller-libcuda
+dlsym	cuEventRecord	libcuda.so.1	caller-libcuda
+dlsym	cuEventRecord_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuEventRecordWithFlags	libcuda.so.1	caller-libcuda
+dlsym	cuEventRecordWithFlags_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuEventQuery	libcuda.so.1	caller-libcuda
+dlsym	cuEventSynchronize	libcuda.so.1	caller-libcuda
+dlsym	cuEventElapsedTime	libcuda.so.1	caller-libcuda
+dlsym	cuEventElapsedTime_v2	libcuda.so.1	caller-libcuda
+dlsym	cuEventDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuEventDestroy_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue32	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue32_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue32	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue32_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue64	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue64_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue64	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue64_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBatchMemOp	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBatchMemOp_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue32_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue32_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue32_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue32_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue64_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitValue64_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue64_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWriteValue64_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBatchMemOp_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBatchMemOp_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoDAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoDAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoDAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoDAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoDAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoDAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoHAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoHAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyDtoHAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoAAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoAAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyHtoAAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoHAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoHAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyAtoHAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2DAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2DAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy2DAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD8Async	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD8Async_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD16Async	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD16Async_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD32Async	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD32Async_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D8Async	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D8Async_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D16Async	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D16Async_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D32Async	libcuda.so.1	caller-libcuda
+dlsym	cuMemsetD2D32Async_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamCreate	libcuda.so.1	caller-libcuda
+dlsym	cuStreamCreateWithPriority	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetId	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetId_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetPriority	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetPriority_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetFlags_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCtx	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCtx_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuStreamDestroy_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamQuery	libcuda.so.1	caller-libcuda
+dlsym	cuStreamQuery_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamSynchronize	libcuda.so.1	caller-libcuda
+dlsym	cuStreamSynchronize_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitEvent	libcuda.so.1	caller-libcuda
+dlsym	cuStreamWaitEvent_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCapture	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCapture_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCapture_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCapture_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginRecaptureToGraph	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginRecaptureToGraph_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCaptureToGraph	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCaptureToGraph_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamEndCapture	libcuda.so.1	caller-libcuda
+dlsym	cuStreamEndCapture_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamIsCapturing	libcuda.so.1	caller-libcuda
+dlsym	cuStreamIsCapturing_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCaptureInfo	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCaptureInfo_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCaptureInfo_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCaptureInfo_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCaptureInfo_v3	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCaptureInfo_v3_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamUpdateCaptureDependencies	libcuda.so.1	caller-libcuda
+dlsym	cuStreamUpdateCaptureDependencies_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamUpdateCaptureDependencies_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamUpdateCaptureDependencies_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCaptureToCig	libcuda.so.1	caller-libcuda
+dlsym	cuStreamBeginCaptureToCig_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamEndCaptureToCig	libcuda.so.1	caller-libcuda
+dlsym	cuStreamEndCaptureToCig_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuThreadExchangeStreamCaptureMode	libcuda.so.1	caller-libcuda
+dlsym	cuStreamAddCallback	libcuda.so.1	caller-libcuda
+dlsym	cuStreamAddCallback_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamAttachMemAsync	libcuda.so.1	caller-libcuda
+dlsym	cuStreamAttachMemAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuDriverGetGpuCodeIsaVersion	libcuda.so.1	caller-libcuda
+dlsym	cuCtxSetLimit	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetLimit	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetCacheConfig	libcuda.so.1	caller-libcuda
+dlsym	cuCtxSetCacheConfig	libcuda.so.1	caller-libcuda
+dlsym	cuCtxSetSharedMemConfig	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetSharedMemConfig	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetStreamPriorityRange	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetApiVersion	libcuda.so.1	caller-libcuda
+dlsym	cuProfilerInitialize	libcuda.so.1	caller-libcuda
+dlsym	cuProfilerStart	libcuda.so.1	caller-libcuda
+dlsym	cuProfilerStop	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceCanAccessPeer	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetP2PAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetP2PAtomicCapabilities	libcuda.so.1	caller-libcuda
+dlsym	cuCtxEnablePeerAccess	libcuda.so.1	caller-libcuda
+dlsym	cuCtxDisablePeerAccess	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyPeer	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyPeer_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyPeerAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyPeerAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DPeer	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DPeer_ptds	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DPeerAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DPeerAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetNvSciSyncAttributes	libcuda.so.1	caller-libcuda
+dlsym	cuImportExternalMemory	libcuda.so.1	caller-libcuda
+dlsym	cuExternalMemoryGetMappedBuffer	libcuda.so.1	caller-libcuda
+dlsym	cuExternalMemoryGetMappedMipmappedArray	libcuda.so.1	caller-libcuda
+dlsym	cuDestroyExternalMemory	libcuda.so.1	caller-libcuda
+dlsym	cuImportExternalSemaphore	libcuda.so.1	caller-libcuda
+dlsym	cuSignalExternalSemaphoresAsync	libcuda.so.1	caller-libcuda
+dlsym	cuSignalExternalSemaphoresAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuWaitExternalSemaphoresAsync	libcuda.so.1	caller-libcuda
+dlsym	cuWaitExternalSemaphoresAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuDestroyExternalSemaphore	libcuda.so.1	caller-libcuda
+dlsym	cudbgReportedDriverApiErrorSource	libcuda.so.1	caller-libcuda
+dlsym	cudbgReportedDriverApiErrorNameSize	libcuda.so.1	caller-libcuda
+dlsym	cudbgReportedDriverApiErrorNameAddr	libcuda.so.1	caller-libcuda
+dlsym	cudbgReportedDriverApiErrorStringSize	libcuda.so.1	caller-libcuda
+dlsym	cudbgReportedDriverApiErrorStringAddr	libcuda.so.1	caller-libcuda
+dlsym	cudbgInitiateDebuggerAttachProcedureFd	libcuda.so.1	caller-libcuda
+dlsym	cudbgReportAttachProcedureFinished	libcuda.so.1	caller-libcuda
+dlsym	cudbgPreInit	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetByPCIBusId	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetPCIBusId	libcuda.so.1	caller-libcuda
+dlsym	cuIpcGetEventHandle	libcuda.so.1	caller-libcuda
+dlsym	cuIpcOpenEventHandle	libcuda.so.1	caller-libcuda
+dlsym	cuIpcGetMemHandle	libcuda.so.1	caller-libcuda
+dlsym	cuIpcOpenMemHandle	libcuda.so.1	caller-libcuda
+dlsym	cuIpcOpenMemHandle_v2	libcuda.so.1	caller-libcuda
+dlsym	cuIpcCloseMemHandle	libcuda.so.1	caller-libcuda
+dlsym	cuTexObjectCreate	libcuda.so.1	caller-libcuda
+dlsym	cuTexObjectDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuTexObjectGetResourceDesc	libcuda.so.1	caller-libcuda
+dlsym	cuTexObjectGetResourceViewDesc	libcuda.so.1	caller-libcuda
+dlsym	cuTexObjectGetTextureDesc	libcuda.so.1	caller-libcuda
+dlsym	cuSurfObjectCreate	libcuda.so.1	caller-libcuda
+dlsym	cuSurfObjectDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuSurfObjectGetResourceDesc	libcuda.so.1	caller-libcuda
+dlsym	cuTensorMapEncodeTiled	libcuda.so.1	caller-libcuda
+dlsym	cuTensorMapEncodeIm2col	libcuda.so.1	caller-libcuda
+dlsym	cuTensorMapReplaceAddress	libcuda.so.1	caller-libcuda
+dlsym	cuTensorMapEncodeIm2colWide	libcuda.so.1	caller-libcuda
+dlsym	cuGetErrorString	libcuda.so.1	caller-libcuda
+dlsym	cuGetErrorName	libcuda.so.1	caller-libcuda
+dlsym	cuOccupancyMaxActiveBlocksPerMultiprocessor	libcuda.so.1	caller-libcuda
+dlsym	cuOccupancyMaxPotentialBlockSize	libcuda.so.1	caller-libcuda
+dlsym	cuOccupancyMaxActiveBlocksPerMultiprocessorWithFlags	libcuda.so.1	caller-libcuda
+dlsym	cuOccupancyMaxPotentialBlockSizeWithFlags	libcuda.so.1	caller-libcuda
+dlsym	cuOccupancyAvailableDynamicSMemPerBlock	libcuda.so.1	caller-libcuda
+dlsym	cuOccupancyMaxPotentialClusterSize	libcuda.so.1	caller-libcuda
+dlsym	cuOccupancyMaxActiveClusters	libcuda.so.1	caller-libcuda
+dlsym	cuSubgridWorkerGridCreate	libcuda.so.1	caller-libcuda
+dlsym	cuSubgridWorksetCreate	libcuda.so.1	caller-libcuda
+dlsym	cuSubgridCreate	libcuda.so.1	caller-libcuda
+dlsym	cuGraphCreate	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddKernelNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphKernelNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddKernelNode_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphKernelNodeGetParams_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddMemcpyNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphMemcpyNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddMemsetNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphMemsetNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphMemsetNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetType	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetContainingGraph	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetLocalId	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetToolsId	libcuda.so.1	caller-libcuda
+dlsym	cuGraphGetId	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecGetId	libcuda.so.1	caller-libcuda
+dlsym	cuGraphGetRootNodes	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetDependencies	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetDependencies_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetDependentNodes	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetDependentNodes_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphInstantiate	libcuda.so.1	caller-libcuda
+dlsym	cuGraphInstantiate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphInstantiateWithFlags	libcuda.so.1	caller-libcuda
+dlsym	cuGraphInstantiateWithParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphInstantiateWithParams_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecGetFlags	libcuda.so.1	caller-libcuda
+dlsym	cuGraphUpload	libcuda.so.1	caller-libcuda
+dlsym	cuGraphUpload_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuGraphLaunch	libcuda.so.1	caller-libcuda
+dlsym	cuGraphLaunch_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuGraphDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddDependencies	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddDependencies_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphRemoveDependencies	libcuda.so.1	caller-libcuda
+dlsym	cuGraphRemoveDependencies_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphMemcpyNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphKernelNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphKernelNodeSetParams_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphDestroyNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphClone	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeFindInClone	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddChildGraphNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddEmptyNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphChildGraphNodeGetGraph	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddHostNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphHostNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphHostNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddEventRecordNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphEventRecordNodeGetEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGraphEventRecordNodeSetEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddEventWaitNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphEventWaitNodeGetEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGraphEventWaitNodeSetEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGraphGetNodes	libcuda.so.1	caller-libcuda
+dlsym	cuGraphGetEdges	libcuda.so.1	caller-libcuda
+dlsym	cuGraphGetEdges_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecKernelNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecKernelNodeSetParams_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecUpdate	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecUpdate_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecMemcpyNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecMemsetNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecHostNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecChildGraphNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecEventRecordNodeSetEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecEventWaitNodeSetEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddExternalSemaphoresSignalNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExternalSemaphoresSignalNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExternalSemaphoresSignalNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddExternalSemaphoresWaitNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExternalSemaphoresWaitNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExternalSemaphoresWaitNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecExternalSemaphoresSignalNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecExternalSemaphoresWaitNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphDebugDotPrint	libcuda.so.1	caller-libcuda
+dlsym	cuUserObjectCreate	libcuda.so.1	caller-libcuda
+dlsym	cuUserObjectRetain	libcuda.so.1	caller-libcuda
+dlsym	cuUserObjectRelease	libcuda.so.1	caller-libcuda
+dlsym	cuGraphRetainUserObject	libcuda.so.1	caller-libcuda
+dlsym	cuGraphReleaseUserObject	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddMemAllocNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphMemAllocNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddMemFreeNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphMemFreeNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGraphMemTrim	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetGraphMemAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceSetGraphMemAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeSetEnabled	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetEnabled	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddBatchMemOpNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphBatchMemOpNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphBatchMemOpNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecBatchMemOpNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddNode	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddNode_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphAddNode_v3	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeSetParams_v2	libcuda.so.1	caller-libcuda
+dlsym	cuGraphNodeGetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphExecNodeSetParams	libcuda.so.1	caller-libcuda
+dlsym	cuGraphConditionalHandleCreate	libcuda.so.1	caller-libcuda
+dlsym	cuMemAddressReserve	libcuda.so.1	caller-libcuda
+dlsym	cuMemAddressFree	libcuda.so.1	caller-libcuda
+dlsym	cuMemCreate	libcuda.so.1	caller-libcuda
+dlsym	cuMemRelease	libcuda.so.1	caller-libcuda
+dlsym	cuMemMap	libcuda.so.1	caller-libcuda
+dlsym	cuMemMapArrayAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemMapArrayAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemUnmap	libcuda.so.1	caller-libcuda
+dlsym	cuMemSetAccess	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetAccess	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetAllocationGranularity	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetAllocationPropertiesFromHandle	libcuda.so.1	caller-libcuda
+dlsym	cuMemExportToShareableHandle	libcuda.so.1	caller-libcuda
+dlsym	cuMemImportFromShareableHandle	libcuda.so.1	caller-libcuda
+dlsym	cuMemRetainAllocationHandle	libcuda.so.1	caller-libcuda
+dlsym	cuCtxResetPersistingL2Cache	libcuda.so.1	caller-libcuda
+dlsym	cuGraphKernelNodeCopyAttributes	libcuda.so.1	caller-libcuda
+dlsym	cuGraphKernelNodeGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuGraphKernelNodeSetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuStreamCopyAttributes	libcuda.so.1	caller-libcuda
+dlsym	cuStreamCopyAttributes_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetAttribute_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuStreamSetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuStreamSetAttribute_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemFreeAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemFreeAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolTrimTo	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolSetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolSetAccess	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetDefaultMemPool	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolGetAccess	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolCreate	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceSetMemPool	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetMemPool	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocFromPoolAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemAllocFromPoolAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolExportToShareableHandle	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolImportFromShareableHandle	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolExportPointer	libcuda.so.1	caller-libcuda
+dlsym	cuMemPoolImportPointer	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastCreate	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastAddDevice	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastBindMem	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastBindAddr	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastUnbind	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastGetGranularity	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastBindMem_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMulticastBindAddr_v2	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointIdReserve	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointIdRelease	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointCreate	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointAddDevice	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointBindAddr	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointBindMem	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointUnbind	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointExport	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointImport	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointGetLimits	libcuda.so.1	caller-libcuda
+dlsym	cuLogicalEndpointQuery	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetFabricClusterUuid	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetCliqueCount	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetCliqueInfo	libcuda.so.1	caller-libcuda
+dlsym	cuFlushGPUDirectRDMAWrites	libcuda.so.1	caller-libcuda
+dlsym	cuModuleGetLoadingMode	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetHandleForAddressRange	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryLoadData	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryLoadFromFile	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryUnload	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryGetKernel	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryGetModule	libcuda.so.1	caller-libcuda
+dlsym	cuKernelGetFunction	libcuda.so.1	caller-libcuda
+dlsym	cuKernelGetLibrary	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryGetGlobal	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryGetManaged	libcuda.so.1	caller-libcuda
+dlsym	cuKernelGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuKernelSetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuKernelSetCacheConfig	libcuda.so.1	caller-libcuda
+dlsym	cuKernelGetName	libcuda.so.1	caller-libcuda
+dlsym	cuKernelGetParamInfo	libcuda.so.1	caller-libcuda
+dlsym	cuKernelGetParamCount	libcuda.so.1	caller-libcuda
+dlsym	cuLibraryGetUnifiedFunction	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpGetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpGetAttributeGlobal	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpSetAttribute	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpSetAttributeGlobal	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceRegisterAsyncNotification	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceUnregisterAsyncNotification	libcuda.so.1	caller-libcuda
+dlsym	cuGreenCtxCreate	libcuda.so.1	caller-libcuda
+dlsym	cuGreenCtxDestroy	libcuda.so.1	caller-libcuda
+dlsym	cuDeviceGetDevResource	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetDevResource	libcuda.so.1	caller-libcuda
+dlsym	cuGreenCtxGetDevResource	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetDevResource	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetDevResource_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuDevSmResourceSplitByCount	libcuda.so.1	caller-libcuda
+dlsym	cuDevSmResourceSplit	libcuda.so.1	caller-libcuda
+dlsym	cuDevResourceGenerateDesc	libcuda.so.1	caller-libcuda
+dlsym	cuGreenCtxRecordEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGreenCtxWaitEvent	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetGreenCtx	libcuda.so.1	caller-libcuda
+dlsym	cuCtxFromGreenCtx	libcuda.so.1	caller-libcuda
+dlsym	cuGreenCtxGetId	libcuda.so.1	caller-libcuda
+dlsym	cuCtxRecordEvent	libcuda.so.1	caller-libcuda
+dlsym	cuCtxWaitEvent	libcuda.so.1	caller-libcuda
+dlsym	cuGreenCtxStreamCreate	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCtx_v2	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetCtx_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemBatchDecompressAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemBatchDecompressAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuLogsRegisterCallback	libcuda.so.1	caller-libcuda
+dlsym	cuLogsUnregisterCallback	libcuda.so.1	caller-libcuda
+dlsym	cuLogsCurrent	libcuda.so.1	caller-libcuda
+dlsym	cuLogsDumpToFile	libcuda.so.1	caller-libcuda
+dlsym	cuLogsDumpToMemory	libcuda.so.1	caller-libcuda
+dlsym	cuCheckpointProcessGetRestoreThreadId	libcuda.so.1	caller-libcuda
+dlsym	cuCheckpointProcessGetState	libcuda.so.1	caller-libcuda
+dlsym	cuCheckpointProcessLock	libcuda.so.1	caller-libcuda
+dlsym	cuCheckpointProcessCheckpoint	libcuda.so.1	caller-libcuda
+dlsym	cuCheckpointProcessRestore	libcuda.so.1	caller-libcuda
+dlsym	cuCheckpointProcessUnlock	libcuda.so.1	caller-libcuda
+dlsym	cuCheckpointOperationComplete	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetDevice	libcuda.so.1	caller-libcuda
+dlsym	cuStreamGetDevice_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyBatchAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyBatchAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DBatchAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DBatchAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyBatchAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyBatchAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DBatchAsync_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DBatchAsync_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyWithAttributesAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpyWithAttributesAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DWithAttributesAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemcpy3DWithAttributesAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemPrefetchBatchAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemPrefetchBatchAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemDiscardBatchAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemDiscardBatchAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemDiscardAndPrefetchBatchAsync	libcuda.so.1	caller-libcuda
+dlsym	cuMemDiscardAndPrefetchBatchAsync_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetLocationInfo	libcuda.so.1	caller-libcuda
+dlsym	cuCtxGetDevice_v2	libcuda.so.1	caller-libcuda
+dlsym	cuCtxSynchronize_v2	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetDefaultMemPool	libcuda.so.1	caller-libcuda
+dlsym	cuMemGetMemPool	libcuda.so.1	caller-libcuda
+dlsym	cuMemSetMemPool	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchHostFunc_v2	libcuda.so.1	caller-libcuda
+dlsym	cuLaunchHostFunc_v2_ptsz	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpRegisterStartCallback	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpDeregisterStartCallback	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpRegisterCompleteCallback	libcuda.so.1	caller-libcuda
+dlsym	cuCoredumpDeregisterCompleteCallback	libcuda.so.1	caller-libcuda
+gpa		0	0	0	-1	pass
+gpa	cuInit	2000	0	0	-1	pass
+gpa	cuGetProcAddress	11030	0	0	-1	wrap
+gpa	cuGetProcAddress	12000	0	0	-1	wrap
+gpa	cuDeviceGet	2000	0	0	-1	pass
+gpa	cuDeviceGetCount	2000	0	0	-1	pass
+gpa	cuDeviceGetName	2000	0	0	-1	pass
+gpa	cuDeviceTotalMem	3020	0	0	-1	pass
+gpa	cuDeviceGetAttribute	2000	0	0	-1	pass
+gpa	cuDeviceGetP2PAttribute	8000	0	0	-1	pass
+gpa	cuDeviceGetHostAtomicCapabilities	13000	0	0	-1	pass
+gpa	cuDeviceGetP2PAtomicCapabilities	13000	0	0	-1	pass
+gpa	cuDriverGetVersion	2020	0	0	-1	pass
+gpa	cuDeviceGetByPCIBusId	4010	0	0	-1	pass
+gpa	cuDeviceGetPCIBusId	4010	0	0	-1	pass
+gpa	cuDeviceGetUuid	9020	0	0	-1	pass
+gpa	cuDeviceGetTexture1DLinearMaxWidth	11010	0	0	-1	pass
+gpa	cuDeviceGetDefaultMemPool	11020	0	0	-1	pass
+gpa	cuDeviceSetMemPool	11020	0	0	-1	pass
+gpa	cuDeviceGetMemPool	11020	0	0	-1	pass
+gpa	cuFlushGPUDirectRDMAWrites	11030	0	0	-1	pass
+gpa	cuDevicePrimaryCtxRetain	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxRelease	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxSetFlags	11000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxGetState	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxReset	7000	0	0	-1	pass
+gpa	cuCtxCreate	3020	0	0	-1	pass
+gpa	cuCtxGetFlags	7000	0	0	-1	pass
+gpa	cuCtxSetCurrent	4000	0	0	-1	pass
+gpa	cuCtxGetCurrent	4000	0	0	-1	pass
+gpa	cuCtxDetach	2000	0	0	-1	pass
+gpa	cuCtxGetApiVersion	3020	0	0	-1	pass
+gpa	cuCtxGetDevice	2000	0	0	-1	pass
+gpa	cuCtxGetDevice	13000	0	0	-1	pass
+gpa	cuCtxGetLimit	3010	0	0	-1	pass
+gpa	cuCtxSetLimit	3010	0	0	-1	pass
+gpa	cuCtxGetCacheConfig	3020	0	0	-1	pass
+gpa	cuCtxSetCacheConfig	3020	0	0	-1	pass
+gpa	cuCtxGetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuCtxGetStreamPriorityRange	5050	0	0	-1	pass
+gpa	cuCtxSetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuCtxSynchronize	2000	0	0	-1	pass
+gpa	cuCtxSynchronize	13000	0	0	-1	pass
+gpa	cuCtxResetPersistingL2Cache	11000	0	0	-1	pass
+gpa	cuCtxPopCurrent	4000	0	0	-1	pass
+gpa	cuCtxPushCurrent	4000	0	0	-1	pass
+gpa	cuModuleLoad	2000	0	0	-1	pass
+gpa	cuModuleLoadData	2000	0	0	-1	pass
+gpa	cuModuleLoadFatBinary	2000	0	0	-1	pass
+gpa	cuModuleUnload	2000	0	0	-1	pass
+gpa	cuModuleGetFunction	2000	0	0	-1	pass
+gpa	cuModuleGetGlobal	3020	0	0	-1	pass
+gpa	cuModuleGetTexRef	2000	0	0	-1	pass
+gpa	cuModuleGetSurfRef	3000	0	0	-1	pass
+gpa	cuModuleGetLoadingMode	11070	0	0	-1	pass
+gpa	cuLibraryLoadData	12000	0	0	-1	pass
+gpa	cuLibraryLoadFromFile	12000	0	0	-1	pass
+gpa	cuLibraryUnload	12000	0	0	-1	pass
+gpa	cuLibraryGetKernel	12000	0	0	-1	pass
+gpa	cuLibraryGetModule	12000	0	0	-1	pass
+gpa	cuKernelGetFunction	12000	0	0	-1	pass
+gpa	cuLibraryGetGlobal	12000	0	0	-1	pass
+gpa	cuLibraryGetManaged	12000	0	0	-1	pass
+gpa	cuLibraryGetUnifiedFunction	12000	0	0	-1	pass
+gpa	cuLibraryGetKernelCount	12040	0	0	-1	pass
+gpa	cuLibraryEnumerateKernels	12040	0	0	-1	pass
+gpa	cuKernelGetAttribute	12000	0	0	-1	pass
+gpa	cuKernelSetAttribute	12000	0	0	-1	pass
+gpa	cuKernelSetCacheConfig	12000	0	0	-1	pass
+gpa	cuKernelGetName	12030	0	0	-1	pass
+gpa	cuKernelGetParamInfo	12040	0	0	-1	pass
+gpa	cuLinkCreate	5050	0	0	-1	pass
+gpa	cuLinkAddData	5050	0	0	-1	pass
+gpa	cuLinkAddFile	5050	0	0	-1	pass
+gpa	cuLinkComplete	5050	0	0	-1	pass
+gpa	cuLinkDestroy	5050	0	0	-1	pass
+gpa	cuMemGetInfo	3020	0	0	-1	pass
+gpa	cuMemAllocManaged	6000	0	0	-1	pass
+gpa	cuMemAlloc	3020	0	0	-1	pass
+gpa	cuMemAllocPitch	3020	0	0	-1	pass
+gpa	cuMemFree	3020	0	0	-1	pass
+gpa	cuMemGetAddressRange	3020	0	0	-1	pass
+gpa	cuMemFreeHost	2000	0	0	-1	pass
+gpa	cuMemHostAlloc	2020	0	0	-1	pass
+gpa	cuMemHostGetDevicePointer	3020	0	0	-1	pass
+gpa	cuMemHostGetFlags	2030	0	0	-1	pass
+gpa	cuMemHostRegister	6050	0	0	-1	pass
+gpa	cuMemHostUnregister	4000	0	0	-1	pass
+gpa	cuPointerGetAttribute	4000	0	0	-1	pass
+gpa	cuPointerGetAttributes	7000	0	0	-1	pass
+gpa	cuMemAllocAsync	11020	0	0	-1	pass
+gpa	cuMemAllocAsync	11020	2	0	-1	pass
+gpa	cuMemAllocFromPoolAsync	11020	0	0	-1	pass
+gpa	cuMemAllocFromPoolAsync	11020	2	0	-1	pass
+gpa	cuMemFreeAsync	11020	0	0	-1	pass
+gpa	cuMemFreeAsync	11020	2	0	-1	pass
+gpa	cuMemPoolTrimTo	11020	0	0	-1	pass
+gpa	cuMemPoolSetAttribute	11020	0	0	-1	pass
+gpa	cuMemPoolGetAttribute	11020	0	0	-1	pass
+gpa	cuMemPoolSetAccess	11020	0	0	-1	pass
+gpa	cuMemPoolGetAccess	11020	0	0	-1	pass
+gpa	cuMemPoolCreate	11020	0	0	-1	pass
+gpa	cuMemPoolDestroy	11020	0	0	-1	pass
+gpa	cuMemPoolExportToShareableHandle	11020	0	0	-1	pass
+gpa	cuMemPoolImportFromShareableHandle	11020	0	0	-1	pass
+gpa	cuMemPoolExportPointer	11020	0	0	-1	pass
+gpa	cuMemPoolImportPointer	11020	0	0	-1	pass
+gpa	cuMemGetDefaultMemPool	13000	0	0	-1	pass
+gpa	cuMemGetMemPool	13000	0	0	-1	pass
+gpa	cuMemSetMemPool	13000	0	0	-1	pass
+gpa	cuMemcpy	4000	0	0	-1	pass
+gpa	cuMemcpy	7000	2	0	-1	pass
+gpa	cuMemcpyAsync	4000	0	0	-1	pass
+gpa	cuMemcpyAsync	7000	2	0	-1	pass
+gpa	cuMemcpyPeer	4000	0	0	-1	pass
+gpa	cuMemcpyPeer	7000	2	0	-1	pass
+gpa	cuMemcpyPeerAsync	4000	0	0	-1	pass
+gpa	cuMemcpyPeerAsync	7000	2	0	-1	pass
+gpa	cuMemcpyHtoD	3020	0	0	-1	pass
+gpa	cuMemcpyHtoD	7000	2	0	-1	pass
+gpa	cuMemcpyHtoDAsync	3020	0	0	-1	pass
+gpa	cuMemcpyHtoDAsync	7000	2	0	-1	pass
+gpa	cuMemcpyDtoH	3020	0	0	-1	pass
+gpa	cuMemcpyDtoH	7000	2	0	-1	pass
+gpa	cuMemcpyDtoHAsync	3020	0	0	-1	pass
+gpa	cuMemcpyDtoHAsync	7000	2	0	-1	pass
+gpa	cuMemcpyDtoD	3020	0	0	-1	pass
+gpa	cuMemcpyDtoD	7000	2	0	-1	pass
+gpa	cuMemcpyDtoDAsync	3020	0	0	-1	pass
+gpa	cuMemcpyDtoDAsync	7000	2	0	-1	pass
+gpa	cuMemcpy2DUnaligned	3020	0	0	-1	pass
+gpa	cuMemcpy2DUnaligned	7000	2	0	-1	pass
+gpa	cuMemcpy2DAsync	3020	0	0	-1	pass
+gpa	cuMemcpy2DAsync	7000	2	0	-1	pass
+gpa	cuMemcpy3D	3020	0	0	-1	pass
+gpa	cuMemcpy3D	7000	2	0	-1	pass
+gpa	cuMemcpy3DAsync	3020	0	0	-1	pass
+gpa	cuMemcpy3DAsync	7000	2	0	-1	pass
+gpa	cuMemcpy3DPeer	4000	0	0	-1	pass
+gpa	cuMemcpy3DPeer	7000	2	0	-1	pass
+gpa	cuMemcpy3DPeerAsync	4000	0	0	-1	pass
+gpa	cuMemcpy3DPeerAsync	7000	2	0	-1	pass
+gpa	cuMemcpyBatchAsync	13000	0	0	-1	pass
+gpa	cuMemcpyBatchAsync	13000	2	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	13000	0	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	13000	2	0	-1	pass
+gpa	cuMemcpyBatchAsync	12080	0	0	-1	pass
+gpa	cuMemcpyBatchAsync	12080	2	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	12080	0	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	12080	2	0	-1	pass
+gpa	cuMemsetD8	3020	0	0	-1	pass
+gpa	cuMemsetD8	7000	2	0	-1	pass
+gpa	cuMemsetD8Async	3020	0	0	-1	pass
+gpa	cuMemsetD8Async	7000	2	0	-1	pass
+gpa	cuMemsetD2D8	3020	0	0	-1	pass
+gpa	cuMemsetD2D8	7000	2	0	-1	pass
+gpa	cuMemsetD2D8Async	3020	0	0	-1	pass
+gpa	cuMemsetD2D8Async	7000	2	0	-1	pass
+gpa	cuFuncSetCacheConfig	3000	0	0	-1	pass
+gpa	cuFuncSetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuFuncGetAttribute	2020	0	0	-1	pass
+gpa	cuFuncSetAttribute	9000	0	0	-1	pass
+gpa	cuFuncGetName	12030	0	0	-1	pass
+gpa	cuFuncGetParamInfo	12040	0	0	-1	pass
+gpa	cuArrayCreate	3020	0	0	-1	pass
+gpa	cuArrayGetDescriptor	3020	0	0	-1	pass
+gpa	cuArrayGetSparseProperties	11010	0	0	-1	pass
+gpa	cuArrayGetPlane	11020	0	0	-1	pass
+gpa	cuArray3DCreate	3020	0	0	-1	pass
+gpa	cuArray3DGetDescriptor	3020	0	0	-1	pass
+gpa	cuArrayDestroy	2000	0	0	-1	pass
+gpa	cuMipmappedArrayCreate	5000	0	0	-1	pass
+gpa	cuMipmappedArrayGetLevel	5000	0	0	-1	pass
+gpa	cuMipmappedArrayGetSparseProperties	11010	0	0	-1	pass
+gpa	cuMipmappedArrayDestroy	5000	0	0	-1	pass
+gpa	cuArrayGetMemoryRequirements	11060	0	0	-1	pass
+gpa	cuMipmappedArrayGetMemoryRequirements	11060	0	0	-1	pass
+gpa	cuTexObjectCreate	5000	0	0	-1	pass
+gpa	cuTexObjectDestroy	5000	0	0	-1	pass
+gpa	cuTexObjectGetResourceDesc	5000	0	0	-1	pass
+gpa	cuTexObjectGetTextureDesc	5000	0	0	-1	pass
+gpa	cuTexObjectGetResourceViewDesc	5000	0	0	-1	pass
+gpa	cuSurfObjectCreate	5000	0	0	-1	pass
+gpa	cuSurfObjectDestroy	5000	0	0	-1	pass
+gpa	cuSurfObjectGetResourceDesc	5000	0	0	-1	pass
+gpa	cuImportExternalMemory	10000	0	0	-1	pass
+gpa	cuExternalMemoryGetMappedBuffer	10000	0	0	-1	pass
+gpa	cuExternalMemoryGetMappedMipmappedArray	10000	0	0	-1	pass
+gpa	cuDestroyExternalMemory	10000	0	0	-1	pass
+gpa	cuImportExternalSemaphore	10000	0	0	-1	pass
+gpa	cuSignalExternalSemaphoresAsync	10000	0	0	-1	pass
+gpa	cuSignalExternalSemaphoresAsync	10000	2	0	-1	pass
+gpa	cuWaitExternalSemaphoresAsync	10000	0	0	-1	pass
+gpa	cuWaitExternalSemaphoresAsync	10000	2	0	-1	pass
+gpa	cuDestroyExternalSemaphore	10000	0	0	-1	pass
+gpa	cuDeviceGetNvSciSyncAttributes	10020	0	0	-1	pass
+gpa	cuLaunchKernel	4000	0	0	-1	pass
+gpa	cuLaunchKernel	7000	2	0	-1	pass
+gpa	cuLaunchCooperativeKernel	9000	0	0	-1	pass
+gpa	cuLaunchCooperativeKernel	9000	2	0	-1	pass
+gpa	cuLaunchHostFunc	10000	0	0	-1	pass
+gpa	cuLaunchHostFunc	10000	2	0	-1	pass
+gpa	cuLaunchKernelEx	11060	0	0	-1	pass
+gpa	cuLaunchKernelEx	11060	2	0	-1	pass
+gpa	cuEventCreate	2000	0	0	-1	pass
+gpa	cuEventRecord	2000	0	0	-1	pass
+gpa	cuEventRecord	7000	2	0	-1	pass
+gpa	cuEventRecordWithFlags	11010	0	0	-1	pass
+gpa	cuEventRecordWithFlags	11010	2	0	-1	pass
+gpa	cuEventQuery	2000	0	0	-1	pass
+gpa	cuEventSynchronize	2000	0	0	-1	pass
+gpa	cuEventDestroy	4000	0	0	-1	pass
+gpa	cuEventElapsedTime	2000	0	0	-1	pass
+gpa	cuEventElapsedTime	12080	0	0	-1	pass
+gpa	cuStreamWaitValue32	8000	0	0	-1	pass
+gpa	cuStreamWaitValue32	8000	2	0	-1	pass
+gpa	cuStreamWriteValue32	8000	0	0	-1	pass
+gpa	cuStreamWriteValue32	8000	2	0	-1	pass
+gpa	cuStreamWaitValue64	9000	0	0	-1	pass
+gpa	cuStreamWaitValue64	9000	2	0	-1	pass
+gpa	cuStreamWriteValue64	9000	0	0	-1	pass
+gpa	cuStreamWriteValue64	9000	2	0	-1	pass
+gpa	cuStreamBatchMemOp	8000	0	0	-1	pass
+gpa	cuStreamBatchMemOp	8000	2	0	-1	pass
+gpa	cuStreamCreate	2000	0	0	-1	pass
+gpa	cuStreamCreateWithPriority	5050	0	0	-1	pass
+gpa	cuStreamGetPriority	5050	0	0	-1	pass
+gpa	cuStreamGetPriority	7000	2	0	-1	pass
+gpa	cuStreamGetFlags	5050	0	0	-1	pass
+gpa	cuStreamGetDevice	12080	0	0	-1	pass
+gpa	cuStreamGetDevice	12080	2	0	-1	pass
+gpa	cuStreamGetCtx	9020	0	0	-1	pass
+gpa	cuStreamGetFlags	7000	2	0	-1	pass
+gpa	cuStreamGetId	12000	0	0	-1	pass
+gpa	cuStreamGetId	12000	2	0	-1	pass
+gpa	cuStreamDestroy	4000	0	0	-1	pass
+gpa	cuStreamWaitEvent	3020	0	0	-1	pass
+gpa	cuStreamWaitEvent	7000	2	0	-1	pass
+gpa	cuStreamAddCallback	5000	0	0	-1	pass
+gpa	cuStreamAddCallback	7000	2	0	-1	pass
+gpa	cuStreamSynchronize	2000	0	0	-1	pass
+gpa	cuStreamSynchronize	7000	2	0	-1	pass
+gpa	cuStreamQuery	2000	0	0	-1	pass
+gpa	cuStreamQuery	7000	2	0	-1	pass
+gpa	cuStreamAttachMemAsync	6000	0	0	-1	pass
+gpa	cuStreamAttachMemAsync	7000	2	0	-1	pass
+gpa	cuStreamCopyAttributes	11000	0	0	-1	pass
+gpa	cuStreamCopyAttributes	11000	2	0	-1	pass
+gpa	cuStreamGetAttribute	11000	0	0	-1	pass
+gpa	cuStreamGetAttribute	11000	2	0	-1	pass
+gpa	cuStreamSetAttribute	11000	0	0	-1	pass
+gpa	cuStreamSetAttribute	11000	2	0	-1	pass
+gpa	cuDeviceCanAccessPeer	4000	0	0	-1	pass
+gpa	cuCtxEnablePeerAccess	4000	0	0	-1	pass
+gpa	cuCtxDisablePeerAccess	4000	0	0	-1	pass
+gpa	cuIpcGetEventHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenEventHandle	4010	0	0	-1	pass
+gpa	cuIpcGetMemHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenMemHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenMemHandle	11000	0	0	-1	pass
+gpa	cuIpcCloseMemHandle	4010	0	0	-1	pass
+gpa	cuGLCtxCreate	3020	0	0	-1	pass
+gpa	cuGLInit	2000	0	0	-1	pass
+gpa	cuGLGetDevices	4010	0	0	-1	pass
+gpa	cuGLRegisterBufferObject	2000	0	0	-1	pass
+gpa	cuGLMapBufferObject	3020	0	0	-1	pass
+gpa	cuGLMapBufferObject	7000	2	0	-1	pass
+gpa	cuGLMapBufferObjectAsync	3020	0	0	-1	pass
+gpa	cuGLMapBufferObjectAsync	7000	2	0	-1	pass
+gpa	cuGLUnmapBufferObject	2000	0	0	-1	pass
+gpa	cuGLUnmapBufferObjectAsync	2030	0	0	-1	pass
+gpa	cuGLUnregisterBufferObject	2000	0	0	-1	pass
+gpa	cuGLSetBufferObjectMapFlags	2030	0	0	-1	pass
+gpa	cuGraphicsGLRegisterImage	3000	0	0	-1	pass
+gpa	cuGraphicsGLRegisterBuffer	3000	0	0	-1	pass
+gpa	cuGraphicsEGLRegisterImage	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerConnect	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerDisconnect	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerAcquireFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerReleaseFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerConnect	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerDisconnect	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerPresentFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerReturnFrame	7000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedEglFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerConnectWithFlags	8000	0	0	-1	pass
+gpa	cuGraphicsUnregisterResource	3000	0	0	-1	pass
+gpa	cuGraphicsMapResources	3000	0	0	-1	pass
+gpa	cuGraphicsMapResources	7000	2	0	-1	pass
+gpa	cuGraphicsUnmapResources	3000	0	0	-1	pass
+gpa	cuGraphicsUnmapResources	7000	2	0	-1	pass
+gpa	cuGraphicsResourceSetMapFlags	6050	0	0	-1	pass
+gpa	cuGraphicsSubResourceGetMappedArray	3000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedMipmappedArray	5000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedPointer	3020	0	0	-1	pass
+gpa	cuProfilerInitialize	4000	0	0	-1	pass
+gpa	cuProfilerStart	4000	0	0	-1	pass
+gpa	cuProfilerStop	4000	0	0	-1	pass
+gpa	cuVDPAUGetDevice	3010	0	0	-1	pass
+gpa	cuVDPAUCtxCreate	3020	0	0	-1	pass
+gpa	cuGraphicsVDPAURegisterVideoSurface	3010	0	0	-1	pass
+gpa	cuGraphicsVDPAURegisterOutputSurface	3010	0	0	-1	pass
+gpa	cuGetExportTable	3000	0	0	-1	pass
+gpa	cuOccupancyMaxActiveBlocksPerMultiprocessorWithFlags	7000	0	0	-1	pass
+gpa	cuOccupancyAvailableDynamicSMemPerBlock	10020	0	0	-1	pass
+gpa	cuOccupancyMaxPotentialClusterSize	11070	0	0	-1	pass
+gpa	cuOccupancyMaxActiveClusters	11070	0	0	-1	pass
+gpa	cuMemAdvise	8000	0	0	-1	pass
+gpa	cuMemPrefetchAsync	8000	0	0	-1	pass
+gpa	cuMemPrefetchAsync	8000	2	0	-1	pass
+gpa	cuMemAdvise	12020	0	0	-1	pass
+gpa	cuMemPrefetchAsync	12020	0	0	-1	pass
+gpa	cuMemPrefetchAsync	12020	2	0	-1	pass
+gpa	cuMemPrefetchBatchAsync	13000	0	0	-1	pass
+gpa	cuMemPrefetchBatchAsync	13000	2	0	-1	pass
+gpa	cuMemDiscardBatchAsync	13000	0	0	-1	pass
+gpa	cuMemDiscardBatchAsync	13000	2	0	-1	pass
+gpa	cuMemDiscardAndPrefetchBatchAsync	13000	0	0	-1	pass
+gpa	cuMemDiscardAndPrefetchBatchAsync	13000	2	0	-1	pass
+gpa	cuMemRangeGetAttribute	8000	0	0	-1	pass
+gpa	cuMemRangeGetAttributes	8000	0	0	-1	pass
+gpa	cuGetErrorString	6000	0	0	-1	pass
+gpa	cuGetErrorName	6000	0	0	-1	pass
+gpa	cuGraphCreate	10000	0	0	-1	pass
+gpa	cuGraphAddKernelNode	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeGetParams	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeSetParams	12000	0	0	-1	pass
+gpa	cuGraphAddMemcpyNode	10000	0	0	-1	pass
+gpa	cuGraphMemcpyNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphMemcpyNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddMemsetNode	10000	0	0	-1	pass
+gpa	cuGraphMemsetNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphMemsetNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddHostNode	10000	0	0	-1	pass
+gpa	cuGraphHostNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphHostNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddChildGraphNode	10000	0	0	-1	pass
+gpa	cuGraphChildGraphNodeGetGraph	10000	0	0	-1	pass
+gpa	cuGraphAddEmptyNode	10000	0	0	-1	pass
+gpa	cuGraphAddEventRecordNode	11010	0	0	-1	pass
+gpa	cuGraphEventRecordNodeGetEvent	11010	0	0	-1	pass
+gpa	cuGraphEventRecordNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphAddEventWaitNode	11010	0	0	-1	pass
+gpa	cuGraphEventWaitNodeGetEvent	11010	0	0	-1	pass
+gpa	cuGraphEventWaitNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphAddExternalSemaphoresSignalNode	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresSignalNodeGetParams	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresSignalNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphAddExternalSemaphoresWaitNode	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresWaitNodeGetParams	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresWaitNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphExecExternalSemaphoresSignalNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphExecExternalSemaphoresWaitNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphAddMemAllocNode	11040	0	0	-1	pass
+gpa	cuGraphMemAllocNodeGetParams	11040	0	0	-1	pass
+gpa	cuGraphAddMemFreeNode	11040	0	0	-1	pass
+gpa	cuGraphMemFreeNodeGetParams	11040	0	0	-1	pass
+gpa	cuDeviceGraphMemTrim	11040	0	0	-1	pass
+gpa	cuDeviceGetGraphMemAttribute	11040	0	0	-1	pass
+gpa	cuDeviceSetGraphMemAttribute	11040	0	0	-1	pass
+gpa	cuGraphClone	10000	0	0	-1	pass
+gpa	cuGraphNodeFindInClone	10000	0	0	-1	pass
+gpa	cuGraphNodeGetType	10000	0	0	-1	pass
+gpa	cuGraphGetNodes	10000	0	0	-1	pass
+gpa	cuGraphGetRootNodes	10000	0	0	-1	pass
+gpa	cuGraphGetEdges	10000	0	0	-1	pass
+gpa	cuGraphGetEdges	12030	0	0	-1	pass
+gpa	cuGraphNodeGetDependencies	10000	0	0	-1	pass
+gpa	cuGraphNodeGetDependencies	12030	0	0	-1	pass
+gpa	cuGraphNodeGetDependentNodes	10000	0	0	-1	pass
+gpa	cuGraphNodeGetDependentNodes	12030	0	0	-1	pass
+gpa	cuGraphAddDependencies	10000	0	0	-1	pass
+gpa	cuGraphAddDependencies	12030	0	0	-1	pass
+gpa	cuGraphRemoveDependencies	10000	0	0	-1	pass
+gpa	cuGraphRemoveDependencies	12030	0	0	-1	pass
+gpa	cuGraphDestroyNode	10000	0	0	-1	pass
+gpa	cuGraphInstantiate	10000	0	0	-1	pass
+gpa	cuGraphInstantiate	11000	0	0	-1	pass
+gpa	cuGraphInstantiateWithFlags	11040	0	0	-1	pass
+gpa	cuGraphUpload	11010	0	0	-1	pass
+gpa	cuGraphUpload	11010	2	0	-1	pass
+gpa	cuGraphLaunch	10000	0	0	-1	pass
+gpa	cuGraphLaunch	10000	2	0	-1	pass
+gpa	cuGraphExecDestroy	10000	0	0	-1	pass
+gpa	cuGraphDestroy	10000	0	0	-1	pass
+gpa	cuStreamBeginCapture	10000	0	0	-1	pass
+gpa	cuStreamBeginCapture	10000	2	0	-1	pass
+gpa	cuStreamBeginCapture	10010	0	0	-1	pass
+gpa	cuStreamBeginCapture	10010	2	0	-1	pass
+gpa	cuStreamBeginCaptureToGraph	12030	0	0	-1	pass
+gpa	cuStreamBeginCaptureToGraph	12030	2	0	-1	pass
+gpa	cuStreamEndCapture	10000	0	0	-1	pass
+gpa	cuStreamEndCapture	10000	2	0	-1	pass
+gpa	cuStreamIsCapturing	10000	0	0	-1	pass
+gpa	cuStreamIsCapturing	10000	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	10010	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	10010	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	11030	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	11030	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	12030	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	12030	2	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	11030	0	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	11030	2	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	12030	0	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	12030	2	0	-1	pass
+gpa	cuGraphExecKernelNodeSetParams	12000	0	0	-1	pass
+gpa	cuGraphExecMemcpyNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecMemsetNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecHostNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecChildGraphNodeSetParams	11010	0	0	-1	pass
+gpa	cuGraphExecEventRecordNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphExecEventWaitNodeSetEvent	11010	0	0	-1	pass
+gpa	cuThreadExchangeStreamCaptureMode	10010	0	0	-1	pass
+gpa	cuGraphExecUpdate	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeCopyAttributes	11000	0	0	-1	pass
+gpa	cuGraphKernelNodeGetAttribute	11000	0	0	-1	pass
+gpa	cuGraphKernelNodeSetAttribute	11000	0	0	-1	pass
+gpa	cuGraphDebugDotPrint	11030	0	0	-1	pass
+gpa	cuUserObjectCreate	11030	0	0	-1	pass
+gpa	cuUserObjectRetain	11030	0	0	-1	pass
+gpa	cuUserObjectRelease	11030	0	0	-1	pass
+gpa	cuGraphRetainUserObject	11030	0	0	-1	pass
+gpa	cuGraphReleaseUserObject	11030	0	0	-1	pass
+gpa	cuGraphNodeSetEnabled	11060	0	0	-1	pass
+gpa	cuGraphNodeGetEnabled	11060	0	0	-1	pass
+gpa	cuGraphInstantiateWithParams	12000	0	0	-1	pass
+gpa	cuGraphInstantiateWithParams	12000	2	0	-1	pass
+gpa	cuGraphExecGetFlags	12000	0	0	-1	pass
+gpa	cuGraphAddNode	12020	0	0	-1	pass
+gpa	cuGraphAddNode	12030	0	0	-1	pass
+gpa	cuGraphNodeSetParams	12020	0	0	-1	pass
+gpa	cuGraphExecNodeSetParams	12020	0	0	-1	pass
+gpa	cuGraphConditionalHandleCreate	12030	0	0	-1	pass
+gpa	cuDeviceRegisterAsyncNotification	12040	0	0	-1	pass
+gpa	cuDeviceUnregisterAsyncNotification	12040	0	0	-1	pass
+gpa	cuLogsRegisterCallback	12090	0	0	-1	pass
+gpa	cuLogsUnregisterCallback	12090	0	0	-1	pass
+gpa	cuLogsCurrent	12090	0	0	-1	pass
+gpa	cuLogsDumpToFile	12090	0	0	-1	pass
+gpa	cuLogsDumpToMemory	12090	0	0	-1	pass
+dlsym	D3DKMTEnumAdapters2	libcuda.so.1.1	caller-libcuda
+dlsym	D3DKMTEnumAdapters3	libcuda.so.1.1	caller-libcuda
+dlsym	D3DKMTQueryAdapterInfo	libcuda.so.1.1	caller-libcuda
+dlsym	dxgdmalGetCallbacks	libcuda.so.1.1	caller-libcuda
+dlsym	D3DKMTEnumAdapters2	libcuda.so.1.1	caller-libcuda
+dlsym	D3DKMTEnumAdapters3	libcuda.so.1.1	caller-libcuda
+dlsym	D3DKMTQueryAdapterInfo	libcuda.so.1.1	caller-libcuda
+dlsym	diagcltGetCallbacks	libcuda.so.1.1	caller-libcuda
+gpa	cuDeviceGet	12000	0	0	0	pass
+gpa	cuDeviceGetAttribute	12000	0	0	0	pass
+gpa	cuMemGetAddressRange	12000	0	0	0	pass
+gpa	cuMemAddressReserve	12000	0	0	0	pass
+gpa	cuMemRelease	12000	0	0	0	pass
+gpa	cuMemMap	12000	0	0	0	pass
+gpa	cuMemAddressFree	12000	0	0	0	pass
+gpa	cuMemSetAccess	12000	0	0	0	pass
+gpa	cuMemUnmap	12000	0	0	0	pass
+gpa	cuMemCreate	12000	0	0	0	pass
+gpa	cuMemGetAllocationGranularity	12000	0	0	0	pass
+gpa	cuMemExportToShareableHandle	12000	0	0	0	pass
+gpa	cuMemImportFromShareableHandle	12000	0	0	0	pass
+gpa	cuMemRetainAllocationHandle	12000	0	0	0	pass
+gpa	cuMemGetAllocationPropertiesFromHandle	12000	0	0	0	pass
+gpa	cuMemsetD32Async	12000	0	0	0	pass
+gpa	cuStreamWriteValue32	12000	0	0	0	pass
+gpa	cuGetErrorString	12000	0	0	0	pass
+gpa	cuMulticastAddDevice	12030	0	0	0	pass
+gpa	cuMulticastBindMem	12030	0	0	0	pass
+gpa	cuMulticastCreate	12030	0	0	0	pass
+gpa	cuMulticastUnbind	12030	0	0	0	pass
+gpa	cuCtxFromGreenCtx	12080	0	0	0	pass
+gpa	cuCtxGetCurrent	12080	0	0	0	pass
+gpa	cuCtxPopCurrent	12080	0	0	0	pass
+gpa	cuCtxPushCurrent	12080	0	0	0	pass
+gpa	cuCtxSetCurrent	12080	0	0	0	pass
+gpa	cuGreenCtxCreate	12080	0	0	0	pass
+gpa	cuGreenCtxDestroy	12080	0	0	0	pass
+gpa	cuGreenCtxStreamCreate	12080	0	0	0	pass
+gpa	cuDevSmResourceSplitByCount	12080	0	0	0	pass
+gpa	cuDeviceGetDevResource	12080	0	0	0	pass
+gpa	cuDevResourceGenerateDesc	12080	0	0	0	pass
+gpa	cuLogsRegisterCallback	12090	0	0	0	pass
+gpa	cuLogsUnregisterCallback	12090	0	0	0	pass
+dlsym	cuGetProcAddress_v2	libcublas.so.13	wrap
+gpa		0	0	0	-1	pass
+gpa	cuInit	2000	0	0	-1	pass
+gpa	cuGetProcAddress	11030	0	0	-1	wrap
+gpa	cuGetProcAddress	12000	0	0	-1	wrap
+gpa	cuDeviceGet	2000	0	0	-1	pass
+gpa	cuDeviceGetCount	2000	0	0	-1	pass
+gpa	cuDeviceGetName	2000	0	0	-1	pass
+gpa	cuDeviceTotalMem	3020	0	0	-1	pass
+gpa	cuDeviceGetAttribute	2000	0	0	-1	pass
+gpa	cuDeviceGetP2PAttribute	8000	0	0	-1	pass
+gpa	cuDeviceGetHostAtomicCapabilities	13000	0	0	-1	pass
+gpa	cuDeviceGetP2PAtomicCapabilities	13000	0	0	-1	pass
+gpa	cuDriverGetVersion	2020	0	0	-1	pass
+gpa	cuDeviceGetByPCIBusId	4010	0	0	-1	pass
+gpa	cuDeviceGetPCIBusId	4010	0	0	-1	pass
+gpa	cuDeviceGetUuid	9020	0	0	-1	pass
+gpa	cuDeviceGetTexture1DLinearMaxWidth	11010	0	0	-1	pass
+gpa	cuDeviceGetDefaultMemPool	11020	0	0	-1	pass
+gpa	cuDeviceSetMemPool	11020	0	0	-1	pass
+gpa	cuDeviceGetMemPool	11020	0	0	-1	pass
+gpa	cuFlushGPUDirectRDMAWrites	11030	0	0	-1	pass
+gpa	cuDevicePrimaryCtxRetain	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxRelease	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxSetFlags	11000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxGetState	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxReset	7000	0	0	-1	pass
+gpa	cuCtxCreate	3020	0	0	-1	pass
+gpa	cuCtxGetFlags	7000	0	0	-1	pass
+gpa	cuCtxSetCurrent	4000	0	0	-1	pass
+gpa	cuCtxGetCurrent	4000	0	0	-1	pass
+gpa	cuCtxDetach	2000	0	0	-1	pass
+gpa	cuCtxGetApiVersion	3020	0	0	-1	pass
+gpa	cuCtxGetDevice	2000	0	0	-1	pass
+gpa	cuCtxGetDevice	13000	0	0	-1	pass
+gpa	cuCtxGetLimit	3010	0	0	-1	pass
+gpa	cuCtxSetLimit	3010	0	0	-1	pass
+gpa	cuCtxGetCacheConfig	3020	0	0	-1	pass
+gpa	cuCtxSetCacheConfig	3020	0	0	-1	pass
+gpa	cuCtxGetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuCtxGetStreamPriorityRange	5050	0	0	-1	pass
+gpa	cuCtxSetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuCtxSynchronize	2000	0	0	-1	pass
+gpa	cuCtxSynchronize	13000	0	0	-1	pass
+gpa	cuCtxResetPersistingL2Cache	11000	0	0	-1	pass
+gpa	cuCtxPopCurrent	4000	0	0	-1	pass
+gpa	cuCtxPushCurrent	4000	0	0	-1	pass
+gpa	cuModuleLoad	2000	0	0	-1	pass
+gpa	cuModuleLoadData	2000	0	0	-1	pass
+gpa	cuModuleLoadFatBinary	2000	0	0	-1	pass
+gpa	cuModuleUnload	2000	0	0	-1	pass
+gpa	cuModuleGetFunction	2000	0	0	-1	pass
+gpa	cuModuleGetGlobal	3020	0	0	-1	pass
+gpa	cuModuleGetTexRef	2000	0	0	-1	pass
+gpa	cuModuleGetSurfRef	3000	0	0	-1	pass
+gpa	cuModuleGetLoadingMode	11070	0	0	-1	pass
+gpa	cuLibraryLoadData	12000	0	0	-1	pass
+gpa	cuLibraryLoadFromFile	12000	0	0	-1	pass
+gpa	cuLibraryUnload	12000	0	0	-1	pass
+gpa	cuLibraryGetKernel	12000	0	0	-1	pass
+gpa	cuLibraryGetModule	12000	0	0	-1	pass
+gpa	cuKernelGetFunction	12000	0	0	-1	pass
+gpa	cuLibraryGetGlobal	12000	0	0	-1	pass
+gpa	cuLibraryGetManaged	12000	0	0	-1	pass
+gpa	cuLibraryGetUnifiedFunction	12000	0	0	-1	pass
+gpa	cuLibraryGetKernelCount	12040	0	0	-1	pass
+gpa	cuLibraryEnumerateKernels	12040	0	0	-1	pass
+gpa	cuKernelGetAttribute	12000	0	0	-1	pass
+gpa	cuKernelSetAttribute	12000	0	0	-1	pass
+gpa	cuKernelSetCacheConfig	12000	0	0	-1	pass
+gpa	cuKernelGetName	12030	0	0	-1	pass
+gpa	cuKernelGetParamInfo	12040	0	0	-1	pass
+gpa	cuLinkCreate	5050	0	0	-1	pass
+gpa	cuLinkAddData	5050	0	0	-1	pass
+gpa	cuLinkAddFile	5050	0	0	-1	pass
+gpa	cuLinkComplete	5050	0	0	-1	pass
+gpa	cuLinkDestroy	5050	0	0	-1	pass
+gpa	cuMemGetInfo	3020	0	0	-1	pass
+gpa	cuMemAllocManaged	6000	0	0	-1	pass
+gpa	cuMemAlloc	3020	0	0	-1	pass
+gpa	cuMemAllocPitch	3020	0	0	-1	pass
+gpa	cuMemFree	3020	0	0	-1	pass
+gpa	cuMemGetAddressRange	3020	0	0	-1	pass
+gpa	cuMemFreeHost	2000	0	0	-1	pass
+gpa	cuMemHostAlloc	2020	0	0	-1	pass
+gpa	cuMemHostGetDevicePointer	3020	0	0	-1	pass
+gpa	cuMemHostGetFlags	2030	0	0	-1	pass
+gpa	cuMemHostRegister	6050	0	0	-1	pass
+gpa	cuMemHostUnregister	4000	0	0	-1	pass
+gpa	cuPointerGetAttribute	4000	0	0	-1	pass
+gpa	cuPointerGetAttributes	7000	0	0	-1	pass
+gpa	cuMemAllocAsync	11020	0	0	-1	pass
+gpa	cuMemAllocAsync	11020	2	0	-1	pass
+gpa	cuMemAllocFromPoolAsync	11020	0	0	-1	pass
+gpa	cuMemAllocFromPoolAsync	11020	2	0	-1	pass
+gpa	cuMemFreeAsync	11020	0	0	-1	pass
+gpa	cuMemFreeAsync	11020	2	0	-1	pass
+gpa	cuMemPoolTrimTo	11020	0	0	-1	pass
+gpa	cuMemPoolSetAttribute	11020	0	0	-1	pass
+gpa	cuMemPoolGetAttribute	11020	0	0	-1	pass
+gpa	cuMemPoolSetAccess	11020	0	0	-1	pass
+gpa	cuMemPoolGetAccess	11020	0	0	-1	pass
+gpa	cuMemPoolCreate	11020	0	0	-1	pass
+gpa	cuMemPoolDestroy	11020	0	0	-1	pass
+gpa	cuMemPoolExportToShareableHandle	11020	0	0	-1	pass
+gpa	cuMemPoolImportFromShareableHandle	11020	0	0	-1	pass
+gpa	cuMemPoolExportPointer	11020	0	0	-1	pass
+gpa	cuMemPoolImportPointer	11020	0	0	-1	pass
+gpa	cuMemGetDefaultMemPool	13000	0	0	-1	pass
+gpa	cuMemGetMemPool	13000	0	0	-1	pass
+gpa	cuMemSetMemPool	13000	0	0	-1	pass
+gpa	cuMemcpy	4000	0	0	-1	pass
+gpa	cuMemcpy	7000	2	0	-1	pass
+gpa	cuMemcpyAsync	4000	0	0	-1	pass
+gpa	cuMemcpyAsync	7000	2	0	-1	pass
+gpa	cuMemcpyPeer	4000	0	0	-1	pass
+gpa	cuMemcpyPeer	7000	2	0	-1	pass
+gpa	cuMemcpyPeerAsync	4000	0	0	-1	pass
+gpa	cuMemcpyPeerAsync	7000	2	0	-1	pass
+gpa	cuMemcpyHtoD	3020	0	0	-1	pass
+gpa	cuMemcpyHtoD	7000	2	0	-1	pass
+gpa	cuMemcpyHtoDAsync	3020	0	0	-1	pass
+gpa	cuMemcpyHtoDAsync	7000	2	0	-1	pass
+gpa	cuMemcpyDtoH	3020	0	0	-1	pass
+gpa	cuMemcpyDtoH	7000	2	0	-1	pass
+gpa	cuMemcpyDtoHAsync	3020	0	0	-1	pass
+gpa	cuMemcpyDtoHAsync	7000	2	0	-1	pass
+gpa	cuMemcpyDtoD	3020	0	0	-1	pass
+gpa	cuMemcpyDtoD	7000	2	0	-1	pass
+gpa	cuMemcpyDtoDAsync	3020	0	0	-1	pass
+gpa	cuMemcpyDtoDAsync	7000	2	0	-1	pass
+gpa	cuMemcpy2DUnaligned	3020	0	0	-1	pass
+gpa	cuMemcpy2DUnaligned	7000	2	0	-1	pass
+gpa	cuMemcpy2DAsync	3020	0	0	-1	pass
+gpa	cuMemcpy2DAsync	7000	2	0	-1	pass
+gpa	cuMemcpy3D	3020	0	0	-1	pass
+gpa	cuMemcpy3D	7000	2	0	-1	pass
+gpa	cuMemcpy3DAsync	3020	0	0	-1	pass
+gpa	cuMemcpy3DAsync	7000	2	0	-1	pass
+gpa	cuMemcpy3DPeer	4000	0	0	-1	pass
+gpa	cuMemcpy3DPeer	7000	2	0	-1	pass
+gpa	cuMemcpy3DPeerAsync	4000	0	0	-1	pass
+gpa	cuMemcpy3DPeerAsync	7000	2	0	-1	pass
+gpa	cuMemcpyBatchAsync	13000	0	0	-1	pass
+gpa	cuMemcpyBatchAsync	13000	2	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	13000	0	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	13000	2	0	-1	pass
+gpa	cuMemcpyBatchAsync	12080	0	0	-1	pass
+gpa	cuMemcpyBatchAsync	12080	2	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	12080	0	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	12080	2	0	-1	pass
+gpa	cuMemsetD8	3020	0	0	-1	pass
+gpa	cuMemsetD8	7000	2	0	-1	pass
+gpa	cuMemsetD8Async	3020	0	0	-1	pass
+gpa	cuMemsetD8Async	7000	2	0	-1	pass
+gpa	cuMemsetD2D8	3020	0	0	-1	pass
+gpa	cuMemsetD2D8	7000	2	0	-1	pass
+gpa	cuMemsetD2D8Async	3020	0	0	-1	pass
+gpa	cuMemsetD2D8Async	7000	2	0	-1	pass
+gpa	cuFuncSetCacheConfig	3000	0	0	-1	pass
+gpa	cuFuncSetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuFuncGetAttribute	2020	0	0	-1	pass
+gpa	cuFuncSetAttribute	9000	0	0	-1	pass
+gpa	cuFuncGetName	12030	0	0	-1	pass
+gpa	cuFuncGetParamInfo	12040	0	0	-1	pass
+gpa	cuArrayCreate	3020	0	0	-1	pass
+gpa	cuArrayGetDescriptor	3020	0	0	-1	pass
+gpa	cuArrayGetSparseProperties	11010	0	0	-1	pass
+gpa	cuArrayGetPlane	11020	0	0	-1	pass
+gpa	cuArray3DCreate	3020	0	0	-1	pass
+gpa	cuArray3DGetDescriptor	3020	0	0	-1	pass
+gpa	cuArrayDestroy	2000	0	0	-1	pass
+gpa	cuMipmappedArrayCreate	5000	0	0	-1	pass
+gpa	cuMipmappedArrayGetLevel	5000	0	0	-1	pass
+gpa	cuMipmappedArrayGetSparseProperties	11010	0	0	-1	pass
+gpa	cuMipmappedArrayDestroy	5000	0	0	-1	pass
+gpa	cuArrayGetMemoryRequirements	11060	0	0	-1	pass
+gpa	cuMipmappedArrayGetMemoryRequirements	11060	0	0	-1	pass
+gpa	cuTexObjectCreate	5000	0	0	-1	pass
+gpa	cuTexObjectDestroy	5000	0	0	-1	pass
+gpa	cuTexObjectGetResourceDesc	5000	0	0	-1	pass
+gpa	cuTexObjectGetTextureDesc	5000	0	0	-1	pass
+gpa	cuTexObjectGetResourceViewDesc	5000	0	0	-1	pass
+gpa	cuSurfObjectCreate	5000	0	0	-1	pass
+gpa	cuSurfObjectDestroy	5000	0	0	-1	pass
+gpa	cuSurfObjectGetResourceDesc	5000	0	0	-1	pass
+gpa	cuImportExternalMemory	10000	0	0	-1	pass
+gpa	cuExternalMemoryGetMappedBuffer	10000	0	0	-1	pass
+gpa	cuExternalMemoryGetMappedMipmappedArray	10000	0	0	-1	pass
+gpa	cuDestroyExternalMemory	10000	0	0	-1	pass
+gpa	cuImportExternalSemaphore	10000	0	0	-1	pass
+gpa	cuSignalExternalSemaphoresAsync	10000	0	0	-1	pass
+gpa	cuSignalExternalSemaphoresAsync	10000	2	0	-1	pass
+gpa	cuWaitExternalSemaphoresAsync	10000	0	0	-1	pass
+gpa	cuWaitExternalSemaphoresAsync	10000	2	0	-1	pass
+gpa	cuDestroyExternalSemaphore	10000	0	0	-1	pass
+gpa	cuDeviceGetNvSciSyncAttributes	10020	0	0	-1	pass
+gpa	cuLaunchKernel	4000	0	0	-1	pass
+gpa	cuLaunchKernel	7000	2	0	-1	pass
+gpa	cuLaunchCooperativeKernel	9000	0	0	-1	pass
+gpa	cuLaunchCooperativeKernel	9000	2	0	-1	pass
+gpa	cuLaunchHostFunc	10000	0	0	-1	pass
+gpa	cuLaunchHostFunc	10000	2	0	-1	pass
+gpa	cuLaunchKernelEx	11060	0	0	-1	pass
+gpa	cuLaunchKernelEx	11060	2	0	-1	pass
+gpa	cuEventCreate	2000	0	0	-1	pass
+gpa	cuEventRecord	2000	0	0	-1	pass
+gpa	cuEventRecord	7000	2	0	-1	pass
+gpa	cuEventRecordWithFlags	11010	0	0	-1	pass
+gpa	cuEventRecordWithFlags	11010	2	0	-1	pass
+gpa	cuEventQuery	2000	0	0	-1	pass
+gpa	cuEventSynchronize	2000	0	0	-1	pass
+gpa	cuEventDestroy	4000	0	0	-1	pass
+gpa	cuEventElapsedTime	2000	0	0	-1	pass
+gpa	cuEventElapsedTime	12080	0	0	-1	pass
+gpa	cuStreamWaitValue32	8000	0	0	-1	pass
+gpa	cuStreamWaitValue32	8000	2	0	-1	pass
+gpa	cuStreamWriteValue32	8000	0	0	-1	pass
+gpa	cuStreamWriteValue32	8000	2	0	-1	pass
+gpa	cuStreamWaitValue64	9000	0	0	-1	pass
+gpa	cuStreamWaitValue64	9000	2	0	-1	pass
+gpa	cuStreamWriteValue64	9000	0	0	-1	pass
+gpa	cuStreamWriteValue64	9000	2	0	-1	pass
+gpa	cuStreamBatchMemOp	8000	0	0	-1	pass
+gpa	cuStreamBatchMemOp	8000	2	0	-1	pass
+gpa	cuStreamCreate	2000	0	0	-1	pass
+gpa	cuStreamCreateWithPriority	5050	0	0	-1	pass
+gpa	cuStreamGetPriority	5050	0	0	-1	pass
+gpa	cuStreamGetPriority	7000	2	0	-1	pass
+gpa	cuStreamGetFlags	5050	0	0	-1	pass
+gpa	cuStreamGetDevice	12080	0	0	-1	pass
+gpa	cuStreamGetDevice	12080	2	0	-1	pass
+gpa	cuStreamGetCtx	9020	0	0	-1	pass
+gpa	cuStreamGetFlags	7000	2	0	-1	pass
+gpa	cuStreamGetId	12000	0	0	-1	pass
+gpa	cuStreamGetId	12000	2	0	-1	pass
+gpa	cuStreamDestroy	4000	0	0	-1	pass
+gpa	cuStreamWaitEvent	3020	0	0	-1	pass
+gpa	cuStreamWaitEvent	7000	2	0	-1	pass
+gpa	cuStreamAddCallback	5000	0	0	-1	pass
+gpa	cuStreamAddCallback	7000	2	0	-1	pass
+gpa	cuStreamSynchronize	2000	0	0	-1	pass
+gpa	cuStreamSynchronize	7000	2	0	-1	pass
+gpa	cuStreamQuery	2000	0	0	-1	pass
+gpa	cuStreamQuery	7000	2	0	-1	pass
+gpa	cuStreamAttachMemAsync	6000	0	0	-1	pass
+gpa	cuStreamAttachMemAsync	7000	2	0	-1	pass
+gpa	cuStreamCopyAttributes	11000	0	0	-1	pass
+gpa	cuStreamCopyAttributes	11000	2	0	-1	pass
+gpa	cuStreamGetAttribute	11000	0	0	-1	pass
+gpa	cuStreamGetAttribute	11000	2	0	-1	pass
+gpa	cuStreamSetAttribute	11000	0	0	-1	pass
+gpa	cuStreamSetAttribute	11000	2	0	-1	pass
+gpa	cuDeviceCanAccessPeer	4000	0	0	-1	pass
+gpa	cuCtxEnablePeerAccess	4000	0	0	-1	pass
+gpa	cuCtxDisablePeerAccess	4000	0	0	-1	pass
+gpa	cuIpcGetEventHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenEventHandle	4010	0	0	-1	pass
+gpa	cuIpcGetMemHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenMemHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenMemHandle	11000	0	0	-1	pass
+gpa	cuIpcCloseMemHandle	4010	0	0	-1	pass
+gpa	cuGLCtxCreate	3020	0	0	-1	pass
+gpa	cuGLInit	2000	0	0	-1	pass
+gpa	cuGLGetDevices	4010	0	0	-1	pass
+gpa	cuGLRegisterBufferObject	2000	0	0	-1	pass
+gpa	cuGLMapBufferObject	3020	0	0	-1	pass
+gpa	cuGLMapBufferObject	7000	2	0	-1	pass
+gpa	cuGLMapBufferObjectAsync	3020	0	0	-1	pass
+gpa	cuGLMapBufferObjectAsync	7000	2	0	-1	pass
+gpa	cuGLUnmapBufferObject	2000	0	0	-1	pass
+gpa	cuGLUnmapBufferObjectAsync	2030	0	0	-1	pass
+gpa	cuGLUnregisterBufferObject	2000	0	0	-1	pass
+gpa	cuGLSetBufferObjectMapFlags	2030	0	0	-1	pass
+gpa	cuGraphicsGLRegisterImage	3000	0	0	-1	pass
+gpa	cuGraphicsGLRegisterBuffer	3000	0	0	-1	pass
+gpa	cuGraphicsEGLRegisterImage	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerConnect	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerDisconnect	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerAcquireFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerReleaseFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerConnect	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerDisconnect	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerPresentFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerReturnFrame	7000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedEglFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerConnectWithFlags	8000	0	0	-1	pass
+gpa	cuGraphicsUnregisterResource	3000	0	0	-1	pass
+gpa	cuGraphicsMapResources	3000	0	0	-1	pass
+gpa	cuGraphicsMapResources	7000	2	0	-1	pass
+gpa	cuGraphicsUnmapResources	3000	0	0	-1	pass
+gpa	cuGraphicsUnmapResources	7000	2	0	-1	pass
+gpa	cuGraphicsResourceSetMapFlags	6050	0	0	-1	pass
+gpa	cuGraphicsSubResourceGetMappedArray	3000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedMipmappedArray	5000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedPointer	3020	0	0	-1	pass
+gpa	cuProfilerInitialize	4000	0	0	-1	pass
+gpa	cuProfilerStart	4000	0	0	-1	pass
+gpa	cuProfilerStop	4000	0	0	-1	pass
+gpa	cuVDPAUGetDevice	3010	0	0	-1	pass
+gpa	cuVDPAUCtxCreate	3020	0	0	-1	pass
+gpa	cuGraphicsVDPAURegisterVideoSurface	3010	0	0	-1	pass
+gpa	cuGraphicsVDPAURegisterOutputSurface	3010	0	0	-1	pass
+gpa	cuGetExportTable	3000	0	0	-1	pass
+gpa	cuOccupancyMaxActiveBlocksPerMultiprocessorWithFlags	7000	0	0	-1	pass
+gpa	cuOccupancyAvailableDynamicSMemPerBlock	10020	0	0	-1	pass
+gpa	cuOccupancyMaxPotentialClusterSize	11070	0	0	-1	pass
+gpa	cuOccupancyMaxActiveClusters	11070	0	0	-1	pass
+gpa	cuMemAdvise	8000	0	0	-1	pass
+gpa	cuMemPrefetchAsync	8000	0	0	-1	pass
+gpa	cuMemPrefetchAsync	8000	2	0	-1	pass
+gpa	cuMemAdvise	12020	0	0	-1	pass
+gpa	cuMemPrefetchAsync	12020	0	0	-1	pass
+gpa	cuMemPrefetchAsync	12020	2	0	-1	pass
+gpa	cuMemPrefetchBatchAsync	13000	0	0	-1	pass
+gpa	cuMemPrefetchBatchAsync	13000	2	0	-1	pass
+gpa	cuMemDiscardBatchAsync	13000	0	0	-1	pass
+gpa	cuMemDiscardBatchAsync	13000	2	0	-1	pass
+gpa	cuMemDiscardAndPrefetchBatchAsync	13000	0	0	-1	pass
+gpa	cuMemDiscardAndPrefetchBatchAsync	13000	2	0	-1	pass
+gpa	cuMemRangeGetAttribute	8000	0	0	-1	pass
+gpa	cuMemRangeGetAttributes	8000	0	0	-1	pass
+gpa	cuGetErrorString	6000	0	0	-1	pass
+gpa	cuGetErrorName	6000	0	0	-1	pass
+gpa	cuGraphCreate	10000	0	0	-1	pass
+gpa	cuGraphAddKernelNode	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeGetParams	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeSetParams	12000	0	0	-1	pass
+gpa	cuGraphAddMemcpyNode	10000	0	0	-1	pass
+gpa	cuGraphMemcpyNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphMemcpyNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddMemsetNode	10000	0	0	-1	pass
+gpa	cuGraphMemsetNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphMemsetNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddHostNode	10000	0	0	-1	pass
+gpa	cuGraphHostNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphHostNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddChildGraphNode	10000	0	0	-1	pass
+gpa	cuGraphChildGraphNodeGetGraph	10000	0	0	-1	pass
+gpa	cuGraphAddEmptyNode	10000	0	0	-1	pass
+gpa	cuGraphAddEventRecordNode	11010	0	0	-1	pass
+gpa	cuGraphEventRecordNodeGetEvent	11010	0	0	-1	pass
+gpa	cuGraphEventRecordNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphAddEventWaitNode	11010	0	0	-1	pass
+gpa	cuGraphEventWaitNodeGetEvent	11010	0	0	-1	pass
+gpa	cuGraphEventWaitNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphAddExternalSemaphoresSignalNode	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresSignalNodeGetParams	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresSignalNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphAddExternalSemaphoresWaitNode	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresWaitNodeGetParams	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresWaitNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphExecExternalSemaphoresSignalNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphExecExternalSemaphoresWaitNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphAddMemAllocNode	11040	0	0	-1	pass
+gpa	cuGraphMemAllocNodeGetParams	11040	0	0	-1	pass
+gpa	cuGraphAddMemFreeNode	11040	0	0	-1	pass
+gpa	cuGraphMemFreeNodeGetParams	11040	0	0	-1	pass
+gpa	cuDeviceGraphMemTrim	11040	0	0	-1	pass
+gpa	cuDeviceGetGraphMemAttribute	11040	0	0	-1	pass
+gpa	cuDeviceSetGraphMemAttribute	11040	0	0	-1	pass
+gpa	cuGraphClone	10000	0	0	-1	pass
+gpa	cuGraphNodeFindInClone	10000	0	0	-1	pass
+gpa	cuGraphNodeGetType	10000	0	0	-1	pass
+gpa	cuGraphGetNodes	10000	0	0	-1	pass
+gpa	cuGraphGetRootNodes	10000	0	0	-1	pass
+gpa	cuGraphGetEdges	10000	0	0	-1	pass
+gpa	cuGraphGetEdges	12030	0	0	-1	pass
+gpa	cuGraphNodeGetDependencies	10000	0	0	-1	pass
+gpa	cuGraphNodeGetDependencies	12030	0	0	-1	pass
+gpa	cuGraphNodeGetDependentNodes	10000	0	0	-1	pass
+gpa	cuGraphNodeGetDependentNodes	12030	0	0	-1	pass
+gpa	cuGraphAddDependencies	10000	0	0	-1	pass
+gpa	cuGraphAddDependencies	12030	0	0	-1	pass
+gpa	cuGraphRemoveDependencies	10000	0	0	-1	pass
+gpa	cuGraphRemoveDependencies	12030	0	0	-1	pass
+gpa	cuGraphDestroyNode	10000	0	0	-1	pass
+gpa	cuGraphInstantiate	10000	0	0	-1	pass
+gpa	cuGraphInstantiate	11000	0	0	-1	pass
+gpa	cuGraphInstantiateWithFlags	11040	0	0	-1	pass
+gpa	cuGraphUpload	11010	0	0	-1	pass
+gpa	cuGraphUpload	11010	2	0	-1	pass
+gpa	cuGraphLaunch	10000	0	0	-1	pass
+gpa	cuGraphLaunch	10000	2	0	-1	pass
+gpa	cuGraphExecDestroy	10000	0	0	-1	pass
+gpa	cuGraphDestroy	10000	0	0	-1	pass
+gpa	cuStreamBeginCapture	10000	0	0	-1	pass
+gpa	cuStreamBeginCapture	10000	2	0	-1	pass
+gpa	cuStreamBeginCapture	10010	0	0	-1	pass
+gpa	cuStreamBeginCapture	10010	2	0	-1	pass
+gpa	cuStreamBeginCaptureToGraph	12030	0	0	-1	pass
+gpa	cuStreamBeginCaptureToGraph	12030	2	0	-1	pass
+gpa	cuStreamEndCapture	10000	0	0	-1	pass
+gpa	cuStreamEndCapture	10000	2	0	-1	pass
+gpa	cuStreamIsCapturing	10000	0	0	-1	pass
+gpa	cuStreamIsCapturing	10000	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	10010	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	10010	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	11030	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	11030	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	12030	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	12030	2	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	11030	0	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	11030	2	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	12030	0	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	12030	2	0	-1	pass
+gpa	cuGraphExecKernelNodeSetParams	12000	0	0	-1	pass
+gpa	cuGraphExecMemcpyNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecMemsetNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecHostNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecChildGraphNodeSetParams	11010	0	0	-1	pass
+gpa	cuGraphExecEventRecordNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphExecEventWaitNodeSetEvent	11010	0	0	-1	pass
+gpa	cuThreadExchangeStreamCaptureMode	10010	0	0	-1	pass
+gpa	cuGraphExecUpdate	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeCopyAttributes	11000	0	0	-1	pass
+gpa	cuGraphKernelNodeGetAttribute	11000	0	0	-1	pass
+gpa	cuGraphKernelNodeSetAttribute	11000	0	0	-1	pass
+gpa	cuGraphDebugDotPrint	11030	0	0	-1	pass
+gpa	cuUserObjectCreate	11030	0	0	-1	pass
+gpa	cuUserObjectRetain	11030	0	0	-1	pass
+gpa	cuUserObjectRelease	11030	0	0	-1	pass
+gpa	cuGraphRetainUserObject	11030	0	0	-1	pass
+gpa	cuGraphReleaseUserObject	11030	0	0	-1	pass
+gpa	cuGraphNodeSetEnabled	11060	0	0	-1	pass
+gpa	cuGraphNodeGetEnabled	11060	0	0	-1	pass
+gpa	cuGraphInstantiateWithParams	12000	0	0	-1	pass
+gpa	cuGraphInstantiateWithParams	12000	2	0	-1	pass
+gpa	cuGraphExecGetFlags	12000	0	0	-1	pass
+gpa	cuGraphAddNode	12020	0	0	-1	pass
+gpa	cuGraphAddNode	12030	0	0	-1	pass
+gpa	cuGraphNodeSetParams	12020	0	0	-1	pass
+gpa	cuGraphExecNodeSetParams	12020	0	0	-1	pass
+gpa	cuGraphConditionalHandleCreate	12030	0	0	-1	pass
+gpa	cuDeviceRegisterAsyncNotification	12040	0	0	-1	pass
+gpa	cuDeviceUnregisterAsyncNotification	12040	0	0	-1	pass
+gpa	cuLogsRegisterCallback	12090	0	0	-1	pass
+gpa	cuLogsUnregisterCallback	12090	0	0	-1	pass
+gpa	cuLogsCurrent	12090	0	0	-1	pass
+gpa	cuLogsDumpToFile	12090	0	0	-1	pass
+gpa	cuLogsDumpToMemory	12090	0	0	-1	pass
+dlsym	cuGetProcAddress_v2	libcublasLt.so.13	wrap
+gpa		0	0	0	-1	pass
+gpa	cuInit	2000	0	0	-1	pass
+gpa	cuGetProcAddress	11030	0	0	-1	wrap
+gpa	cuGetProcAddress	12000	0	0	-1	wrap
+gpa	cuDeviceGet	2000	0	0	-1	pass
+gpa	cuDeviceGetCount	2000	0	0	-1	pass
+gpa	cuDeviceGetName	2000	0	0	-1	pass
+gpa	cuDeviceTotalMem	3020	0	0	-1	pass
+gpa	cuDeviceGetAttribute	2000	0	0	-1	pass
+gpa	cuDeviceGetP2PAttribute	8000	0	0	-1	pass
+gpa	cuDeviceGetHostAtomicCapabilities	13000	0	0	-1	pass
+gpa	cuDeviceGetP2PAtomicCapabilities	13000	0	0	-1	pass
+gpa	cuDriverGetVersion	2020	0	0	-1	pass
+gpa	cuDeviceGetByPCIBusId	4010	0	0	-1	pass
+gpa	cuDeviceGetPCIBusId	4010	0	0	-1	pass
+gpa	cuDeviceGetUuid	9020	0	0	-1	pass
+gpa	cuDeviceGetTexture1DLinearMaxWidth	11010	0	0	-1	pass
+gpa	cuDeviceGetDefaultMemPool	11020	0	0	-1	pass
+gpa	cuDeviceSetMemPool	11020	0	0	-1	pass
+gpa	cuDeviceGetMemPool	11020	0	0	-1	pass
+gpa	cuFlushGPUDirectRDMAWrites	11030	0	0	-1	pass
+gpa	cuDevicePrimaryCtxRetain	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxRelease	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxSetFlags	11000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxGetState	7000	0	0	-1	pass
+gpa	cuDevicePrimaryCtxReset	7000	0	0	-1	pass
+gpa	cuCtxCreate	3020	0	0	-1	pass
+gpa	cuCtxGetFlags	7000	0	0	-1	pass
+gpa	cuCtxSetCurrent	4000	0	0	-1	pass
+gpa	cuCtxGetCurrent	4000	0	0	-1	pass
+gpa	cuCtxDetach	2000	0	0	-1	pass
+gpa	cuCtxGetApiVersion	3020	0	0	-1	pass
+gpa	cuCtxGetDevice	2000	0	0	-1	pass
+gpa	cuCtxGetDevice	13000	0	0	-1	pass
+gpa	cuCtxGetLimit	3010	0	0	-1	pass
+gpa	cuCtxSetLimit	3010	0	0	-1	pass
+gpa	cuCtxGetCacheConfig	3020	0	0	-1	pass
+gpa	cuCtxSetCacheConfig	3020	0	0	-1	pass
+gpa	cuCtxGetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuCtxGetStreamPriorityRange	5050	0	0	-1	pass
+gpa	cuCtxSetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuCtxSynchronize	2000	0	0	-1	pass
+gpa	cuCtxSynchronize	13000	0	0	-1	pass
+gpa	cuCtxResetPersistingL2Cache	11000	0	0	-1	pass
+gpa	cuCtxPopCurrent	4000	0	0	-1	pass
+gpa	cuCtxPushCurrent	4000	0	0	-1	pass
+gpa	cuModuleLoad	2000	0	0	-1	pass
+gpa	cuModuleLoadData	2000	0	0	-1	pass
+gpa	cuModuleLoadFatBinary	2000	0	0	-1	pass
+gpa	cuModuleUnload	2000	0	0	-1	pass
+gpa	cuModuleGetFunction	2000	0	0	-1	pass
+gpa	cuModuleGetGlobal	3020	0	0	-1	pass
+gpa	cuModuleGetTexRef	2000	0	0	-1	pass
+gpa	cuModuleGetSurfRef	3000	0	0	-1	pass
+gpa	cuModuleGetLoadingMode	11070	0	0	-1	pass
+gpa	cuLibraryLoadData	12000	0	0	-1	pass
+gpa	cuLibraryLoadFromFile	12000	0	0	-1	pass
+gpa	cuLibraryUnload	12000	0	0	-1	pass
+gpa	cuLibraryGetKernel	12000	0	0	-1	pass
+gpa	cuLibraryGetModule	12000	0	0	-1	pass
+gpa	cuKernelGetFunction	12000	0	0	-1	pass
+gpa	cuLibraryGetGlobal	12000	0	0	-1	pass
+gpa	cuLibraryGetManaged	12000	0	0	-1	pass
+gpa	cuLibraryGetUnifiedFunction	12000	0	0	-1	pass
+gpa	cuLibraryGetKernelCount	12040	0	0	-1	pass
+gpa	cuLibraryEnumerateKernels	12040	0	0	-1	pass
+gpa	cuKernelGetAttribute	12000	0	0	-1	pass
+gpa	cuKernelSetAttribute	12000	0	0	-1	pass
+gpa	cuKernelSetCacheConfig	12000	0	0	-1	pass
+gpa	cuKernelGetName	12030	0	0	-1	pass
+gpa	cuKernelGetParamInfo	12040	0	0	-1	pass
+gpa	cuLinkCreate	5050	0	0	-1	pass
+gpa	cuLinkAddData	5050	0	0	-1	pass
+gpa	cuLinkAddFile	5050	0	0	-1	pass
+gpa	cuLinkComplete	5050	0	0	-1	pass
+gpa	cuLinkDestroy	5050	0	0	-1	pass
+gpa	cuMemGetInfo	3020	0	0	-1	pass
+gpa	cuMemAllocManaged	6000	0	0	-1	pass
+gpa	cuMemAlloc	3020	0	0	-1	pass
+gpa	cuMemAllocPitch	3020	0	0	-1	pass
+gpa	cuMemFree	3020	0	0	-1	pass
+gpa	cuMemGetAddressRange	3020	0	0	-1	pass
+gpa	cuMemFreeHost	2000	0	0	-1	pass
+gpa	cuMemHostAlloc	2020	0	0	-1	pass
+gpa	cuMemHostGetDevicePointer	3020	0	0	-1	pass
+gpa	cuMemHostGetFlags	2030	0	0	-1	pass
+gpa	cuMemHostRegister	6050	0	0	-1	pass
+gpa	cuMemHostUnregister	4000	0	0	-1	pass
+gpa	cuPointerGetAttribute	4000	0	0	-1	pass
+gpa	cuPointerGetAttributes	7000	0	0	-1	pass
+gpa	cuMemAllocAsync	11020	0	0	-1	pass
+gpa	cuMemAllocAsync	11020	2	0	-1	pass
+gpa	cuMemAllocFromPoolAsync	11020	0	0	-1	pass
+gpa	cuMemAllocFromPoolAsync	11020	2	0	-1	pass
+gpa	cuMemFreeAsync	11020	0	0	-1	pass
+gpa	cuMemFreeAsync	11020	2	0	-1	pass
+gpa	cuMemPoolTrimTo	11020	0	0	-1	pass
+gpa	cuMemPoolSetAttribute	11020	0	0	-1	pass
+gpa	cuMemPoolGetAttribute	11020	0	0	-1	pass
+gpa	cuMemPoolSetAccess	11020	0	0	-1	pass
+gpa	cuMemPoolGetAccess	11020	0	0	-1	pass
+gpa	cuMemPoolCreate	11020	0	0	-1	pass
+gpa	cuMemPoolDestroy	11020	0	0	-1	pass
+gpa	cuMemPoolExportToShareableHandle	11020	0	0	-1	pass
+gpa	cuMemPoolImportFromShareableHandle	11020	0	0	-1	pass
+gpa	cuMemPoolExportPointer	11020	0	0	-1	pass
+gpa	cuMemPoolImportPointer	11020	0	0	-1	pass
+gpa	cuMemGetDefaultMemPool	13000	0	0	-1	pass
+gpa	cuMemGetMemPool	13000	0	0	-1	pass
+gpa	cuMemSetMemPool	13000	0	0	-1	pass
+gpa	cuMemcpy	4000	0	0	-1	pass
+gpa	cuMemcpy	7000	2	0	-1	pass
+gpa	cuMemcpyAsync	4000	0	0	-1	pass
+gpa	cuMemcpyAsync	7000	2	0	-1	pass
+gpa	cuMemcpyPeer	4000	0	0	-1	pass
+gpa	cuMemcpyPeer	7000	2	0	-1	pass
+gpa	cuMemcpyPeerAsync	4000	0	0	-1	pass
+gpa	cuMemcpyPeerAsync	7000	2	0	-1	pass
+gpa	cuMemcpyHtoD	3020	0	0	-1	pass
+gpa	cuMemcpyHtoD	7000	2	0	-1	pass
+gpa	cuMemcpyHtoDAsync	3020	0	0	-1	pass
+gpa	cuMemcpyHtoDAsync	7000	2	0	-1	pass
+gpa	cuMemcpyDtoH	3020	0	0	-1	pass
+gpa	cuMemcpyDtoH	7000	2	0	-1	pass
+gpa	cuMemcpyDtoHAsync	3020	0	0	-1	pass
+gpa	cuMemcpyDtoHAsync	7000	2	0	-1	pass
+gpa	cuMemcpyDtoD	3020	0	0	-1	pass
+gpa	cuMemcpyDtoD	7000	2	0	-1	pass
+gpa	cuMemcpyDtoDAsync	3020	0	0	-1	pass
+gpa	cuMemcpyDtoDAsync	7000	2	0	-1	pass
+gpa	cuMemcpy2DUnaligned	3020	0	0	-1	pass
+gpa	cuMemcpy2DUnaligned	7000	2	0	-1	pass
+gpa	cuMemcpy2DAsync	3020	0	0	-1	pass
+gpa	cuMemcpy2DAsync	7000	2	0	-1	pass
+gpa	cuMemcpy3D	3020	0	0	-1	pass
+gpa	cuMemcpy3D	7000	2	0	-1	pass
+gpa	cuMemcpy3DAsync	3020	0	0	-1	pass
+gpa	cuMemcpy3DAsync	7000	2	0	-1	pass
+gpa	cuMemcpy3DPeer	4000	0	0	-1	pass
+gpa	cuMemcpy3DPeer	7000	2	0	-1	pass
+gpa	cuMemcpy3DPeerAsync	4000	0	0	-1	pass
+gpa	cuMemcpy3DPeerAsync	7000	2	0	-1	pass
+gpa	cuMemcpyBatchAsync	13000	0	0	-1	pass
+gpa	cuMemcpyBatchAsync	13000	2	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	13000	0	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	13000	2	0	-1	pass
+gpa	cuMemcpyBatchAsync	12080	0	0	-1	pass
+gpa	cuMemcpyBatchAsync	12080	2	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	12080	0	0	-1	pass
+gpa	cuMemcpy3DBatchAsync	12080	2	0	-1	pass
+gpa	cuMemsetD8	3020	0	0	-1	pass
+gpa	cuMemsetD8	7000	2	0	-1	pass
+gpa	cuMemsetD8Async	3020	0	0	-1	pass
+gpa	cuMemsetD8Async	7000	2	0	-1	pass
+gpa	cuMemsetD2D8	3020	0	0	-1	pass
+gpa	cuMemsetD2D8	7000	2	0	-1	pass
+gpa	cuMemsetD2D8Async	3020	0	0	-1	pass
+gpa	cuMemsetD2D8Async	7000	2	0	-1	pass
+gpa	cuFuncSetCacheConfig	3000	0	0	-1	pass
+gpa	cuFuncSetSharedMemConfig	4020	0	0	-1	pass
+gpa	cuFuncGetAttribute	2020	0	0	-1	pass
+gpa	cuFuncSetAttribute	9000	0	0	-1	pass
+gpa	cuFuncGetName	12030	0	0	-1	pass
+gpa	cuFuncGetParamInfo	12040	0	0	-1	pass
+gpa	cuArrayCreate	3020	0	0	-1	pass
+gpa	cuArrayGetDescriptor	3020	0	0	-1	pass
+gpa	cuArrayGetSparseProperties	11010	0	0	-1	pass
+gpa	cuArrayGetPlane	11020	0	0	-1	pass
+gpa	cuArray3DCreate	3020	0	0	-1	pass
+gpa	cuArray3DGetDescriptor	3020	0	0	-1	pass
+gpa	cuArrayDestroy	2000	0	0	-1	pass
+gpa	cuMipmappedArrayCreate	5000	0	0	-1	pass
+gpa	cuMipmappedArrayGetLevel	5000	0	0	-1	pass
+gpa	cuMipmappedArrayGetSparseProperties	11010	0	0	-1	pass
+gpa	cuMipmappedArrayDestroy	5000	0	0	-1	pass
+gpa	cuArrayGetMemoryRequirements	11060	0	0	-1	pass
+gpa	cuMipmappedArrayGetMemoryRequirements	11060	0	0	-1	pass
+gpa	cuTexObjectCreate	5000	0	0	-1	pass
+gpa	cuTexObjectDestroy	5000	0	0	-1	pass
+gpa	cuTexObjectGetResourceDesc	5000	0	0	-1	pass
+gpa	cuTexObjectGetTextureDesc	5000	0	0	-1	pass
+gpa	cuTexObjectGetResourceViewDesc	5000	0	0	-1	pass
+gpa	cuSurfObjectCreate	5000	0	0	-1	pass
+gpa	cuSurfObjectDestroy	5000	0	0	-1	pass
+gpa	cuSurfObjectGetResourceDesc	5000	0	0	-1	pass
+gpa	cuImportExternalMemory	10000	0	0	-1	pass
+gpa	cuExternalMemoryGetMappedBuffer	10000	0	0	-1	pass
+gpa	cuExternalMemoryGetMappedMipmappedArray	10000	0	0	-1	pass
+gpa	cuDestroyExternalMemory	10000	0	0	-1	pass
+gpa	cuImportExternalSemaphore	10000	0	0	-1	pass
+gpa	cuSignalExternalSemaphoresAsync	10000	0	0	-1	pass
+gpa	cuSignalExternalSemaphoresAsync	10000	2	0	-1	pass
+gpa	cuWaitExternalSemaphoresAsync	10000	0	0	-1	pass
+gpa	cuWaitExternalSemaphoresAsync	10000	2	0	-1	pass
+gpa	cuDestroyExternalSemaphore	10000	0	0	-1	pass
+gpa	cuDeviceGetNvSciSyncAttributes	10020	0	0	-1	pass
+gpa	cuLaunchKernel	4000	0	0	-1	pass
+gpa	cuLaunchKernel	7000	2	0	-1	pass
+gpa	cuLaunchCooperativeKernel	9000	0	0	-1	pass
+gpa	cuLaunchCooperativeKernel	9000	2	0	-1	pass
+gpa	cuLaunchHostFunc	10000	0	0	-1	pass
+gpa	cuLaunchHostFunc	10000	2	0	-1	pass
+gpa	cuLaunchKernelEx	11060	0	0	-1	pass
+gpa	cuLaunchKernelEx	11060	2	0	-1	pass
+gpa	cuEventCreate	2000	0	0	-1	pass
+gpa	cuEventRecord	2000	0	0	-1	pass
+gpa	cuEventRecord	7000	2	0	-1	pass
+gpa	cuEventRecordWithFlags	11010	0	0	-1	pass
+gpa	cuEventRecordWithFlags	11010	2	0	-1	pass
+gpa	cuEventQuery	2000	0	0	-1	pass
+gpa	cuEventSynchronize	2000	0	0	-1	pass
+gpa	cuEventDestroy	4000	0	0	-1	pass
+gpa	cuEventElapsedTime	2000	0	0	-1	pass
+gpa	cuEventElapsedTime	12080	0	0	-1	pass
+gpa	cuStreamWaitValue32	8000	0	0	-1	pass
+gpa	cuStreamWaitValue32	8000	2	0	-1	pass
+gpa	cuStreamWriteValue32	8000	0	0	-1	pass
+gpa	cuStreamWriteValue32	8000	2	0	-1	pass
+gpa	cuStreamWaitValue64	9000	0	0	-1	pass
+gpa	cuStreamWaitValue64	9000	2	0	-1	pass
+gpa	cuStreamWriteValue64	9000	0	0	-1	pass
+gpa	cuStreamWriteValue64	9000	2	0	-1	pass
+gpa	cuStreamBatchMemOp	8000	0	0	-1	pass
+gpa	cuStreamBatchMemOp	8000	2	0	-1	pass
+gpa	cuStreamCreate	2000	0	0	-1	pass
+gpa	cuStreamCreateWithPriority	5050	0	0	-1	pass
+gpa	cuStreamGetPriority	5050	0	0	-1	pass
+gpa	cuStreamGetPriority	7000	2	0	-1	pass
+gpa	cuStreamGetFlags	5050	0	0	-1	pass
+gpa	cuStreamGetDevice	12080	0	0	-1	pass
+gpa	cuStreamGetDevice	12080	2	0	-1	pass
+gpa	cuStreamGetCtx	9020	0	0	-1	pass
+gpa	cuStreamGetFlags	7000	2	0	-1	pass
+gpa	cuStreamGetId	12000	0	0	-1	pass
+gpa	cuStreamGetId	12000	2	0	-1	pass
+gpa	cuStreamDestroy	4000	0	0	-1	pass
+gpa	cuStreamWaitEvent	3020	0	0	-1	pass
+gpa	cuStreamWaitEvent	7000	2	0	-1	pass
+gpa	cuStreamAddCallback	5000	0	0	-1	pass
+gpa	cuStreamAddCallback	7000	2	0	-1	pass
+gpa	cuStreamSynchronize	2000	0	0	-1	pass
+gpa	cuStreamSynchronize	7000	2	0	-1	pass
+gpa	cuStreamQuery	2000	0	0	-1	pass
+gpa	cuStreamQuery	7000	2	0	-1	pass
+gpa	cuStreamAttachMemAsync	6000	0	0	-1	pass
+gpa	cuStreamAttachMemAsync	7000	2	0	-1	pass
+gpa	cuStreamCopyAttributes	11000	0	0	-1	pass
+gpa	cuStreamCopyAttributes	11000	2	0	-1	pass
+gpa	cuStreamGetAttribute	11000	0	0	-1	pass
+gpa	cuStreamGetAttribute	11000	2	0	-1	pass
+gpa	cuStreamSetAttribute	11000	0	0	-1	pass
+gpa	cuStreamSetAttribute	11000	2	0	-1	pass
+gpa	cuDeviceCanAccessPeer	4000	0	0	-1	pass
+gpa	cuCtxEnablePeerAccess	4000	0	0	-1	pass
+gpa	cuCtxDisablePeerAccess	4000	0	0	-1	pass
+gpa	cuIpcGetEventHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenEventHandle	4010	0	0	-1	pass
+gpa	cuIpcGetMemHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenMemHandle	4010	0	0	-1	pass
+gpa	cuIpcOpenMemHandle	11000	0	0	-1	pass
+gpa	cuIpcCloseMemHandle	4010	0	0	-1	pass
+gpa	cuGLCtxCreate	3020	0	0	-1	pass
+gpa	cuGLInit	2000	0	0	-1	pass
+gpa	cuGLGetDevices	4010	0	0	-1	pass
+gpa	cuGLRegisterBufferObject	2000	0	0	-1	pass
+gpa	cuGLMapBufferObject	3020	0	0	-1	pass
+gpa	cuGLMapBufferObject	7000	2	0	-1	pass
+gpa	cuGLMapBufferObjectAsync	3020	0	0	-1	pass
+gpa	cuGLMapBufferObjectAsync	7000	2	0	-1	pass
+gpa	cuGLUnmapBufferObject	2000	0	0	-1	pass
+gpa	cuGLUnmapBufferObjectAsync	2030	0	0	-1	pass
+gpa	cuGLUnregisterBufferObject	2000	0	0	-1	pass
+gpa	cuGLSetBufferObjectMapFlags	2030	0	0	-1	pass
+gpa	cuGraphicsGLRegisterImage	3000	0	0	-1	pass
+gpa	cuGraphicsGLRegisterBuffer	3000	0	0	-1	pass
+gpa	cuGraphicsEGLRegisterImage	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerConnect	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerDisconnect	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerAcquireFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerReleaseFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerConnect	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerDisconnect	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerPresentFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamProducerReturnFrame	7000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedEglFrame	7000	0	0	-1	pass
+gpa	cuEGLStreamConsumerConnectWithFlags	8000	0	0	-1	pass
+gpa	cuGraphicsUnregisterResource	3000	0	0	-1	pass
+gpa	cuGraphicsMapResources	3000	0	0	-1	pass
+gpa	cuGraphicsMapResources	7000	2	0	-1	pass
+gpa	cuGraphicsUnmapResources	3000	0	0	-1	pass
+gpa	cuGraphicsUnmapResources	7000	2	0	-1	pass
+gpa	cuGraphicsResourceSetMapFlags	6050	0	0	-1	pass
+gpa	cuGraphicsSubResourceGetMappedArray	3000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedMipmappedArray	5000	0	0	-1	pass
+gpa	cuGraphicsResourceGetMappedPointer	3020	0	0	-1	pass
+gpa	cuProfilerInitialize	4000	0	0	-1	pass
+gpa	cuProfilerStart	4000	0	0	-1	pass
+gpa	cuProfilerStop	4000	0	0	-1	pass
+gpa	cuVDPAUGetDevice	3010	0	0	-1	pass
+gpa	cuVDPAUCtxCreate	3020	0	0	-1	pass
+gpa	cuGraphicsVDPAURegisterVideoSurface	3010	0	0	-1	pass
+gpa	cuGraphicsVDPAURegisterOutputSurface	3010	0	0	-1	pass
+gpa	cuGetExportTable	3000	0	0	-1	pass
+gpa	cuOccupancyMaxActiveBlocksPerMultiprocessorWithFlags	7000	0	0	-1	pass
+gpa	cuOccupancyAvailableDynamicSMemPerBlock	10020	0	0	-1	pass
+gpa	cuOccupancyMaxPotentialClusterSize	11070	0	0	-1	pass
+gpa	cuOccupancyMaxActiveClusters	11070	0	0	-1	pass
+gpa	cuMemAdvise	8000	0	0	-1	pass
+gpa	cuMemPrefetchAsync	8000	0	0	-1	pass
+gpa	cuMemPrefetchAsync	8000	2	0	-1	pass
+gpa	cuMemAdvise	12020	0	0	-1	pass
+gpa	cuMemPrefetchAsync	12020	0	0	-1	pass
+gpa	cuMemPrefetchAsync	12020	2	0	-1	pass
+gpa	cuMemPrefetchBatchAsync	13000	0	0	-1	pass
+gpa	cuMemPrefetchBatchAsync	13000	2	0	-1	pass
+gpa	cuMemDiscardBatchAsync	13000	0	0	-1	pass
+gpa	cuMemDiscardBatchAsync	13000	2	0	-1	pass
+gpa	cuMemDiscardAndPrefetchBatchAsync	13000	0	0	-1	pass
+gpa	cuMemDiscardAndPrefetchBatchAsync	13000	2	0	-1	pass
+gpa	cuMemRangeGetAttribute	8000	0	0	-1	pass
+gpa	cuMemRangeGetAttributes	8000	0	0	-1	pass
+gpa	cuGetErrorString	6000	0	0	-1	pass
+gpa	cuGetErrorName	6000	0	0	-1	pass
+gpa	cuGraphCreate	10000	0	0	-1	pass
+gpa	cuGraphAddKernelNode	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeGetParams	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeSetParams	12000	0	0	-1	pass
+gpa	cuGraphAddMemcpyNode	10000	0	0	-1	pass
+gpa	cuGraphMemcpyNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphMemcpyNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddMemsetNode	10000	0	0	-1	pass
+gpa	cuGraphMemsetNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphMemsetNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddHostNode	10000	0	0	-1	pass
+gpa	cuGraphHostNodeGetParams	10000	0	0	-1	pass
+gpa	cuGraphHostNodeSetParams	10000	0	0	-1	pass
+gpa	cuGraphAddChildGraphNode	10000	0	0	-1	pass
+gpa	cuGraphChildGraphNodeGetGraph	10000	0	0	-1	pass
+gpa	cuGraphAddEmptyNode	10000	0	0	-1	pass
+gpa	cuGraphAddEventRecordNode	11010	0	0	-1	pass
+gpa	cuGraphEventRecordNodeGetEvent	11010	0	0	-1	pass
+gpa	cuGraphEventRecordNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphAddEventWaitNode	11010	0	0	-1	pass
+gpa	cuGraphEventWaitNodeGetEvent	11010	0	0	-1	pass
+gpa	cuGraphEventWaitNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphAddExternalSemaphoresSignalNode	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresSignalNodeGetParams	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresSignalNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphAddExternalSemaphoresWaitNode	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresWaitNodeGetParams	11020	0	0	-1	pass
+gpa	cuGraphExternalSemaphoresWaitNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphExecExternalSemaphoresSignalNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphExecExternalSemaphoresWaitNodeSetParams	11020	0	0	-1	pass
+gpa	cuGraphAddMemAllocNode	11040	0	0	-1	pass
+gpa	cuGraphMemAllocNodeGetParams	11040	0	0	-1	pass
+gpa	cuGraphAddMemFreeNode	11040	0	0	-1	pass
+gpa	cuGraphMemFreeNodeGetParams	11040	0	0	-1	pass
+gpa	cuDeviceGraphMemTrim	11040	0	0	-1	pass
+gpa	cuDeviceGetGraphMemAttribute	11040	0	0	-1	pass
+gpa	cuDeviceSetGraphMemAttribute	11040	0	0	-1	pass
+gpa	cuGraphClone	10000	0	0	-1	pass
+gpa	cuGraphNodeFindInClone	10000	0	0	-1	pass
+gpa	cuGraphNodeGetType	10000	0	0	-1	pass
+gpa	cuGraphGetNodes	10000	0	0	-1	pass
+gpa	cuGraphGetRootNodes	10000	0	0	-1	pass
+gpa	cuGraphGetEdges	10000	0	0	-1	pass
+gpa	cuGraphGetEdges	12030	0	0	-1	pass
+gpa	cuGraphNodeGetDependencies	10000	0	0	-1	pass
+gpa	cuGraphNodeGetDependencies	12030	0	0	-1	pass
+gpa	cuGraphNodeGetDependentNodes	10000	0	0	-1	pass
+gpa	cuGraphNodeGetDependentNodes	12030	0	0	-1	pass
+gpa	cuGraphAddDependencies	10000	0	0	-1	pass
+gpa	cuGraphAddDependencies	12030	0	0	-1	pass
+gpa	cuGraphRemoveDependencies	10000	0	0	-1	pass
+gpa	cuGraphRemoveDependencies	12030	0	0	-1	pass
+gpa	cuGraphDestroyNode	10000	0	0	-1	pass
+gpa	cuGraphInstantiate	10000	0	0	-1	pass
+gpa	cuGraphInstantiate	11000	0	0	-1	pass
+gpa	cuGraphInstantiateWithFlags	11040	0	0	-1	pass
+gpa	cuGraphUpload	11010	0	0	-1	pass
+gpa	cuGraphUpload	11010	2	0	-1	pass
+gpa	cuGraphLaunch	10000	0	0	-1	pass
+gpa	cuGraphLaunch	10000	2	0	-1	pass
+gpa	cuGraphExecDestroy	10000	0	0	-1	pass
+gpa	cuGraphDestroy	10000	0	0	-1	pass
+gpa	cuStreamBeginCapture	10000	0	0	-1	pass
+gpa	cuStreamBeginCapture	10000	2	0	-1	pass
+gpa	cuStreamBeginCapture	10010	0	0	-1	pass
+gpa	cuStreamBeginCapture	10010	2	0	-1	pass
+gpa	cuStreamBeginCaptureToGraph	12030	0	0	-1	pass
+gpa	cuStreamBeginCaptureToGraph	12030	2	0	-1	pass
+gpa	cuStreamEndCapture	10000	0	0	-1	pass
+gpa	cuStreamEndCapture	10000	2	0	-1	pass
+gpa	cuStreamIsCapturing	10000	0	0	-1	pass
+gpa	cuStreamIsCapturing	10000	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	10010	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	10010	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	11030	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	11030	2	0	-1	pass
+gpa	cuStreamGetCaptureInfo	12030	0	0	-1	pass
+gpa	cuStreamGetCaptureInfo	12030	2	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	11030	0	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	11030	2	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	12030	0	0	-1	pass
+gpa	cuStreamUpdateCaptureDependencies	12030	2	0	-1	pass
+gpa	cuGraphExecKernelNodeSetParams	12000	0	0	-1	pass
+gpa	cuGraphExecMemcpyNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecMemsetNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecHostNodeSetParams	10020	0	0	-1	pass
+gpa	cuGraphExecChildGraphNodeSetParams	11010	0	0	-1	pass
+gpa	cuGraphExecEventRecordNodeSetEvent	11010	0	0	-1	pass
+gpa	cuGraphExecEventWaitNodeSetEvent	11010	0	0	-1	pass
+gpa	cuThreadExchangeStreamCaptureMode	10010	0	0	-1	pass
+gpa	cuGraphExecUpdate	12000	0	0	-1	pass
+gpa	cuGraphKernelNodeCopyAttributes	11000	0	0	-1	pass
+gpa	cuGraphKernelNodeGetAttribute	11000	0	0	-1	pass
+gpa	cuGraphKernelNodeSetAttribute	11000	0	0	-1	pass
+gpa	cuGraphDebugDotPrint	11030	0	0	-1	pass
+gpa	cuUserObjectCreate	11030	0	0	-1	pass
+gpa	cuUserObjectRetain	11030	0	0	-1	pass
+gpa	cuUserObjectRelease	11030	0	0	-1	pass
+gpa	cuGraphRetainUserObject	11030	0	0	-1	pass
+gpa	cuGraphReleaseUserObject	11030	0	0	-1	pass
+gpa	cuGraphNodeSetEnabled	11060	0	0	-1	pass
+gpa	cuGraphNodeGetEnabled	11060	0	0	-1	pass
+gpa	cuGraphInstantiateWithParams	12000	0	0	-1	pass
+gpa	cuGraphInstantiateWithParams	12000	2	0	-1	pass
+gpa	cuGraphExecGetFlags	12000	0	0	-1	pass
+gpa	cuGraphAddNode	12020	0	0	-1	pass
+gpa	cuGraphAddNode	12030	0	0	-1	pass
+gpa	cuGraphNodeSetParams	12020	0	0	-1	pass
+gpa	cuGraphExecNodeSetParams	12020	0	0	-1	pass
+gpa	cuGraphConditionalHandleCreate	12030	0	0	-1	pass
+gpa	cuDeviceRegisterAsyncNotification	12040	0	0	-1	pass
+gpa	cuDeviceUnregisterAsyncNotification	12040	0	0	-1	pass
+gpa	cuLogsRegisterCallback	12090	0	0	-1	pass
+gpa	cuLogsUnregisterCallback	12090	0	0	-1	pass
+gpa	cuLogsCurrent	12090	0	0	-1	pass
+gpa	cuLogsDumpToFile	12090	0	0	-1	pass
+gpa	cuLogsDumpToMemory	12090	0	0	-1	pass
+gpa	cuDeviceGet	13000	0	0	-1	pass
+gpa	cuDeviceGetName	13000	0	0	-1	pass
+gpa	cuDeviceGetAttribute	13000	0	0	-1	pass

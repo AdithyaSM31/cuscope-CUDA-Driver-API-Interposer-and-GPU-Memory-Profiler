@@ -274,7 +274,7 @@ def test_census_records_gpa(mimic):
 **Interfaces:**
 - Consumes: Task 3 loader stage 1, `real_gpa`, `stats`.
 - Produces:
-  - `src/hooks.def`, one line per hook: `HOOK(base, "legacy_export", "ptds_export_or_nullptr")`, for example `HOOK(cuMemAlloc, "cuMemAlloc_v2", nullptr)` and `HOOK(cuMemcpyAsync, "cuMemcpyAsync", "cuMemcpyAsync_ptsz")`. The list is spec §5 updated by the census. Export names come from `nm -D --defined-only /usr/lib/wsl/lib/libcuda.so.1` and the `#define` in `cuda.h`.
+  - `src/hooks.def`, one line per hook: `HOOK(base, "legacy_export", "ptds_export_or_nullptr", version)`, for example `HOOK(cuMemAlloc, "cuMemAlloc_v2", nullptr, CUDA_VERSION)`, `HOOK(cuMemcpyAsync, "cuMemcpyAsync", "cuMemcpyAsync_ptsz", CUDA_VERSION)` and `HOOK(cuCtxSynchronize, "cuCtxSynchronize", nullptr, 2000)`. `version` is the cudaVersion whose returned function has the signature `cuda.h` declares for `base` (amended after the Day 2 census; see `docs/census/SUMMARY.md` finding 5). The list is spec §5. Export names come from `nm -D --defined-only /usr/lib/wsl/lib/libcuda.so.1` and the `#define` in `cuda.h`.
   - `hook_table.hpp`: `enum HookId : uint16_t { H_<base>..., H_COUNT };` and `struct HookEntry { const char* base; const char* export_name[2]; void* wrapper[2]; std::atomic<void*> real[2]; };`. Functions: `HookEntry& hook(HookId)`, `HookEntry* find_hook_by_base(const char*)`, `HookEntry* find_hook_by_export(const char* sym, int* variant)`, `const char* hook_name(uint16_t)`, `void hook_table_init()` (`pthread_once`; calls `register_alloc_hooks()`, `register_memcpy_hooks()`, `register_launch_hooks()`, `register_teardown_hooks()`, `register_name_hooks()`; hooks left without wrappers are logged once and stay pass-through), and `template <class Fn> Fn real_fn(HookId id, int v)` (calls `ensure_loader()`, then loads `real[v]` with acquire).
   - In each wrapper .cpp, registration uses:
 ```cpp
@@ -283,7 +283,7 @@ def test_census_records_gpa(mimic):
   set_wrappers(H_##b, reinterpret_cast<void*>(&cs_##b<0>), reinterpret_cast<void*>(&cs_##b<1>)); } while (0)
 ```
   - Wrapper shape: `template <int V> CUresult cs_<base>(<cuda.h params>)` with `V` = 0 (legacy) or 1 (per-thread). It forwards to `real_fn<decltype(&::<base>)>(H_<base>, V)` and does `stats::hooked_calls++` unless `in_internal()`. Every exported name in `hooks.def` gets an `extern "C"` definition that does `stats::direct_calls++` and calls `cs_<base><0>` (or `<1>` for the ptds export).
-  - `loader.hpp` additions: `void ensure_loader();` (`pthread_once`, inside an `InternalScope`: `hook_table_init()`; for every hook, `real[0] = gpa(base, CUDA_VERSION, CU_GET_PROC_ADDRESS_LEGACY_STREAM)` and `real[1] = gpa(base, CUDA_VERSION, CU_GET_PROC_ADDRESS_PER_THREAD_DEFAULT_STREAM)`; a failed lookup falls back to `real_dlsym()(libcuda_handle(), export_name[v])`) and `bool loader_ready();`.
+  - `loader.hpp` additions: `void ensure_loader();` (`pthread_once`, inside an `InternalScope`: `hook_table_init()`; for every hook, `real[0] = gpa(base, version, CU_GET_PROC_ADDRESS_LEGACY_STREAM)` and `real[1] = gpa(base, version, CU_GET_PROC_ADDRESS_PER_THREAD_DEFAULT_STREAM)`, with `version` taken from `hooks.def`; a failed lookup falls back to `real_dlsym()(libcuda_handle(), export_name[v])`) and `bool loader_ready();`.
   - `guard.hpp`: `struct InternalScope { InternalScope(); ~InternalScope(); };` and `bool in_internal();` over a `thread_local int` depth.
   - The gpa wrapper becomes: real call → census → if it succeeded and the hook exists and `loader_ready()`: when `*pfn == real[v]`, set `*pfn = wrapper[v]` and `gpa_wrapped++`; otherwise `gpa_passthrough++` (the pointer is left untouched). The `dlsym` override also returns `wrapper[v]` for any `find_hook_by_export` match.
 
@@ -306,7 +306,7 @@ def test_direct_exports(direct_mimic):
 def test_real_gpa_is_never_own_wrapper(mimic):        # Review Focus 1
     r = mimic("dlsym_default", "direct"); assert r.code == 0 and r.stats["hooked_calls"] >= 2
 ```
-`tools/check_exports.py` asserts that every export name in `hooks.def` appears in `nm -D --defined-only /usr/lib/wsl/lib/libcuda.so.1`.
+`tools/check_exports.py` checks two things: (a) every export name in `hooks.def` appears in `nm -D --defined-only /usr/lib/wsl/lib/libcuda.so.1`; (b) **signature safety**. It loads the real driver (`/usr/lib/wsl/drivers/*/libcuda.so.1.1`) directly with ctypes, and for every hook and both variants asserts that `cuGetProcAddress_v2(base, version, flags)` returns the same address as `dlsym(driver, export_name[v])`. That proves the pointer each wrapper matches is the function whose prototype the wrapper was written against. A negative control asserts that `cuCtxSynchronize` at 13000 does **not** equal `dlsym(driver, "cuCtxSynchronize")`.
 - [ ] **Step 2 [Claude]: Run** `python3 -m pytest tests/mock -v`. Expected: the new tests FAIL.
 - [ ] **Step 3 [You]: Implement** guard, hooks.def, hook table, loader stage 2, pass-through wrappers for every hook, the gpa variant matching, and the direct exports.
 - [ ] **Step 4 [Claude]: Review, then run** `cmake --build build && ctest --test-dir build --output-on-failure`. Expected: unit, mock and gpu all PASS. The gpu label covers the 9 passthrough tests and `check_exports`.
