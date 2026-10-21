@@ -41,8 +41,6 @@ void register_all() {
 
 const HookSpec& hook_spec(HookId id) { return kSpecs[id]; }
 
-const char* hook_name(uint16_t id) { return id < H_COUNT ? kSpecs[id].base : "?"; }
-
 int find_hook_by_base(const char* base) {
   for (int id = 0; id < H_COUNT; ++id) {
     if (std::strcmp(kSpecs[id].base, base) == 0) return id;

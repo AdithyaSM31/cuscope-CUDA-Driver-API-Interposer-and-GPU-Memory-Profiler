@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "guard.hpp"
+#include "hook_names.hpp"
 #include "loader.hpp"
 
 // The hook table built from hooks.def.
@@ -11,13 +12,6 @@
 // pointers live in zero-initialised arrays filled at run time, so nothing here
 // needs a constructor: the table works before cuscope's constructors run.
 namespace cuscope {
-
-enum HookId : uint16_t {
-#define HOOK(base, legacy_export, per_thread_export, version) H_##base,
-#include "hooks.def"
-#undef HOOK
-  H_COUNT
-};
 
 // Variant 0 is the legacy-stream function, variant 1 the per-thread one.
 constexpr int kLegacy = 0;
@@ -30,7 +24,6 @@ struct HookSpec {
 };
 
 const HookSpec& hook_spec(HookId id);
-const char* hook_name(uint16_t id);  // base name, or "?" when out of range
 
 // -1 when not hooked.
 int find_hook_by_base(const char* base);
