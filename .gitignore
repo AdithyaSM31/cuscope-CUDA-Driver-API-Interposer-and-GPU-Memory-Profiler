@@ -1,0 +1,5 @@
+build/
+.superpowers/
+__pycache__/
+*.pyc
+cuscope-*.json
