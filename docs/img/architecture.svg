@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>cuscope architecture: three paths into the driver, one wrapper layer</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a5568"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2b6cb0"/>
+    </marker>
+  </defs>
+  <rect width="960" height="600" fill="#ffffff"/>
+
+  <!-- Callers -->
+  <rect x="40" y="24" width="300" height="60" rx="8" fill="#f7fafc" stroke="#a0aec0"/>
+  <text x="190" y="50" text-anchor="middle" font-size="15" font-weight="600" fill="#1a202c">Your program</text>
+  <text x="190" y="70" text-anchor="middle" font-size="12.5" fill="#4a5568">linked with -lcuda: calls cuMemAlloc_v2 by name</text>
+
+  <rect x="400" y="24" width="520" height="60" rx="8" fill="#f7fafc" stroke="#a0aec0"/>
+  <text x="660" y="50" text-anchor="middle" font-size="15" font-weight="600" fill="#1a202c">CUDA runtime</text>
+  <text x="660" y="70" text-anchor="middle" font-size="12.5" fill="#4a5568">static, shared (libcudart.so.13), or bundled in PyTorch, cuBLAS, cuBLASLt</text>
+
+  <!-- cuscope container -->
+  <rect x="24" y="118" width="912" height="226" rx="10" fill="#ebf4ff" stroke="#90cdf4"/>
+  <text x="44" y="142" font-size="15" font-weight="700" fill="#1a365d">libcuscope.so</text>
+  <text x="232" y="142" font-size="12.5" fill="#2c5282">loaded with LD_PRELOAD</text>
+
+  <rect x="44" y="156" width="270" height="78" rx="8" fill="#ffffff" stroke="#90cdf4"/>
+  <text x="179" y="180" text-anchor="middle" font-size="14" font-weight="600" fill="#1a202c">1 · Exported symbols</text>
+  <text x="179" y="200" text-anchor="middle" font-size="12" fill="#4a5568">same names as libcuda, so the</text>
+  <text x="179" y="216" text-anchor="middle" font-size="12" fill="#4a5568">dynamic linker binds to cuscope first</text>
+
+  <rect x="345" y="156" width="270" height="78" rx="8" fill="#ffffff" stroke="#90cdf4"/>
+  <text x="480" y="180" text-anchor="middle" font-size="14" font-weight="600" fill="#1a202c">2 · dlsym override</text>
+  <text x="480" y="200" text-anchor="middle" font-size="12" fill="#4a5568">returns cuscope's cuGetProcAddress;</text>
+  <text x="480" y="216" text-anchor="middle" font-size="12" fill="#4a5568">libcuda's own lookups pass through</text>
+
+  <rect x="646" y="156" width="270" height="78" rx="8" fill="#ffffff" stroke="#90cdf4"/>
+  <text x="781" y="180" text-anchor="middle" font-size="14" font-weight="600" fill="#1a202c">3 · cuGetProcAddress hook</text>
+  <text x="781" y="200" text-anchor="middle" font-size="12" fill="#4a5568">wraps a pointer only if it is exactly</text>
+  <text x="781" y="216" text-anchor="middle" font-size="12" fill="#4a5568">the variant resolved at start-up</text>
+
+  <rect x="44" y="258" width="872" height="66" rx="8" fill="#2b6cb0"/>
+  <text x="480" y="284" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">Hook wrappers</text>
+  <text x="480" y="306" text-anchor="middle" font-size="12.5" fill="#e2e8f0">forward every call unchanged and return its result, then record it: tracker, stacks, CUDA events, 64-byte record</text>
+
+  <!-- caller arrows into cuscope -->
+  <line x1="190" y1="84" x2="179" y2="154" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="196" y="106" font-size="12" fill="#4a5568">direct call</text>
+  <line x1="560" y1="84" x2="490" y2="154" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="530" y="112" font-size="12" fill="#4a5568">dlsym</text>
+  <line x1="760" y1="84" x2="781" y2="154" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="780" y="112" font-size="12" fill="#4a5568">cuGetProcAddress</text>
+
+  <line x1="179" y1="234" x2="179" y2="256" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="480" y1="234" x2="480" y2="256" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="781" y1="234" x2="781" y2="256" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- Driver side -->
+  <rect x="44" y="384" width="300" height="60" rx="8" fill="#f7fafc" stroke="#a0aec0"/>
+  <text x="194" y="410" text-anchor="middle" font-size="14" font-weight="600" fill="#1a202c">libcuda.so.1 (WSL loader shim)</text>
+  <text x="194" y="430" text-anchor="middle" font-size="12" fill="#4a5568">/usr/lib/wsl/lib, 728 trampolines</text>
+
+  <rect x="44" y="468" width="300" height="52" rx="8" fill="#f7fafc" stroke="#a0aec0"/>
+  <text x="194" y="499" text-anchor="middle" font-size="14" font-weight="600" fill="#1a202c">libcuda.so.1.1 (the driver)</text>
+
+  <rect x="44" y="540" width="300" height="44" rx="8" fill="#f0fff4" stroke="#68d391"/>
+  <text x="194" y="567" text-anchor="middle" font-size="14" font-weight="600" fill="#22543d">GPU (RTX 3060 via WSL2)</text>
+
+  <line x1="194" y1="324" x2="194" y2="382" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="204" y="358" font-size="12" fill="#4a5568">real call</text>
+  <line x1="194" y1="444" x2="194" y2="466" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="194" y1="520" x2="194" y2="538" stroke="#4a5568" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- shim's own dlsym, passed through -->
+  <path d="M344 404 C 410 404, 440 380, 440 236" fill="none" stroke="#c05621" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="358" y="466" font-size="12" fill="#c05621">the shim's own dlsym calls</text>
+  <text x="358" y="482" font-size="12" fill="#c05621">come from libcuda, so they</text>
+  <text x="358" y="498" font-size="12" fill="#c05621">pass through untouched</text>
+
+  <!-- Recording side -->
+  <rect x="560" y="384" width="356" height="60" rx="8" fill="#f7fafc" stroke="#a0aec0"/>
+  <text x="738" y="410" text-anchor="middle" font-size="14" font-weight="600" fill="#1a202c">Per-thread ring buffers</text>
+  <text x="738" y="430" text-anchor="middle" font-size="12" fill="#4a5568">single producer, single consumer; full = drop and count</text>
+
+  <rect x="560" y="462" width="356" height="60" rx="8" fill="#f7fafc" stroke="#a0aec0"/>
+  <text x="738" y="488" text-anchor="middle" font-size="14" font-weight="600" fill="#1a202c">Collector thread, every 2 ms</text>
+  <text x="738" y="508" text-anchor="middle" font-size="12" fill="#4a5568">drains rings; resolves events to GPU spans</text>
+
+  <rect x="560" y="540" width="356" height="44" rx="8" fill="#fffaf0" stroke="#f6ad55"/>
+  <text x="738" y="567" text-anchor="middle" font-size="14" font-weight="600" fill="#7b341e">trace.json (Perfetto) + summary at exit</text>
+
+  <line x1="738" y1="324" x2="738" y2="382" stroke="#2b6cb0" stroke-width="1.6" marker-end="url(#arrow-blue)"/>
+  <text x="748" y="358" font-size="12" fill="#2b6cb0">records</text>
+  <line x1="738" y1="444" x2="738" y2="460" stroke="#2b6cb0" stroke-width="1.6" marker-end="url(#arrow-blue)"/>
+  <line x1="738" y1="522" x2="738" y2="538" stroke="#2b6cb0" stroke-width="1.6" marker-end="url(#arrow-blue)"/>
+</svg>

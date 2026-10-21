@@ -16,7 +16,7 @@ jobs:
         sanitize: [none, address, thread]
     name: test (${{ matrix.sanitize }})
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install cuda.h (cuda-cudart-dev-13-0 only)
         run: |
