@@ -237,6 +237,24 @@ def test_generic_copy_direction_from_pointers(mimic):
     assert copies(r.trace) == [("DtoD", False, 1, 16)]
 
 
+# ---- Task 16: sampling ----
+
+def test_sample_every(mimic):
+    r = mimic("launch8", "shim", env={"CUSCOPE_SAMPLE_EVERY": "4"})
+    assert r.code == 0, r.stderr
+    report = r.trace["cuscope"]
+    assert len(gpu_spans(r.trace)) == 2
+    assert report["gpu_untimed"] == 6
+    assert (report["kernels"][0]["count"], report["kernels"][0]["timed"]) == (8, 2)
+    assert report["sample_every"] == 4
+
+
+def test_copies_are_not_sampled(mimic):
+    # Bandwidth divides all bytes by GPU time, so every copy must be timed.
+    r = mimic("copy", "shim", env={"CUSCOPE_SAMPLE_EVERY": "4"})
+    assert len(gpu_spans(r.trace)) == 1 and r.trace["cuscope"]["gpu_untimed"] == 0
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     # Every call the program made reaches the driver unchanged. Event calls are
     # left out: from Task 10 on, cuscope records its own timing events.

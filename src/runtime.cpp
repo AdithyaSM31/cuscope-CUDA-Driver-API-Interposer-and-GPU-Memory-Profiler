@@ -29,6 +29,7 @@ void write_report_at_exit() {
   Snapshot s;
   s.pid = static_cast<int>(getpid());
   s.mode = mode_name(config().mode);
+  s.sample_every = config().sample_every;
   collector_stop_and_drain(s);  // first, so no record arrives after the drain
   gputimer_finish();            // then resolve events of contexts still alive
   gputimer_fill(s);

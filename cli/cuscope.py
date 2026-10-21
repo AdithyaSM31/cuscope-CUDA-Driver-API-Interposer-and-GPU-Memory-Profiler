@@ -150,7 +150,9 @@ def print_summary(report: dict, frames_per_site: int) -> None:
         return describe(frames[0], lines) + "".join(f"\n      called from {describe(f, lines)}" for f in frames[1:])
 
     peaks = report["peak_bytes"]
-    print(f"== cuscope summary (pid {report['pid']}, mode {report['mode']}) ==")
+    sample_every = report.get("sample_every", 1)
+    sampling = f", timing 1 in {sample_every} launches" if sample_every > 1 else ""
+    print(f"== cuscope summary (pid {report['pid']}, mode {report['mode']}{sampling}) ==")
     print("Memory")
     print(f"  peak device memory  {bytes_text(peaks['device_total'])}  (device {bytes_text(peaks['device'])}, "
           f"managed {bytes_text(peaks['managed'])}, async {bytes_text(peaks['async'])}; "
@@ -180,10 +182,13 @@ def print_summary(report: dict, frames_per_site: int) -> None:
     if not kernels:
         print("Top kernels: none")
     else:
-        print(f"Top kernels\n  {'GPU time':>12}  {'calls':>6}  name")
+        # With sampling, GPU time covers only the timed launches.
+        timed_header = f"  {'timed':>6}" if sample_every > 1 else ""
+        print(f"Top kernels\n  {'GPU time':>12}  {'calls':>6}{timed_header}  name")
         for k in kernels[:TOP_KERNELS]:
             gpu = time_text(k["gpu_ns_total"]) if k["gpu_ns_total"] else "untimed"
-            print(f"  {gpu:>12}  {k['count']:>6}  {k['name']}")
+            timed = f"  {k.get('timed', k['count']):>6}" if sample_every > 1 else ""
+            print(f"  {gpu:>12}  {k['count']:>6}{timed}  {k['name']}")
     if report["graph_launches"]:
         print(f"  graph launches: {report['graph_launches']}")
 

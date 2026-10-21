@@ -99,6 +99,14 @@ TEST(Report, KernelsAndCopies) {
   EXPECT_TRUE(contains(text, "HtoD pinned")) << text;
 }
 
+TEST(Report, SamplingIsStated) {
+  Snapshot s = sample();
+  s.sample_every = 4;
+  const std::string text = render(s);
+  EXPECT_TRUE(contains(text, "(pid 42, mode full, timing 1 in 4 launches)")) << text;
+  EXPECT_TRUE(contains(text, "timed")) << text;
+}
+
 TEST(Report, EmptySnapshotSaysSo) {
   Snapshot s;
   s.mode = "alloc";

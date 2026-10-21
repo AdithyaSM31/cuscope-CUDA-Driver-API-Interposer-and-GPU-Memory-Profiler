@@ -112,9 +112,18 @@ void print_invalid_frees(const Snapshot& s, FILE* out) {
   }
 }
 
-void print_kernels(const Summary& sum, FILE* out) {
+// With sampling, GPU time covers only the timed launches, so a "timed"
+// column says how many that was.
+void print_kernels(const Summary& sum, bool sampled, FILE* out) {
   if (sum.kernels.empty()) {
     std::fprintf(out, "Top kernels: none\n");
+  } else if (sampled) {
+    std::fprintf(out, "Top kernels\n  %12s  %6s  %6s  %s\n", "GPU time", "calls", "timed", "name");
+    for (size_t i = 0; i < sum.kernels.size() && i < kTopKernels; ++i) {
+      const KernelStat& k = sum.kernels[i];
+      std::fprintf(out, "  %12s  %6" PRIu64 "  %6" PRIu64 "  %s\n",
+                   k.gpu_ns_total ? time_text(k.gpu_ns_total).c_str() : "untimed", k.count, k.timed, k.name.c_str());
+    }
   } else {
     std::fprintf(out, "Top kernels\n  %12s  %6s  %s\n", "GPU time", "calls", "name");
     for (size_t i = 0; i < sum.kernels.size() && i < kTopKernels; ++i) {
@@ -147,11 +156,17 @@ void print_copies(const Summary& sum, FILE* out) {
 }  // namespace
 
 void print_summary(const Snapshot& s, const Summary& sum, FILE* out) {
-  std::fprintf(out, "== cuscope summary (pid %d, mode %s) ==\n", s.pid, s.mode.c_str());
+  const bool sampled = s.sample_every > 1;
+  if (sampled) {
+    std::fprintf(out, "== cuscope summary (pid %d, mode %s, timing 1 in %u launches) ==\n", s.pid, s.mode.c_str(),
+                 s.sample_every);
+  } else {
+    std::fprintf(out, "== cuscope summary (pid %d, mode %s) ==\n", s.pid, s.mode.c_str());
+  }
   print_memory(s, out);
   print_leaks(s, out);
   print_invalid_frees(s, out);
-  print_kernels(sum, out);
+  print_kernels(sum, sampled, out);
   print_copies(sum, out);
   std::fprintf(out, "Completeness: dropped=%" PRIu64 " unresolved=%" PRIu64 " untimed=%" PRIu64 "\n",
                s.dropped_records, s.unresolved_events, s.gpu_untimed);

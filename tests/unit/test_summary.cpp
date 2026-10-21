@@ -47,6 +47,18 @@ TEST(Summary, KernelsSortedByTotal) {
   EXPECT_EQ(sum.kernels[1].gpu_ns_max, 300u);
 }
 
+TEST(Summary, TimedCountsOnlyLaunchesWithSpans) {
+  // With sampling, some launches have no GPU span: the stat says how many did.
+  Snapshot s;
+  s.records = {launch(1, 9), launch(2, 9), launch(3, 9), launch(4, 9)};
+  s.spans = {span(1, 9, 100), span(3, 9, 300)};
+  Summary sum = summarize(s);
+  ASSERT_EQ(sum.kernels.size(), 1u);
+  EXPECT_EQ(sum.kernels[0].count, 4u);
+  EXPECT_EQ(sum.kernels[0].timed, 2u);
+  EXPECT_EQ(sum.kernels[0].gpu_ns_total, 400u);
+}
+
 TEST(Summary, LaunchesCountWithoutGpuTiming) {
   // alloc mode records launches but no GPU spans.
   Snapshot s;

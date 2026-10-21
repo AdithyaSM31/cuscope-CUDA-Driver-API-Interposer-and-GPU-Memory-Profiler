@@ -35,6 +35,11 @@ struct Timing {
 // wrapper's stream variant, so the event goes on the stream the call uses.
 bool gpu_begin(int variant, CUstream stream, Timing* t);
 
+// CUSCOPE_SAMPLE_EVERY=N: true for 1 in N kernel launches on each thread; the
+// rest count as untimed. Copies are never sampled, since bandwidth divides all
+// copied bytes by GPU time.
+bool gpu_sample_launch();
+
 // After a successful real call: records the end event and queues the pair.
 void gpu_end(int variant, CUstream stream, const Timing& t, const GpuSpan& meta);
 

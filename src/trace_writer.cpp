@@ -130,6 +130,7 @@ void write_report(const Snapshot& s, std::ostream& out) {
   auto kind_peak = [&](AllocKind k) { return std::to_string(s.peak_bytes[static_cast<int>(k)]); };
 
   out << "{\"version\":" << quoted(CUSCOPE_VERSION) << ",\"pid\":" << s.pid << ",\"mode\":" << quoted(s.mode)
+      << ",\"sample_every\":" << s.sample_every
       << ",\n\"peak_bytes\":{\"device\":" << kind_peak(AllocKind::Device)
       << ",\"managed\":" << kind_peak(AllocKind::Managed) << ",\"host_pinned\":" << kind_peak(AllocKind::HostPinned)
       << ",\"async\":" << kind_peak(AllocKind::Async) << ",\"device_total\":" << s.peak_device_total << "}"
@@ -161,7 +162,7 @@ void write_report(const Snapshot& s, std::ostream& out) {
   out << "},\n\"kernels\":[";
   for (size_t i = 0; i < sum.kernels.size(); ++i) {
     const KernelStat& k = sum.kernels[i];
-    out << (i ? "," : "") << "{\"name\":" << quoted(k.name) << ",\"count\":" << k.count
+    out << (i ? "," : "") << "{\"name\":" << quoted(k.name) << ",\"count\":" << k.count << ",\"timed\":" << k.timed
         << ",\"gpu_ns_total\":" << k.gpu_ns_total << ",\"gpu_ns_max\":" << k.gpu_ns_max << "}";
   }
   out << "],\n\"copies\":[";

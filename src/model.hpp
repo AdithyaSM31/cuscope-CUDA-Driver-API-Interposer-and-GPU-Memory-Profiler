@@ -95,6 +95,7 @@ struct InvalidFree {
 struct Snapshot {
   int pid = 0;
   std::string mode;
+  uint32_t sample_every = 1;  // CUSCOPE_SAMPLE_EVERY: 1 in N launches is timed
   std::vector<Record> records;
   std::vector<GpuSpan> spans;
   std::map<uint64_t, std::string> kernel_names;  // function handle -> demangled name

@@ -180,7 +180,7 @@ TEST(TraceWriter, ReportSectionMatchesSchema) {
   s.stacks[3] = {{"/bin/app", 0x40, "main"}};
   json r = write(s)["cuscope"];
 
-  for (const char* key : {"version", "pid", "mode", "peak_bytes", "alloc_count", "free_count", "leaks",
+  for (const char* key : {"version", "pid", "mode", "sample_every", "peak_bytes", "alloc_count", "free_count", "leaks",
                           "invalid_frees", "stacks", "kernels", "copies", "graph_launches", "dropped_records",
                           "unresolved_events", "gpu_untimed"}) {
     EXPECT_TRUE(r.contains(key)) << key;

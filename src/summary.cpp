@@ -21,11 +21,13 @@ Summary summarize(const Snapshot& s) {
   for (const GpuSpan& span : s.spans) {
     if (span.corr != 0) span_by_corr[span.corr] = &span;
   }
-  auto gpu_ns = [&](uint64_t corr) -> uint64_t {
+  auto span_of = [&](uint64_t corr) -> const GpuSpan* {
     auto it = span_by_corr.find(corr);
-    if (corr == 0 || it == span_by_corr.end()) return 0;
-    const GpuSpan* span = it->second;
-    return span->end_ns > span->start_ns ? span->end_ns - span->start_ns : 0;
+    return corr == 0 || it == span_by_corr.end() ? nullptr : it->second;
+  };
+  auto gpu_ns = [&](uint64_t corr) -> uint64_t {
+    const GpuSpan* span = span_of(corr);
+    return span != nullptr && span->end_ns > span->start_ns ? span->end_ns - span->start_ns : 0;
   };
 
   Summary out;
@@ -40,6 +42,7 @@ Summary summarize(const Snapshot& s) {
         k.name = name;
         uint64_t ns = gpu_ns(r.corr);
         k.count++;
+        if (span_of(r.corr) != nullptr) k.timed++;
         k.gpu_ns_total += ns;
         k.gpu_ns_max = std::max(k.gpu_ns_max, ns);
         break;

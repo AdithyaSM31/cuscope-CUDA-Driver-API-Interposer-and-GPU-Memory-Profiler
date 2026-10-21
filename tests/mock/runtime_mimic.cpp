@@ -115,6 +115,9 @@ void run(const char* scenario) {
   } else if (std::strcmp(scenario, "launch") == 0) {
     launch(nullptr);
     CHECK(get<decltype(&cuStreamSynchronize)>("cuStreamSynchronize")(nullptr));
+  } else if (std::strcmp(scenario, "launch8") == 0) {
+    for (int i = 0; i < 8; ++i) launch(nullptr);
+    CHECK(get<decltype(&cuStreamSynchronize)>("cuStreamSynchronize")(nullptr));
   } else if (std::strcmp(scenario, "copy") == 0) {
     CUdeviceptr p = alloc(4096);
     std::vector<char> host(4096, 1);

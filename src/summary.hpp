@@ -14,7 +14,9 @@ namespace cuscope {
 
 struct KernelStat {
   std::string name;
-  uint64_t count = 0, gpu_ns_total = 0, gpu_ns_max = 0;
+  uint64_t count = 0;  // launches
+  uint64_t timed = 0;  // launches with a GPU span (fewer when sampling or untimed)
+  uint64_t gpu_ns_total = 0, gpu_ns_max = 0;
 };
 
 struct CopyStat {

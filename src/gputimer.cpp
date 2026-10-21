@@ -310,6 +310,15 @@ bool gpu_begin(int variant, CUstream stream, Timing* t) {
   return true;
 }
 
+bool gpu_sample_launch() {
+  static thread_local uint64_t t_launches __attribute__((tls_model("initial-exec"))) = 0;
+  const uint32_t every = config().sample_every;
+  if (every <= 1 || config().mode == Config::Mode::Alloc || in_internal()) return true;
+  if (t_launches++ % every == 0) return true;
+  g_untimed.fetch_add(1, std::memory_order_relaxed);
+  return false;
+}
+
 void gpu_end(int variant, CUstream stream, const Timing& t, const GpuSpan& meta) {
   InternalScope internal;
   if (fns().event_record[variant](t.end, stream) != CUDA_SUCCESS) {

@@ -43,7 +43,7 @@ CUresult cs_cuLaunchKernel(CUfunction f, unsigned int gridDimX, unsigned int gri
                            unsigned int sharedMemBytes, CUstream hStream, void** kernelParams, void** extra) {
   note_call();
   Timing timing;
-  const bool timed = gpu_begin(V, hStream, &timing);
+  const bool timed = gpu_sample_launch() && gpu_begin(V, hStream, &timing);
   ApiRecord rec(H_cuLaunchKernel);
   CUresult r = forward<V, decltype(&::cuLaunchKernel)>(H_cuLaunchKernel, f, gridDimX, gridDimY, gridDimZ, blockDimX,
                                                        blockDimY, blockDimZ, sharedMemBytes, hStream, kernelParams,
@@ -57,7 +57,7 @@ CUresult cs_cuLaunchKernelEx(const CUlaunchConfig* config, CUfunction f, void** 
   note_call();
   CUstream stream = config != nullptr ? config->hStream : nullptr;
   Timing timing;
-  const bool timed = gpu_begin(V, stream, &timing);
+  const bool timed = gpu_sample_launch() && gpu_begin(V, stream, &timing);
   ApiRecord rec(H_cuLaunchKernelEx);
   CUresult r = forward<V, decltype(&::cuLaunchKernelEx)>(H_cuLaunchKernelEx, config, f, kernelParams, extra);
   finish_launch<V>(rec, r, RecType::Launch, handle(f), stream, timed, timing);
@@ -69,7 +69,7 @@ template <int V>
 CUresult cs_cuGraphLaunch(CUgraphExec hGraphExec, CUstream hStream) {
   note_call();
   Timing timing;
-  const bool timed = gpu_begin(V, hStream, &timing);
+  const bool timed = gpu_sample_launch() && gpu_begin(V, hStream, &timing);
   ApiRecord rec(H_cuGraphLaunch);
   CUresult r = forward<V, decltype(&::cuGraphLaunch)>(H_cuGraphLaunch, hGraphExec, hStream);
   finish_launch<V>(rec, r, RecType::GraphLaunch, handle(hGraphExec), hStream, timed, timing);
