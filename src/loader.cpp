@@ -116,4 +116,16 @@ void* resolve_by_export(int hook_id, int variant) {
   return name != nullptr ? dlsym_libcuda(name) : nullptr;
 }
 
+void* driver_proc(const char* base, bool per_thread) {
+  InternalScope internal;
+  auto gpa = reinterpret_cast<GpaV2Fn>(resolve_real_gpa(GpaVer::V2));
+  if (gpa == nullptr) return nullptr;
+  void* fn = nullptr;
+  CUdriverProcAddressQueryResult status;
+  const cuuint64_t flags =
+      per_thread ? CU_GET_PROC_ADDRESS_PER_THREAD_DEFAULT_STREAM : CU_GET_PROC_ADDRESS_LEGACY_STREAM;
+  if (gpa(base, &fn, CUDA_VERSION, flags, &status) != CUDA_SUCCESS || inside_cuscope(fn)) return nullptr;
+  return fn;
+}
+
 }  // namespace cuscope

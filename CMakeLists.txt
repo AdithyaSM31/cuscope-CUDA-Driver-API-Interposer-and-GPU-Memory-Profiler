@@ -37,7 +37,9 @@ add_library(cuscope_core OBJECT
   src/census.cpp
   src/hook_names.cpp
   src/summary.cpp
-  src/trace_writer.cpp)
+  src/trace_writer.cpp
+  src/tracker.cpp
+  src/stacks.cpp)
 target_include_directories(cuscope_core PUBLIC src include ${CUDA_DRIVER_INCLUDE})
 target_compile_definitions(cuscope_core PUBLIC CUSCOPE_VERSION="${PROJECT_VERSION}")
 target_compile_options(cuscope_core PRIVATE -Wall -Wextra -fvisibility=hidden -fvisibility-inlines-hidden)

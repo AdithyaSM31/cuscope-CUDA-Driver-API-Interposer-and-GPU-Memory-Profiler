@@ -12,9 +12,14 @@ FetchContent_MakeAvailable(googletest json)
 
 add_executable(cuscope_unit_tests
   test_config.cpp
+  test_stacks.cpp
   test_summary.cpp
+  test_tracker.cpp
   test_trace_writer.cpp)
-target_link_libraries(cuscope_unit_tests PRIVATE cuscope_core GTest::gtest_main nlohmann_json::nlohmann_json)
+target_link_libraries(cuscope_unit_tests PRIVATE cuscope_core GTest::gtest_main nlohmann_json::nlohmann_json
+                                                 Threads::Threads dl)
+# -rdynamic: dladdr can only name functions in the executable's dynamic symbol table.
+set_target_properties(cuscope_unit_tests PROPERTIES ENABLE_EXPORTS ON)
 
 include(GoogleTest)
 gtest_discover_tests(cuscope_unit_tests PROPERTIES LABELS unit)

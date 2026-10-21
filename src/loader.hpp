@@ -46,4 +46,10 @@ bool loader_ready();
 // name on libcuda. Never blocks on the loader. Null if not found.
 void* resolve_by_export(int hook_id, int variant);
 
+// An unhooked driver function cuscope calls itself (cuCtxGetCurrent,
+// cuEventCreate, ...), resolved through the real cuGetProcAddress at
+// CUDA_VERSION for the legacy or per-thread stream. Null if the driver lacks
+// it. Not cached here: callers keep the pointer.
+void* driver_proc(const char* base, bool per_thread = false);
+
 }  // namespace cuscope

@@ -1,6 +1,7 @@
 #include "stats.hpp"
 
 #include "cuscope/cuscope.h"
+#include "tracker.hpp"
 
 extern "C" CUSCOPE_API int cuscope_get_stats(cuscope_stats* out) {
   if (out == nullptr) return -1;
@@ -11,8 +12,9 @@ extern "C" CUSCOPE_API int cuscope_get_stats(cuscope_stats* out) {
   out->gpa_passthrough = gpa_passthrough.load(r);
   out->direct_calls = direct_calls.load(r);
   out->hooked_calls = hooked_calls.load(r);
-  out->live_bytes = live_bytes.load(r);
-  out->live_allocs = live_allocs.load(r);
-  out->invalid_frees = invalid_frees.load(r);
+  const cuscope::Tracker& t = cuscope::tracker();
+  out->live_bytes = t.live_bytes();
+  out->live_allocs = t.live_allocs();
+  out->invalid_frees = t.invalid_free_count();
   return 0;
 }
