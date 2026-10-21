@@ -46,4 +46,14 @@ void log_msg(const char* fmt, ...) {
   (void)ignored;
 }
 
+void log_write(const char* text, size_t length) {
+  pthread_once(&g_log_once, open_log);
+  while (length > 0) {
+    ssize_t n = ::write(g_log_fd, text, length);
+    if (n <= 0) return;
+    text += n;
+    length -= static_cast<size_t>(n);
+  }
+}
+
 }  // namespace cuscope

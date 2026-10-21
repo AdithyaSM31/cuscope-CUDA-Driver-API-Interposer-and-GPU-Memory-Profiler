@@ -1,0 +1,11 @@
+{"displayTimeUnit":"ns",
+"traceEvents":[],
+"cuscope":{"version":"0.1.0","pid":1234,"mode":"full",
+"peak_bytes":{"device":3145728,"managed":0,"host_pinned":67108864,"async":0,"device_total":3145728},
+"alloc_count":3,"free_count":2,
+"leaks":[{"ptr":"0x7f0000000000","bytes":1048576,"kind":"device","stack":1,"at_ctx_teardown":false}],
+"invalid_frees":[],
+"stacks":{"1":[{"module":"/nonexistent/app","offset":4096,"symbol":"cudaMalloc"},{"module":"/nonexistent/app","offset":8192,"symbol":"main"}]},
+"kernels":[{"name":"spin_kernel(long long)","count":4,"gpu_ns_total":20000000,"gpu_ns_max":5100000}],
+"copies":[{"dir":"HtoD","pinned":true,"count":5,"bytes":335544320,"gpu_ns_total":26700000,"gbps":12.567}],
+"graph_launches":0,"dropped_records":0,"unresolved_events":0,"gpu_untimed":0}}

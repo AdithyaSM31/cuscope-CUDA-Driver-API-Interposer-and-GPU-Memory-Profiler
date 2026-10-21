@@ -127,7 +127,7 @@ def test_fork_child_has_no_inherited_leaks(mimic, mode):
     child = next(t["cuscope"] for pid, t in r.traces.items() if t is not r.trace)
     assert [l["bytes"] for l in parent["leaks"]] == [1 << 20]
     assert child["leaks"] == []
-    assert child["alloc_count"] == 0
+    assert (child["alloc_count"], child["free_count"]) == (1, 1)  # its own calls only
 
 
 def test_api_calls_recorded_in_mock(mimic):

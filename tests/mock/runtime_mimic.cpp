@@ -139,7 +139,12 @@ void run(const char* scenario) {
     std::fflush(stdout);
     pid_t child = fork();
     if (child < 0) die("fork", std::strerror(errno));
-    if (child == 0) std::exit(0);  // no CUDA calls; exit handlers run
+    if (child == 0) {
+      // Real CUDA forbids this in a forked child; the mock allows it, which
+      // shows the child's report is its own: one allocation, freed.
+      release(alloc(4096));
+      std::exit(0);  // exit handlers run
+    }
     int status = 0;
     if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
       die("child", "did not exit cleanly");

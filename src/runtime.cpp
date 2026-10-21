@@ -5,20 +5,26 @@
 #include "model.hpp"
 #include "names.hpp"
 #include "recorder.hpp"
+#include "report.hpp"
 #include "stacks.hpp"
+#include "stats.hpp"
+#include "summary.hpp"
 #include "trace_writer.hpp"
 #include "tracker.hpp"
 
 #include <pthread.h>
 #include <unistd.h>
 
+#include <cstdio>
 #include <cstdlib>
+#include <string>
 
 namespace cuscope {
 namespace {
 
 // Builds the snapshot and writes the trace. Runs once, from atexit.
 void write_report_at_exit() {
+  if (!stats::saw_cuda()) return;  // nothing to report
   InternalScope internal;
   Snapshot s;
   s.pid = static_cast<int>(getpid());
@@ -30,7 +36,19 @@ void write_report_at_exit() {
   tracker().finalize();
   tracker().fill(s);
   s.stacks = symbolize_all();
-  write_trace_file(s, expand_out_path(config().out, s.pid));
+
+  const std::string path = expand_out_path(config().out, s.pid);
+  if (write_trace_file(s, path)) log_msg("trace written to %s", path.c_str());
+
+  // One write, so the summary is not interleaved with the program's stderr.
+  char* text = nullptr;
+  size_t length = 0;
+  if (FILE* out = open_memstream(&text, &length)) {
+    print_summary(s, summarize(s), out);
+    std::fclose(out);
+    log_write(text, length);
+    std::free(text);
+  }
 }
 
 // fork() copies only the calling thread. Every cuscope lock is taken before
@@ -50,6 +68,7 @@ void after_fork_child() {
   recorder_after_fork_child();
   stacks_after_fork();
   tracker_after_fork_child();
+  stats::after_fork_child();
 }
 
 // Runs when the dynamic loader initialises libcuscope.so, before main().

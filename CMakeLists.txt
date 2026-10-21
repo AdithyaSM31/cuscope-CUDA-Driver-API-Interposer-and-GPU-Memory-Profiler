@@ -38,6 +38,7 @@ add_library(cuscope_core OBJECT
   src/hook_names.cpp
   src/summary.cpp
   src/trace_writer.cpp
+  src/report.cpp
   src/tracker.cpp
   src/stacks.cpp
   src/recorder.cpp)
@@ -71,6 +72,14 @@ if(CUSCOPE_BUILD_TESTS)
   enable_language(ASM)  # the mock shim's generated trampolines
   add_subdirectory(tests/unit)
   add_subdirectory(tests/mock)
+endif()
+
+if(CUSCOPE_BUILD_TESTS)
+  add_test(NAME cli_suite
+    COMMAND python3 -m pytest -p no:cacheprovider -q ${PROJECT_SOURCE_DIR}/tests/cli)
+  set_tests_properties(cli_suite PROPERTIES
+    LABELS cli
+    ENVIRONMENT "CUSCOPE_BUILD=${CMAKE_BINARY_DIR}")
 endif()
 
 if(CUSCOPE_GPU_TESTS)
