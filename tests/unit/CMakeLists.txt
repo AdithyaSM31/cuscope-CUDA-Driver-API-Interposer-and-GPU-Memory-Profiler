@@ -25,4 +25,6 @@ target_link_libraries(cuscope_unit_tests PRIVATE cuscope_core GTest::gtest_main 
 set_target_properties(cuscope_unit_tests PROPERTIES ENABLE_EXPORTS ON)
 
 include(GoogleTest)
-gtest_discover_tests(cuscope_unit_tests PROPERTIES LABELS unit)
+# PRE_TEST: list the tests when ctest runs, so building never executes the
+# binary (a sanitizer build may not run on every machine that compiles it).
+gtest_discover_tests(cuscope_unit_tests PROPERTIES LABELS unit DISCOVERY_MODE PRE_TEST)

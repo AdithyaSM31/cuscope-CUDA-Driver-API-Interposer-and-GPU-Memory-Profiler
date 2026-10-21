@@ -8,6 +8,29 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(CUSCOPE_BUILD_TESTS "Build unit and mock tests" ON)
+set(CUSCOPE_SANITIZE "" CACHE STRING "Build C and C++ code with a sanitizer: address or thread")
+
+# Sanitizer builds instrument cuscope, the mock driver and the test programs
+# (not CUDA device code). A preloaded instrumented library needs the sanitizer
+# runtime ahead of it in LD_PRELOAD; the tests read its path from
+# CUSCOPE_PRELOAD_FIRST.
+set(CUSCOPE_PRELOAD_FIRST "")
+if(CUSCOPE_SANITIZE)
+  if(NOT CUSCOPE_SANITIZE MATCHES "^(address|thread)$")
+    message(FATAL_ERROR "CUSCOPE_SANITIZE must be address or thread, not '${CUSCOPE_SANITIZE}'")
+  endif()
+  add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-fsanitize=${CUSCOPE_SANITIZE}>
+                      $<$<COMPILE_LANGUAGE:C,CXX>:-fno-omit-frame-pointer>)
+  add_link_options($<$<LINK_LANGUAGE:C,CXX>:-fsanitize=${CUSCOPE_SANITIZE}>)
+  if(CUSCOPE_SANITIZE STREQUAL "address")
+    set(_sanitizer_runtime libasan.so)
+  else()
+    set(_sanitizer_runtime libtsan.so)
+  endif()
+  execute_process(COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=${_sanitizer_runtime}
+                  OUTPUT_VARIABLE CUSCOPE_PRELOAD_FIRST OUTPUT_STRIP_TRAILING_WHITESPACE)
+  set(CUSCOPE_GPU_TESTS OFF CACHE BOOL "" FORCE)  # nvcc-built programs are not instrumented
+endif()
 
 # GPU test programs need nvcc. Non-interactive WSL shells often lack the toolkit
 # on PATH, so fall back to the pinned install location.

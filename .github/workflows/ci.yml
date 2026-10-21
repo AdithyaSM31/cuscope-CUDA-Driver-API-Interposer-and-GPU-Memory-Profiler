@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# GPU-free: cuscope compiles against cuda.h only and never links libcuda, so
+# CI needs the CUDA headers but no driver, toolkit or GPU. The mock libcuda
+# exercises all three interception paths, including the WSL-style loader shim.
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitize: [none, address, thread]
+    name: test (${{ matrix.sanitize }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cuda.h (cuda-cudart-dev-13-0 only)
+        run: |
+          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends cuda-cudart-dev-13-0
+
+      - name: Install CMake, Ninja and pytest
+        run: |
+          python3 -m pip install --user "cmake>=3.28,<4" ninja pytest
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # ThreadSanitizer cannot map its shadow memory with the full address
+      # randomisation of recent kernels.
+      - name: Reduce address randomisation for ThreadSanitizer
+        if: matrix.sanitize == 'thread'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCUSCOPE_GPU_TESTS=OFF
+          ${{ matrix.sanitize != 'none' && format('-DCUSCOPE_SANITIZE={0}', matrix.sanitize) || '' }}
+
+      - name: Build
+        run: cmake --build build
+
+      # Sanitizer jobs run the unit tests only: a sanitizer runtime calls dlsym
+      # while it initialises, which reaches cuscope's (instrumented) dlsym
+      # override before the sanitizer is ready, so preloading an instrumented
+      # libcuscope into the mock programs crashes. The plain job covers them.
+      - name: Test
+        run: >
+          ctest --test-dir build --output-on-failure
+          -L "${{ matrix.sanitize == 'none' && 'unit|mock|cli' || 'unit' }}"

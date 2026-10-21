@@ -58,4 +58,4 @@ add_test(NAME mock_suite
   COMMAND python3 -m pytest -p no:cacheprovider -q ${CMAKE_CURRENT_SOURCE_DIR})
 set_tests_properties(mock_suite PROPERTIES
   LABELS mock
-  ENVIRONMENT "CUSCOPE_BUILD=${CMAKE_BINARY_DIR}")
+  ENVIRONMENT "CUSCOPE_BUILD=${CMAKE_BINARY_DIR};CUSCOPE_PRELOAD_FIRST=${CUSCOPE_PRELOAD_FIRST}")

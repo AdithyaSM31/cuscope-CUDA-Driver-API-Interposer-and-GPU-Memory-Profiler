@@ -211,23 +211,36 @@ StackFrame symbolize(uintptr_t addr, std::unordered_map<std::string, std::unique
   return frame;
 }
 
+// Index in raw of the frame that called the capture function: the entry equal
+// to that function's own return address. Anchoring on it, rather than assuming
+// "one frame up", stays right when something sits above it on the stack (a
+// sanitizer intercepts backtrace() itself). -1 if it is not there.
+int caller_frame(void* const* raw, int n, const void* return_address) {
+  for (int i = 0; i < n; ++i) {
+    if (raw[i] == return_address) return i;
+  }
+  return -1;
+}
+
 }  // namespace
 
 __attribute__((noinline)) uint32_t capture_stack(int skip, int depth) {
   depth = resolve_depth(depth);
   skip = std::clamp(skip, 0, kMaxSkip);
-  void* raw[kMaxDepth + kMaxSkip + 1];
-  int n = backtrace(raw, depth + skip + 1);
-  int first = std::min(n, skip + 1);  // raw[0] is inside capture_stack
+  void* raw[kMaxDepth + 2 * kMaxSkip];
+  const int n = backtrace(raw, depth + skip + kMaxSkip);
+  int first = caller_frame(raw, n, __builtin_return_address(0));
+  if (first < 0) first = 1;  // raw[0] is inside capture_stack
+  first = std::min(n, first + skip);
   return store(raw + first, std::min(n - first, depth));
 }
 
 __attribute__((noinline)) uint32_t capture_caller_stack() {
   const int depth = resolve_depth(-1);
   void* raw[kMaxDepth + kMaxSkip];
-  int n = backtrace(raw, depth + kMaxSkip);
+  const int n = backtrace(raw, depth + kMaxSkip);
   const ModuleRange& self = cuscope_range();
-  int first = 0;
+  int first = std::max(0, caller_frame(raw, n, __builtin_return_address(0)));
   while (first < n && self.contains(raw[first])) ++first;
   return store(raw + first, std::min(n - first, depth));
 }

@@ -50,6 +50,9 @@ def _run(argv: list[str], mode: str, preload: bool, env: dict | None, tmp: Path)
     run_env["CUSCOPE_CENSUS"] = str(tmp / "census.tsv")
     if preload:
         run_env["LD_PRELOAD"] = str(BUILD / "libcuscope.so")
+        # Sanitizer builds: the sanitizer runtime must be loaded before any instrumented library.
+        if os.environ.get("CUSCOPE_PRELOAD_FIRST"):
+            run_env["LD_PRELOAD"] = os.environ["CUSCOPE_PRELOAD_FIRST"] + " " + run_env["LD_PRELOAD"]
     run_env.update(env or {})
 
     try:
