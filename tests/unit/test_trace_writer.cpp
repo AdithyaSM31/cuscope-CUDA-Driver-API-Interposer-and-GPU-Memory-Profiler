@@ -56,6 +56,15 @@ TEST(TraceWriter, ApiCallBecomesCompleteEvent) {
   EXPECT_EQ(complete[0]["tid"], 7);
 }
 
+TEST(TraceWriter, ApiEventCarriesCorrelationId) {
+  // Lets a reader pair a launch with its GPU span (flow arrows do it visually).
+  Snapshot s;
+  Record r = make_record(RecType::Launch, H_cuLaunchKernel, 1000, 10);
+  r.corr = 5;
+  s.records.push_back(r);
+  EXPECT_EQ(events_with(write(s), "X")[0]["args"]["corr"], 5);
+}
+
 TEST(TraceWriter, MemoryCounterRisesAndFalls) {
   Snapshot s;
   Record alloc = make_record(RecType::Alloc, H_cuMemAlloc, 1000);

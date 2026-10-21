@@ -68,8 +68,10 @@ void write_cpu_events(const Snapshot& s, EventList& events) {
   uint64_t device_bytes = 0;
   for (const Record* r : sorted) {
     std::string args;
-    if (r->bytes != 0) args += "\"bytes\":" + std::to_string(r->bytes);
-    if (r->ptr != 0) args += std::string(args.empty() ? "" : ",") + "\"ptr\":" + quoted(hex(r->ptr));
+    auto add_arg = [&args](const std::string& key_value) { args += (args.empty() ? "" : ",") + key_value; };
+    if (r->bytes != 0) add_arg("\"bytes\":" + std::to_string(r->bytes));
+    if (r->ptr != 0) add_arg("\"ptr\":" + quoted(hex(r->ptr)));
+    if (r->corr != 0) add_arg("\"corr\":" + std::to_string(r->corr));
     events.add("{\"name\":" + quoted(hook_name(r->api)) + ",\"cat\":\"api\",\"ph\":\"X\",\"ts\":" +
                micros(r->cpu_ns) + ",\"dur\":" + micros(r->dur_ns) + ",\"pid\":" + pid +
                ",\"tid\":" + std::to_string(r->tid) + ",\"args\":{" + args + "}}");

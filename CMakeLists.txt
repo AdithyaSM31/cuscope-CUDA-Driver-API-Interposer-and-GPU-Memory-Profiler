@@ -52,6 +52,7 @@ set(CUSCOPE_SOURCES
   src/loader.cpp
   src/intercept.cpp
   src/hook_table.cpp
+  src/gputimer.cpp
   src/wrappers/alloc.cpp
   src/wrappers/memcpy.cpp
   src/wrappers/launch.cpp

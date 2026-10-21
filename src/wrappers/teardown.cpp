@@ -1,6 +1,11 @@
-// Synchronisation and context-teardown hooks, recorded as API calls. Task 11
-// flushes pending GPU events here before a context goes away.
+// Synchronisation and context-teardown hooks, recorded as API calls.
+//
+// Before a context can go away, its pending GPU events are resolved: the CUDA
+// runtime destroys its context in its own exit cleanup, which runs before
+// cuscope's exit handler, and an event cannot be read once its context is gone.
 #include "wrappers.hpp"
+
+#include "gputimer.hpp"
 
 namespace cuscope {
 
@@ -24,14 +29,19 @@ CUresult cs_cuCtxSynchronize() {
 template <int V>
 CUresult cs_cuCtxDestroy(CUcontext ctx) {
   note_call();
+  if (!in_internal()) gpu_flush_ctx(handle(ctx));
   ApiRecord rec(H_cuCtxDestroy);
   rec.rec.ptr = handle(ctx);
   return forward<V, decltype(&::cuCtxDestroy)>(H_cuCtxDestroy, ctx);
 }
 
+// Release may or may not destroy the primary context (it is reference
+// counted). Flushing either way is safe: a surviving context simply gets
+// fresh timing state on its next launch.
 template <int V>
 CUresult cs_cuDevicePrimaryCtxRelease(CUdevice dev) {
   note_call();
+  if (!in_internal()) gpu_flush_device(dev);
   ApiRecord rec(H_cuDevicePrimaryCtxRelease);
   return forward<V, decltype(&::cuDevicePrimaryCtxRelease)>(H_cuDevicePrimaryCtxRelease, dev);
 }
@@ -39,6 +49,7 @@ CUresult cs_cuDevicePrimaryCtxRelease(CUdevice dev) {
 template <int V>
 CUresult cs_cuDevicePrimaryCtxReset(CUdevice dev) {
   note_call();
+  if (!in_internal()) gpu_flush_device(dev);
   ApiRecord rec(H_cuDevicePrimaryCtxReset);
   return forward<V, decltype(&::cuDevicePrimaryCtxReset)>(H_cuDevicePrimaryCtxReset, dev);
 }

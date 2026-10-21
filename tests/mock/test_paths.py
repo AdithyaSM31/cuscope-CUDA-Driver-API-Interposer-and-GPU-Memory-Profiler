@@ -136,8 +136,48 @@ def test_api_calls_recorded_in_mock(mimic):
     assert names.count("cuMemAlloc") == 1 and names.count("cuMemFree") == 1
 
 
+# ---- Task 10: GPU timing ----
+
+def gpu_spans(trace: dict) -> list[dict]:
+    return [e for e in trace["traceEvents"] if e["ph"] == "X" and e.get("cat") == "gpu"]
+
+
+def test_launch_timed_full_mode(mimic):
+    r = mimic("launch", "shim")
+    assert r.code == 0, r.stderr
+    spans = gpu_spans(r.trace)
+    assert len(spans) == 1
+    launch = next(e for e in r.trace["traceEvents"] if e["ph"] == "X" and e["name"] == "cuLaunchKernel")
+    assert spans[0]["args"]["corr"] == launch["args"]["corr"] >= 1
+    assert r.mock["event_record"] >= 2  # start and end of the launch, plus the clock reference
+
+
+def test_alloc_mode_has_no_events(mimic):
+    r = mimic("launch", "shim", env={"CUSCOPE_MODE": "alloc"})
+    assert r.code == 0, r.stderr
+    assert r.mock["event_record"] == 0
+    assert gpu_spans(r.trace) == []
+    assert r.trace["cuscope"]["kernels"][0]["count"] == 1  # still counted, just not timed
+
+
+def test_capturing_stream_not_timed(mimic):
+    # Review Focus 2: an event recorded on a capturing stream would become a
+    # node in the program's graph.
+    r = mimic("capture", "shim")
+    assert r.code == 0, r.stderr
+    assert r.mock["event_record_on_capturing"] == 0
+    assert gpu_spans(r.trace) == []
+    assert r.trace["cuscope"]["gpu_untimed"] == 1
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
+    # Every call the program made reaches the driver unchanged. Event calls are
+    # left out: from Task 10 on, cuscope records its own timing events.
+    def program_calls(mock: dict) -> dict:
+        return {k: v for k, v in mock.items() if not k.startswith("event_record")}
+
     for scenario in ["dlsym_gpa", "ptsz", "old_version", "gpa_self", "fork"]:
         for mode in ["direct", "shim"]:
             base, under = mimic(scenario, mode, preload=False), mimic(scenario, mode)
-            assert (under.code, under.mock) == (base.code, base.mock), (scenario, mode)
+            assert under.code == base.code, (scenario, mode)
+            assert program_calls(under.mock) == program_calls(base.mock), (scenario, mode)

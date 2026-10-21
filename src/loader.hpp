@@ -46,10 +46,24 @@ bool loader_ready();
 // name on libcuda. Never blocks on the loader. Null if not found.
 void* resolve_by_export(int hook_id, int variant);
 
-// An unhooked driver function cuscope calls itself (cuCtxGetCurrent,
-// cuEventCreate, ...), resolved through the real cuGetProcAddress at
-// CUDA_VERSION for the legacy or per-thread stream. Null if the driver lacks
-// it. Not cached here: callers keep the pointer.
-void* driver_proc(const char* base, bool per_thread = false);
+// A driver function cuscope calls itself (cuCtxGetCurrent, cuEventCreate,
+// ...), by exact exported symbol name, from libcuda. Null if the driver lacks
+// it. Not cached here: callers keep the pointer. Use CS_DRIVER_FN below rather
+// than naming symbols by hand.
+void* driver_proc(const char* export_name);
 
 }  // namespace cuscope
+
+// The driver function `fn`, typed with its cuda.h prototype and resolved by
+// the symbol cuda.h maps `fn` to (cuEventElapsedTime -> cuEventElapsedTime_v2,
+// cuCtxGetDevice -> cuCtxGetDevice). The type and the symbol name come from
+// the same token, so they always agree.
+//
+// Never resolve these with cuGetProcAddress at CUDA_VERSION: in CUDA 13 that
+// returns cuCtxGetDevice_v2(CUdevice*, CUcontext) for "cuCtxGetDevice", and a
+// call through the one-argument prototype passes the driver a garbage context.
+#define CS_STR_(x) #x
+#define CS_STR(x) CS_STR_(x)
+#define CS_DRIVER_FN(fn) reinterpret_cast<decltype(&::fn)>(::cuscope::driver_proc(CS_STR(fn)))
+// The per-thread-default-stream variant of a stream function.
+#define CS_DRIVER_FN_PTSZ(fn) reinterpret_cast<decltype(&::fn)>(::cuscope::driver_proc(CS_STR(fn) "_ptsz"))

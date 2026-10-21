@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "gputimer.hpp"
 #include "guard.hpp"
 #include "log.hpp"
 #include "model.hpp"
@@ -22,6 +23,8 @@ void write_report_at_exit() {
   s.pid = static_cast<int>(getpid());
   s.mode = mode_name(config().mode);
   collector_stop_and_drain(s);  // first, so no record arrives after the drain
+  gputimer_finish();            // then resolve events of contexts still alive
+  gputimer_fill(s);
   tracker().finalize();
   tracker().fill(s);
   s.stacks = symbolize_all();

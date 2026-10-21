@@ -26,6 +26,11 @@ void record(Record r);
 // and sets s.dropped_records.
 void collector_stop_and_drain(Snapshot& s);
 
+// Work the collector also does every cycle, after draining (the GPU timer
+// resolving completed events). A hook rather than a call keeps the recorder
+// free of CUDA.
+void set_collector_poll(void (*poll)());
+
 // pthread_atfork handlers (installed by runtime.cpp). The child keeps none of
 // the parent's records, rings or collector.
 void recorder_before_fork();

@@ -16,7 +16,7 @@ namespace {
 // The context the calling thread has current, as the tracker's key for
 // context teardown. 0 if there is none or the driver lacks the function.
 uint64_t current_ctx() {
-  static const auto get_current = reinterpret_cast<decltype(&::cuCtxGetCurrent)>(driver_proc("cuCtxGetCurrent"));
+  static const auto get_current = CS_DRIVER_FN(cuCtxGetCurrent);
   if (get_current == nullptr) return 0;
   InternalScope internal;
   CUcontext ctx = nullptr;

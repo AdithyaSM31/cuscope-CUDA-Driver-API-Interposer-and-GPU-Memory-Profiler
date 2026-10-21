@@ -46,6 +46,7 @@ std::atomic<bool> g_collector_stop{false};
 pthread_t g_collector;
 
 std::atomic<uint64_t> g_next_corr{1};
+std::atomic<void (*)()> g_collector_poll{nullptr};
 
 thread_local ThreadRing* t_ring __attribute__((tls_model("initial-exec"))) = nullptr;
 
@@ -68,6 +69,7 @@ void* collector_main(void*) {
   const timespec interval{0, kCollectIntervalNs};
   while (!g_collector_stop.load(std::memory_order_acquire)) {
     drain_all();
+    if (auto poll = g_collector_poll.load(std::memory_order_acquire)) poll();
     nanosleep(&interval, nullptr);
   }
   return nullptr;
@@ -110,6 +112,8 @@ uint64_t now_ns() {
 }
 
 uint64_t next_corr() { return g_next_corr.fetch_add(1, std::memory_order_relaxed); }
+
+void set_collector_poll(void (*poll)()) { g_collector_poll.store(poll, std::memory_order_release); }
 
 void record(Record r) {
   ThreadRing* tr = this_thread_ring();
