@@ -34,7 +34,9 @@ Options: `--mode alloc` (memory only, no GPU timing), `--sample-every N` (time 1
 launches), `--stack-depth N`, `--log FILE`. The program's stdout and exit code are unchanged;
 `run` becomes the program (like `env`), so Ctrl-C and other signals go to it alone.
 `CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) bounds how long cuscope waits at exit and at
-context teardown for GPU work it is timing.
+context teardown for GPU work it is timing. Put `%p` (the pid) in `--out` when several
+processes use CUDA: without it, the first process to do CUDA work writes the exact path and
+any other writes `name.<pid>.json`.
 
 What `cuscope summary` prints for `tests/cuda/leak.cu` (the summary at exit is the same,
 with `main (leak+0x8a7f)` in place of the source line):
@@ -166,7 +168,14 @@ microseconds each on WSL; real kernels hide most of it.
   `RTLD_DEFAULT` behave as they would without cuscope.
 - **Processes that do no CUDA work** (shells, compilers, worker processes that inherit
   `LD_PRELOAD`, a forked child whose only CUDA calls are the runtime's inherited exit
-  cleanup) write no trace and no summary. Work means an allocation, free, copy or launch.
+  cleanup) print nothing and write no trace. Work means an allocation, free, copy or launch.
+- **Fixed `--out` paths.** A process that is already multithreaded at its first CUDA work
+  (any real CUDA program) cannot safely mark itself as the run's owner of the path, so a
+  program it later executes (not forks) that also uses CUDA may overwrite its trace. Use
+  `%p` for multi-process runs.
+- **Leak sites** skip the CUDA runtime's frames: functions in libcudart or libcuda, and in
+  the static runtime, names starting `cuda` plus an uppercase letter (`cudaMalloc`) or
+  `__cuda`. A program function named that way (`cudaAllocHelper`) is skipped too.
 - **Sanitizers.** The ASan and TSan CI jobs run the unit tests only: a sanitizer runtime calls
   `dlsym` while initialising, which reaches cuscope's instrumented override too early.
 

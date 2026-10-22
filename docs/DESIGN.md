@@ -1,6 +1,6 @@
 # cuscope design
 
-This is the design as built for v0.1.0. It started from the Phase 1 spec
+This is the design as built for v0.1.1. It started from the Phase 1 spec
 ([superpowers/specs/2026-10-21-cuscope-phase1-design.md](superpowers/specs/2026-10-21-cuscope-phase1-design.md))
 and records the decisions and findings made while building it on an RTX 3060 Laptop GPU
 under WSL2 (Windows driver 617.14, CUDA 13.0).
@@ -104,7 +104,9 @@ wrapper (program thread)                     collector thread (every 2 ms)
 - **Records.** One 64-byte `Record` per call: type, hook id, thread, CPU time and duration,
   pointer, bytes, stream, function, correlation id, stack id. Each thread pushes into its own
   single-producer, single-consumer ring of 16,384 records; a full ring drops the record and
-  counts it, never blocking the program.
+  counts it, never blocking the program. A thread that exits marks its ring finished (a
+  `pthread_key` destructor); the collector drains it once more and frees it. After the exit
+  drain the collector is never restarted.
 - **Allocations.** A tracker with 16 mutex-guarded shards keyed by pointer hash keeps live
   allocations and per-kind peaks. A free removes the allocation *before* the real call, so the
   driver can hand the address to another thread at once, and restores it if the driver rejects
@@ -112,7 +114,9 @@ wrapper (program thread)                     collector thread (every 2 ms)
 - **Stacks.** `backtrace()` at each allocation site, deduplicated by hash. Capture anchors on
   the caller's return address (sanitizers add a frame above it) and drops cuscope's own
   frames. At exit, frames are named from the module's ELF symbol table, which knows functions
-  like `main` that `dladdr` cannot; the CLI adds file:line with `addr2line`.
+  like `main` that `dladdr` cannot; the CLI adds file:line with `addr2line`. A leak's site is
+  its first frame outside the CUDA runtime (libcudart, libcuda, or a static-runtime name:
+  `cudaX` with X uppercase, `__cuda*`, `cudart::*`).
 - **GPU time.** In `full` mode each launch and copy gets a CUDA event before and after it on
   its own stream, from a per-context pool. GPU time is
   `reference_cpu_ns + cuEventElapsedTime(reference, event)`, where the reference event was
@@ -139,9 +143,12 @@ wrapper (program thread)                     collector thread (every 2 ms)
 - **Bounded waits.** At exit and at context teardown cuscope polls pending events for at
   most `CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) and counts what is left as unresolved: a
   kernel that never finishes must not hold the program's exit.
-- **Context teardown.** `cuCtxDestroy`, `cuDevicePrimaryCtxRelease` and `Reset` flush the
-  context's pending events before the real call and forget its timing state. When the context
-  is really gone (checked with `cuDevicePrimaryCtxGetState` after a release), the memory still
+- **Context teardown.** `cuCtxDestroy` and `cuDevicePrimaryCtxReset` flush the context's
+  pending events before the real call and forget its timing state. `cuDevicePrimaryCtxRelease`
+  destroys the context only when it drops the last reference: pending events are resolved
+  before the call, and the timing state is forgotten only if the context is gone afterwards
+  (checked with `cuDevicePrimaryCtxGetState`), so a surviving context does not pay for a
+  second reference-event wait. When the context is really gone, the memory still
   allocated there becomes leaks marked `at_ctx_teardown`. The primary context's handle is read
   with a Retain and Release only when it is active: Retain on an inactive device would create
   a context.
@@ -150,7 +157,15 @@ wrapper (program thread)                     collector thread (every 2 ms)
   GPU timing state, spans and counters. The collector is a raw `pthread` with signals
   blocked, so the child never inherits a `std::thread` it cannot join.
 - **Quiet processes.** A process that did no CUDA work (no allocation, free, copy or
-  launch) writes no trace and no summary. A forked child still runs the exit handlers it
+  launch) prints no banner and writes no trace or summary. The banner is printed at the
+  first CUDA work.
+- **Trace path.** With `%p` in `CUSCOPE_OUT` every process has its own file. Without it, the
+  first process to do CUDA work owns the path: it records its pid in `CUSCOPE_ROOT_PID` for
+  programs it later runs (only while it is still single-threaded, since `setenv` is unsafe
+  with other threads), and forked children never own it. Others write `name.<pid>.json`.
+- **Linking.** libstdc++ and libgcc are linked statically and kept private, and a version
+  script (`src/exports.map`) exports only `cu*` and `dlsym`: a preloaded library is first in
+  every symbol lookup, so anything else it exported would replace the program's own copy. A forked child still runs the exit handlers it
   inherited, the CUDA runtime's context release among them; that alone does not count.
 
 ## 5. Components
