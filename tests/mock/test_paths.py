@@ -292,6 +292,14 @@ def test_exit_flush_is_bounded(mimic):
     assert gpu_spans(r.trace) == []
 
 
+def test_banner_once_per_process_that_does_cuda_work(mimic):
+    # The banner says cuscope is watching this process: printed at its first
+    # allocation, free, copy or launch, and only then.
+    r = mimic("launch", "shim")
+    assert r.code == 0, r.stderr
+    assert r.stderr.count(" loaded (pid ") == 1, r.stderr
+
+
 def test_preloaded_runs_keep_program_behaviour(mimic):
     # Every call the program made reaches the driver unchanged. Event calls are
     # left out: from Task 10 on, cuscope records its own timing events.

@@ -56,7 +56,7 @@ def test_no_report_without_cuda(tmp_path):
     out = tmp_path / "t-%p.json"
     r = cuscope("run", "--out", str(out), "--", sys.executable, "-c", "print(1)")
     assert r.returncode == 0 and r.stdout == "1\n"
-    assert "cuscope summary" not in r.stderr
+    assert r.stderr == ""  # not even the banner
     assert list(tmp_path.iterdir()) == []
 
 

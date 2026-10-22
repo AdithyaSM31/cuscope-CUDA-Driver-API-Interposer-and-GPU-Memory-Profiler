@@ -49,6 +49,7 @@ pthread_t g_collector;
 
 std::atomic<uint64_t> g_next_corr{1};
 std::atomic<void (*)()> g_collector_poll{nullptr};
+std::atomic<void (*)()> g_on_first_work{nullptr};
 
 thread_local ThreadRing* t_ring __attribute__((tls_model("initial-exec"))) = nullptr;
 
@@ -115,12 +116,16 @@ uint64_t now_ns() {
 
 uint64_t next_corr() { return g_next_corr.fetch_add(1, std::memory_order_relaxed); }
 
+void set_on_first_work(void (*hook)()) { g_on_first_work.store(hook, std::memory_order_release); }
+
 bool collector_running() { return g_collector_running.load(std::memory_order_acquire); }
 
 void set_collector_poll(void (*poll)()) { g_collector_poll.store(poll, std::memory_order_release); }
 
 void record(Record r) {
-  if (r.type != RecType::ApiCall) stats::work_calls.fetch_add(1, std::memory_order_relaxed);
+  if (r.type != RecType::ApiCall && stats::work_calls.fetch_add(1, std::memory_order_relaxed) == 0) {
+    if (auto hook = g_on_first_work.load(std::memory_order_acquire)) hook();
+  }
   ThreadRing* tr = this_thread_ring();
   if (!g_collector_running.load(std::memory_order_acquire)) start_collector();
   r.tid = tr->tid;

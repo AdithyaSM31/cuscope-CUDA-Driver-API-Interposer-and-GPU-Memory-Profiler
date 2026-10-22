@@ -78,6 +78,13 @@ void after_fork_child() {
   stats::after_fork_child();
 }
 
+// Printed at the first CUDA work in this process rather than at load, so the
+// many processes that inherit LD_PRELOAD and never use CUDA stay silent.
+void print_banner() {
+  log_msg("cuscope %s loaded (pid %d, mode %s)", CUSCOPE_VERSION, static_cast<int>(getpid()),
+          mode_name(config().mode));
+}
+
 // Runs when the dynamic loader initialises libcuscope.so, before main().
 // That is not necessarily before other libraries call into cuscope: libraries
 // that libcuscope does not depend on (such as the WSL libcuda shim) may run
@@ -85,9 +92,8 @@ void after_fork_child() {
 // therefore must not rely on anything this constructor sets up.
 __attribute__((constructor)) void cuscope_ctor() {
   const Config& cfg = config();
-  log_msg("cuscope %s loaded (pid %d, mode %s)", CUSCOPE_VERSION, static_cast<int>(getpid()),
-          mode_name(cfg.mode));
   for (const std::string& warning : cfg.warnings) log_msg("%s", warning.c_str());
+  set_on_first_work(print_banner);
 
   warm_up_backtrace();
   tracker();  // create it now rather than inside the first allocation

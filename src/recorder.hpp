@@ -35,6 +35,10 @@ bool collector_running();
 // free of CUDA.
 void set_collector_poll(void (*poll)());
 
+// Called once per process, on the first record that is CUDA work (an
+// allocation, free, copy or launch): runtime.cpp prints the banner there.
+void set_on_first_work(void (*hook)());
+
 // pthread_atfork handlers (installed by runtime.cpp). The child keeps none of
 // the parent's records, rings or collector.
 void recorder_before_fork();
