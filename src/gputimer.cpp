@@ -473,7 +473,8 @@ void gputimer_finish() {
 void gputimer_fill(Snapshot& s) {
   {
     std::lock_guard<std::mutex> lock(g_spans_mu);
-    s.spans = spans();
+    s.spans = std::move(spans());  // once, at exit: no second copy of every span
+    spans().clear();
   }
   s.unresolved_events = g_unresolved.load(std::memory_order_relaxed);
   s.gpu_untimed = g_untimed.load(std::memory_order_relaxed);

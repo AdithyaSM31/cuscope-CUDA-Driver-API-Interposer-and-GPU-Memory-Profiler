@@ -23,8 +23,12 @@ uint64_t next_corr();
 void record(Record r);
 
 // At exit: stops and joins the collector, drains every ring into s.records,
-// and sets s.dropped_records.
+// and sets s.dropped_records. The collector is not started again afterwards:
+// later records stay in their rings until another drain.
 void collector_stop_and_drain(Snapshot& s);
+
+// Whether the collector thread is running (for tests).
+bool collector_running();
 
 // Work the collector also does every cycle, after draining (the GPU timer
 // resolving completed events). A hook rather than a call keeps the recorder

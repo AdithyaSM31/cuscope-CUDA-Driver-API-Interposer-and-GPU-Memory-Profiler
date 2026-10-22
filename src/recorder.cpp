@@ -44,6 +44,7 @@ std::vector<Record>*& collected() {
 std::mutex g_collector_mu;  // starting and stopping the collector
 std::atomic<bool> g_collector_running{false};
 std::atomic<bool> g_collector_stop{false};
+std::atomic<bool> g_collector_final{false};  // stopped at exit for good
 pthread_t g_collector;
 
 std::atomic<uint64_t> g_next_corr{1};
@@ -78,7 +79,7 @@ void* collector_main(void*) {
 
 void start_collector() {
   std::lock_guard<std::mutex> lock(g_collector_mu);
-  if (g_collector_running.load(std::memory_order_relaxed)) return;
+  if (g_collector_running.load(std::memory_order_relaxed) || g_collector_final.load(std::memory_order_relaxed)) return;
   g_collector_stop.store(false, std::memory_order_relaxed);
 
   // The collector never handles the program's signals: those belong on the
@@ -114,6 +115,8 @@ uint64_t now_ns() {
 
 uint64_t next_corr() { return g_next_corr.fetch_add(1, std::memory_order_relaxed); }
 
+bool collector_running() { return g_collector_running.load(std::memory_order_acquire); }
+
 void set_collector_poll(void (*poll)()) { g_collector_poll.store(poll, std::memory_order_release); }
 
 void record(Record r) {
@@ -132,6 +135,7 @@ void collector_stop_and_drain(Snapshot& s) {
       pthread_join(g_collector, nullptr);
       g_collector_running.store(false, std::memory_order_release);
     }
+    g_collector_final.store(true, std::memory_order_relaxed);
   }
   drain_all();
 
@@ -169,6 +173,7 @@ void recorder_after_fork_child() {
   t_ring = nullptr;
   g_collector_running.store(false, std::memory_order_relaxed);
   g_collector_stop.store(false, std::memory_order_relaxed);
+  g_collector_final.store(false, std::memory_order_relaxed);
   g_collected_mu.unlock();
   g_registry_mu.unlock();
   g_collector_mu.unlock();

@@ -42,6 +42,22 @@ TEST(Recorder, MultiThreadAllDrained) {
   EXPECT_EQ(tids.size(), static_cast<size_t>(kThreads));  // record() fills the thread id
 }
 
+TEST(Recorder, NoCollectorRestartAfterFinalDrain) {
+  // Hooked calls made later in exit (the CUDA runtime's own cleanup, say) must
+  // not start a collector thread that nothing will ever join.
+  Snapshot first;
+  collector_stop_and_drain(first);
+  Record r{};
+  r.type = RecType::ApiCall;
+  r.corr = next_corr();
+  record(r);
+  EXPECT_FALSE(collector_running());
+  Snapshot second;
+  collector_stop_and_drain(second);
+  ASSERT_EQ(second.records.size(), 1u);  // still drained by a later drain
+  EXPECT_EQ(second.records[0].corr, r.corr);
+}
+
 TEST(Recorder, ClockIsMonotonic) {
   uint64_t a = now_ns(), b = now_ns();
   EXPECT_GT(a, 0u);
