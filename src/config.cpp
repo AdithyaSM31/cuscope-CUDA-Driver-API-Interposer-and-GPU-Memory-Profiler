@@ -82,7 +82,7 @@ const Config& config() {
   return c;
 }
 
-std::string expand_out_path(const std::string& pattern, int pid) {
+std::string expand_out_path(const std::string& pattern, int pid, bool root) {
   const std::string pid_str = std::to_string(pid);
   std::string out;
   out.reserve(pattern.size() + pid_str.size());
@@ -94,7 +94,12 @@ std::string expand_out_path(const std::string& pattern, int pid) {
       out += pattern[i];
     }
   }
-  return out;
+  if (root || pattern.find("%p") != std::string::npos) return out;
+  const size_t slash = out.rfind('/');
+  const size_t dot = out.rfind('.');
+  const bool has_ext = dot != std::string::npos && (slash == std::string::npos || dot > slash + 1);
+  const size_t at = has_ext ? dot : out.size();
+  return out.substr(0, at) + "." + pid_str + out.substr(at);
 }
 
 const char* mode_name(Config::Mode mode) {

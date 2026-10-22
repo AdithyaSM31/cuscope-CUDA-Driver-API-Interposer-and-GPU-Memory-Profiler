@@ -22,6 +22,41 @@
 namespace cuscope {
 namespace {
 
+// Which process of a run owns a CUSCOPE_OUT path without %p: the first one
+// to do CUDA work (not a shell that merely started it). A forked child of a
+// process never owns it. A process that claims it puts its pid in
+// CUSCOPE_ROOT_PID, which programs it later runs inherit.
+bool g_forked_child = false;
+
+int thread_count() {
+  FILE* status = std::fopen("/proc/self/status", "r");
+  if (status == nullptr) return -1;
+  char line[128];
+  int threads = -1;
+  while (std::fgets(line, sizeof(line), status) != nullptr) {
+    if (std::sscanf(line, "Threads: %d", &threads) == 1) break;
+  }
+  std::fclose(status);
+  return threads;
+}
+
+void claim_root() {
+  if (g_forked_child || std::getenv("CUSCOPE_ROOT_PID") != nullptr) return;
+  // setenv is not safe while other threads may read the environment; a
+  // program that is already multithreaded keeps its exact path but does not
+  // pass the claim on to programs it runs.
+  if (thread_count() != 1) return;
+  char pid[16];
+  std::snprintf(pid, sizeof(pid), "%d", static_cast<int>(getpid()));
+  setenv("CUSCOPE_ROOT_PID", pid, /*overwrite=*/0);
+}
+
+bool is_root_process() {
+  if (g_forked_child) return false;
+  const char* root = std::getenv("CUSCOPE_ROOT_PID");
+  return root == nullptr || std::atoi(root) == static_cast<int>(getpid());
+}
+
 // Builds the snapshot and writes the trace. Runs once, from atexit.
 void write_report_at_exit() {
   if (!stats::saw_cuda()) return;  // nothing to report
@@ -38,7 +73,12 @@ void write_report_at_exit() {
   tracker().fill(s);
   s.stacks = symbolize_all();
 
-  const std::string path = expand_out_path(config().out, s.pid);
+  const std::string path = expand_out_path(config().out, s.pid, is_root_process());
+  if (path != expand_out_path(config().out, s.pid)) {
+    log_msg("another process of this run writes %s; this one writes %s (use %%p in CUSCOPE_OUT for one file "
+            "per process)",
+            config().out.c_str(), path.c_str());
+  }
   if (write_trace_file(s, path)) log_msg("trace written to %s", path.c_str());
 
   // One write, so the summary is not interleaved with the program's stderr.
@@ -76,13 +116,15 @@ void after_fork_child() {
   stacks_after_fork();
   tracker_after_fork_child();
   stats::after_fork_child();
+  g_forked_child = true;
 }
 
-// Printed at the first CUDA work in this process rather than at load, so the
-// many processes that inherit LD_PRELOAD and never use CUDA stay silent.
-void print_banner() {
+// At the first CUDA work in this process rather than at load, so the many
+// processes that inherit LD_PRELOAD and never use CUDA stay silent.
+void on_first_work() {
   log_msg("cuscope %s loaded (pid %d, mode %s)", CUSCOPE_VERSION, static_cast<int>(getpid()),
           mode_name(config().mode));
+  claim_root();
 }
 
 // Runs when the dynamic loader initialises libcuscope.so, before main().
@@ -93,7 +135,7 @@ void print_banner() {
 __attribute__((constructor)) void cuscope_ctor() {
   const Config& cfg = config();
   for (const std::string& warning : cfg.warnings) log_msg("%s", warning.c_str());
-  set_on_first_work(print_banner);
+  set_on_first_work(on_first_work);
 
   warm_up_backtrace();
   tracker();  // create it now rather than inside the first allocation

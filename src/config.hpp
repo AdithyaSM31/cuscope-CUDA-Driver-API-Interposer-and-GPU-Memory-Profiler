@@ -31,7 +31,11 @@ Config parse_config(const GetenvFn& getenv_fn);
 // cuscope's constructors have run.
 const Config& config();
 
-std::string expand_out_path(const std::string& pattern, int pid);
+// The trace path for process `pid`: %p becomes the pid. A pattern without %p
+// is the exact path only for the root process (the one that started the
+// run); any other process inserts ".<pid>" before the extension, so a child
+// never overwrites the root's trace.
+std::string expand_out_path(const std::string& pattern, int pid, bool root = true);
 
 const char* mode_name(Config::Mode mode);
 

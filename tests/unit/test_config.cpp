@@ -81,3 +81,13 @@ TEST(Config, ExpandsPid) {
   EXPECT_EQ(expand_out_path("plain.json", 42), "plain.json");
   EXPECT_EQ(expand_out_path("%p/%p.json", 7), "7/7.json");
 }
+
+TEST(Config, FixedPathBelongsToTheRootProcess) {
+  // Without %p every process would write the same file; only the process
+  // that started the run gets the exact path, the others add their pid.
+  EXPECT_EQ(expand_out_path("trace.json", 42, /*root=*/true), "trace.json");
+  EXPECT_EQ(expand_out_path("trace.json", 42, /*root=*/false), "trace.42.json");
+  EXPECT_EQ(expand_out_path("out/trace", 42, /*root=*/false), "out/trace.42");
+  EXPECT_EQ(expand_out_path("v1.2/trace", 42, /*root=*/false), "v1.2/trace.42");
+  EXPECT_EQ(expand_out_path("t-%p.json", 42, /*root=*/false), "t-42.json");
+}

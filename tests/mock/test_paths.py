@@ -1,5 +1,7 @@
 """Interception-path tests against the mock libcuda (no GPU needed)."""
 
+import json
+
 import pytest
 
 from conftest import MODES, SCENARIOS
@@ -144,6 +146,35 @@ def test_fork_child_without_cuda_work_writes_nothing(mimic, mode):
     assert r.code == 0, r.stderr
     assert r.trace is not None
     assert len(r.traces) == 1, sorted(r.traces)
+
+
+def test_fixed_out_path_is_not_overwritten_by_a_child(mimic, tmp_path):
+    # --out without %p: the process that started the run writes that file; a
+    # child that also reports writes trace.<pid>.json instead of overwriting it.
+    r = mimic("fork", "direct", env={"CUSCOPE_OUT": str(tmp_path / "trace.json")})
+    assert r.code == 0, r.stderr
+    names = sorted(p.name for p in tmp_path.iterdir())
+    assert len(names) == 2 and names[-1] == "trace.json", names
+    assert names[0].startswith("trace.") and names[0].endswith(".json"), names
+    parent = json.loads((tmp_path / "trace.json").read_text())["cuscope"]
+    assert [l["bytes"] for l in parent["leaks"]] == [1 << 20]  # the parent's report, not the child's
+
+
+def test_fixed_out_path_through_a_shell_wrapper(tmp_path):
+    # cuscope run -- ./train.sh: the shell loads cuscope first but does no CUDA
+    # work; the program it runs is the one whose trace gets the exact path.
+    import os
+    import subprocess
+    from conftest import BUILD
+    env = {k: v for k, v in os.environ.items() if not k.startswith("CUSCOPE_") and k != "LD_PRELOAD"}
+    env.update(LD_LIBRARY_PATH=str(BUILD / "mock" / "direct"), LD_PRELOAD=str(BUILD / "libcuscope.so"),
+               CUSCOPE_OUT=str(tmp_path / "trace.json"))
+    if os.environ.get("CUSCOPE_PRELOAD_FIRST"):
+        env["LD_PRELOAD"] = os.environ["CUSCOPE_PRELOAD_FIRST"] + " " + env["LD_PRELOAD"]
+    r = subprocess.run(["sh", "-c", f"{BUILD / 'mock' / 'runtime_mimic'} launch"], env=env, capture_output=True,
+                       text=True, timeout=10)
+    assert r.returncode == 0, r.stderr
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["trace.json"], r.stderr
 
 
 def test_api_calls_recorded_in_mock(mimic):
