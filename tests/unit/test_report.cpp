@@ -92,6 +92,18 @@ TEST(Report, LeaksPointPastTheCudaRuntime) {
   EXPECT_FALSE(contains(text, "at libcudart_static")) << text;
 }
 
+TEST(Report, ProgramFunctionNamedCudaIsTheSite) {
+  // Runtime API functions are cudaX with X uppercase; a program's own
+  // cuda_check helper is where the program allocated, not CUDA internals.
+  Snapshot s = sample();
+  s.stacks[7] = {{"/bin/app", 0x100, "libcudart_static_5382377d5c77"},
+                 {"/bin/app", 0x200, "cudaMalloc"},
+                 {"/bin/app", 0x300, "cuda_check_alloc(unsigned long)"},
+                 {"/bin/app", 0x400, "main"}};
+  const std::string text = render(s);
+  EXPECT_TRUE(contains(text, "1.0 MiB device at cuda_check_alloc(unsigned long)")) << text;
+}
+
 TEST(Report, KernelsAndCopies) {
   const std::string text = render(sample());
   EXPECT_TRUE(contains(text, "spin_kernel(long long)")) << text;

@@ -117,6 +117,23 @@ def test_summary_sections():
         last = at
 
 
+def test_cuda_frames_are_runtime_names_only():
+    # Same rule as src/report.cpp: cudaX with X uppercase is the runtime API;
+    # a program's own cuda_check helper is a program frame.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("cuscope_cli", CLI)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    frame = lambda symbol, module="/bin/app": {"symbol": symbol, "module": module}
+    assert cli.is_cuda_frame(frame("cudaMalloc"))
+    assert cli.is_cuda_frame(frame("__cudaRegisterFatBinary"))
+    assert cli.is_cuda_frame(frame("libcudart_static_5382377d5c77"))
+    assert cli.is_cuda_frame(frame("anything", "/usr/lib/libcudart.so.13"))
+    assert not cli.is_cuda_frame(frame("cuda_check_alloc(unsigned long)"))
+    assert not cli.is_cuda_frame(frame("cudaify"))
+    assert not cli.is_cuda_frame(frame("main"))
+
+
 def test_summary_of_missing_file():
     r = cuscope("summary", "/nonexistent/trace.json")
     assert r.returncode == 2 and "trace.json" in r.stderr

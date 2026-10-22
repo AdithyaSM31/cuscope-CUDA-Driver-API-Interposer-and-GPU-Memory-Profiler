@@ -98,9 +98,11 @@ def time_text(ns: int) -> str:
 
 
 def is_cuda_frame(frame: dict) -> bool:
-    # Same rule as src/report.cpp: the static runtime lives inside the program.
+    # Same rule as src/report.cpp: the static runtime lives inside the program,
+    # and its API functions are cudaX with X uppercase (cudaMalloc, not cuda_check).
     symbol, module = frame["symbol"], Path(frame["module"]).name
-    return (symbol.startswith(("libcudart_static", "cuda", "__cuda", "cudart::"))
+    runtime_api = symbol.startswith("cuda") and symbol[4:5].isupper()
+    return (runtime_api or symbol.startswith(("libcudart_static", "__cuda", "cudart::"))
             or module.startswith(("libcudart", "libcuda.")))
 
 

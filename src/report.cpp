@@ -1,5 +1,6 @@
 #include "report.hpp"
 
+#include <cctype>
 #include <cinttypes>
 #include <cstring>
 #include <string>
@@ -48,11 +49,14 @@ std::string basename_of(const std::string& path) {
 // Frames inside the CUDA runtime or driver say nothing about the program. The
 // static runtime is linked into the program itself, so module alone is not
 // enough: its functions are recognised by name.
+// Runtime API functions are cudaX with X uppercase (cudaMalloc), so a
+// program helper such as cuda_check stays a program frame.
 bool is_cuda_frame(const StackFrame& f) {
   const std::string module = basename_of(f.module);
-  return starts_with(f.symbol, "libcudart_static") || starts_with(f.symbol, "cuda") ||
-         starts_with(f.symbol, "__cuda") || starts_with(f.symbol, "cudart::") || starts_with(module, "libcudart") ||
-         starts_with(module, "libcuda.");
+  const bool runtime_api =
+      starts_with(f.symbol, "cuda") && f.symbol.size() > 4 && std::isupper(static_cast<unsigned char>(f.symbol[4]));
+  return runtime_api || starts_with(f.symbol, "libcudart_static") || starts_with(f.symbol, "__cuda") ||
+         starts_with(f.symbol, "cudart::") || starts_with(module, "libcudart") || starts_with(module, "libcuda.");
 }
 
 // "main (app+0x8a7f)": the first frame that belongs to the program.
