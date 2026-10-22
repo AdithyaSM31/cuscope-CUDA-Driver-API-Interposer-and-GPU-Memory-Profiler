@@ -1,0 +1,11 @@
+/* What libcuscope.so exports: the driver functions it wraps, dlsym, and
+ * cuscope's own API. Everything else, including C++ template instances that
+ * would otherwise be exported and override the program's own copies, stays
+ * local. */
+{
+  global:
+    cu*;
+    dlsym;
+  local:
+    *;
+};

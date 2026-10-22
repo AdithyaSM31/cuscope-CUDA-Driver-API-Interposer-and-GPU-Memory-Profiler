@@ -35,6 +35,17 @@ def test_rtld_next_and_rtld_default_unchanged_under_cuscope():
     assert r.stdout == EXPECTED
 
 
+def test_exports_only_driver_functions_dlsym_and_cuscope_api():
+    # libcuscope.so is first in every lookup: anything else it exported (a
+    # std:: template instance, a static C++ runtime) would replace the
+    # program's own copy.
+    out = subprocess.run(["nm", "-D", "--defined-only", str(BUILD / "libcuscope.so")], capture_output=True,
+                         text=True, check=True).stdout
+    names = [line.split()[-1] for line in out.splitlines() if line.strip()]
+    unexpected = [n for n in names if not (n.startswith("cu") or n == "dlsym")]
+    assert unexpected == [], unexpected[:5]
+
+
 def run_probe(mode: str, preload: bool) -> subprocess.CompletedProcess:
     env = {k: v for k, v in os.environ.items() if not k.startswith("CUSCOPE_") and k != "LD_PRELOAD"}
     env["LD_LIBRARY_PATH"] = str(BUILD / "mock" / "direct")  # a libcuda exists, but nothing loads it

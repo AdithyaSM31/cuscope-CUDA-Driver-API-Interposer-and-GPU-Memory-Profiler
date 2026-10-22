@@ -88,7 +88,15 @@ target_include_directories(cuscope PRIVATE src include ${CUDA_DRIVER_INCLUDE})
 target_compile_definitions(cuscope PRIVATE CUSCOPE_VERSION="${PROJECT_VERSION}")
 target_compile_options(cuscope PRIVATE -Wall -Wextra -fvisibility=hidden -fvisibility-inlines-hidden)
 target_link_libraries(cuscope PRIVATE dl Threads::Threads)
-target_link_options(cuscope PRIVATE -Wl,--no-undefined)
+target_link_options(cuscope PRIVATE -Wl,--no-undefined -Wl,--version-script=${PROJECT_SOURCE_DIR}/src/exports.map)
+set_target_properties(cuscope PROPERTIES LINK_DEPENDS ${PROJECT_SOURCE_DIR}/src/exports.map)
+# The C++ runtime is linked in and kept private (--exclude-libs), so the
+# library works in a process that loads a different libstdc++ (a conda
+# environment, say) and never exports its copy to the program. Sanitizer
+# builds keep the shared runtime the sanitizer expects.
+if(NOT CUSCOPE_SANITIZE)
+  target_link_options(cuscope PRIVATE -static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL)
+endif()
 set_target_properties(cuscope PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 if(CUSCOPE_BUILD_TESTS)
@@ -104,6 +112,14 @@ if(CUSCOPE_BUILD_TESTS)
   set_tests_properties(cli_suite PROPERTIES
     LABELS cli
     ENVIRONMENT "CUSCOPE_BUILD=${CMAKE_BINARY_DIR}")
+
+  # libcuscope.so is loaded into programs that may bring an older libstdc++
+  # of their own (conda environments): it must not depend on the system one.
+  if(NOT CUSCOPE_SANITIZE)
+    add_test(NAME no_cxx_runtime_dependency
+      COMMAND sh -c "! readelf -d '$<TARGET_FILE:cuscope>' | grep -E 'NEEDED.*(libstdc[+][+]|libgcc_s)'")
+    set_tests_properties(no_cxx_runtime_dependency PROPERTIES LABELS cli)
+  endif()
 endif()
 
 if(CUSCOPE_GPU_TESTS)
