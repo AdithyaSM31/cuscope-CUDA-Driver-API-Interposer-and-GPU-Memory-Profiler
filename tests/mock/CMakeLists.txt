@@ -67,6 +67,15 @@ target_compile_definitions(rtld_app PRIVATE RTLD_PLUGIN_PATH="$<TARGET_FILE:rtld
 add_dependencies(rtld_app rtld_plugin)
 set_target_properties(rtld_app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${MOCK_DIR})
 
+# dlsym lookups cuscope must leave alone: a non-libcuda library exporting a
+# driver name, and a cuGetProcAddress probe before libcuda is loaded.
+add_library(fakecu SHARED fakecu.c)
+add_executable(dlsym_probe dlsym_probe.c)
+target_link_libraries(dlsym_probe PRIVATE dl)
+target_compile_definitions(dlsym_probe PRIVATE FAKECU_PATH="$<TARGET_FILE:fakecu>")
+add_dependencies(dlsym_probe fakecu)
+set_target_properties(dlsym_probe PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${MOCK_DIR})
+
 add_test(NAME mock_suite
   COMMAND python3 -m pytest -p no:cacheprovider -q ${CMAKE_CURRENT_SOURCE_DIR})
 set_tests_properties(mock_suite PROPERTIES

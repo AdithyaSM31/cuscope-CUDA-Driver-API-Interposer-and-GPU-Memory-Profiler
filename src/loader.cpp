@@ -86,6 +86,13 @@ void* libcuda_handle() {
   return g_libcuda;
 }
 
+void* libcuda_if_loaded() {
+  void* lib = dlopen("libcuda.so.1", RTLD_LAZY | RTLD_NOLOAD);
+  if (lib == nullptr) return nullptr;
+  dlclose(lib);  // RTLD_NOLOAD still took a reference
+  return libcuda_handle();
+}
+
 bool inside_cuscope(const void* addr) {
   Dl_info self{}, other{};
   if (dladdr(reinterpret_cast<const void*>(&inside_cuscope), &self) == 0) return false;

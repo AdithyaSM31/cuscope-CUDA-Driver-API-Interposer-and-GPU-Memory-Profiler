@@ -19,6 +19,10 @@ DlsymFn real_dlsym();
 // inside this function's own dlopen, and pthread_once would deadlock.
 void* libcuda_handle();
 
+// libcuda_handle(), but only if the program has already loaded libcuda;
+// nullptr otherwise. Never loads it.
+void* libcuda_if_loaded();
+
 // True if addr is inside libcuscope.so. A "real" driver function never is;
 // RTLD_DEFAULT lookups would otherwise find cuscope's own exports.
 bool inside_cuscope(const void* addr);

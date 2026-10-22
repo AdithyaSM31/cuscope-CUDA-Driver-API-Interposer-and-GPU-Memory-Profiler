@@ -50,16 +50,17 @@ bool is_gpa_name(const char* symbol, GpaVer* ver) {
   return false;
 }
 
-// True when the code that called dlsym lives in libcuda: the WSL loader shim
-// (libcuda.so.1 / libcuda_loader.so) or the real driver (libcuda.so.1.1).
-// Decided by the caller's module, never by the handle it passed.
+// True when addr lives in libcuda: the WSL loader shim (libcuda.so.1 /
+// libcuda_loader.so) or the real driver (libcuda.so.1.1). Used on the code
+// that called dlsym (decided by its module, never by the handle it passed)
+// and on the function a lookup found.
 //
 // "libcuda" must be followed by '.' or '_': libcudart.so.13, the shared CUDA
 // runtime, also starts with "libcuda", and its lookups must be intercepted.
-bool caller_is_libcuda(const void* return_address, const char** module) {
+bool in_libcuda(const void* addr, const char** module) {
   Dl_info info{};
   *module = nullptr;
-  if (dladdr(return_address, &info) == 0 || info.dli_fname == nullptr) return false;
+  if (dladdr(addr, &info) == 0 || info.dli_fname == nullptr) return false;
   *module = info.dli_fname;
   const char* slash = std::strrchr(info.dli_fname, '/');
   const char* base = slash ? slash + 1 : info.dli_fname;
@@ -137,7 +138,7 @@ extern "C" __attribute__((visibility("hidden"))) DlsymDecision cuscope_dlsym_dec
   // which would forward back to the wrapper, forever. This branch must not
   // touch libcuda_handle(): it can run inside that function's dlopen.
   const char* module = nullptr;
-  if (caller_is_libcuda(caller, &module)) {
+  if (in_libcuda(caller, &module)) {
     cuscope::census_dlsym(symbol, module, "caller-libcuda");
     return forward;
   }
@@ -145,8 +146,10 @@ extern "C" __attribute__((visibility("hidden"))) DlsymDecision cuscope_dlsym_dec
   GpaVer ver;
   if (is_gpa_name(symbol, &ver)) {
     // Pseudo-handles would find cuscope's own export first, so resolve those
-    // through libcuda. Without libcuda the program would have got nullptr too.
-    void* source = (handle == RTLD_DEFAULT || handle == RTLD_NEXT) ? cuscope::libcuda_handle() : handle;
+    // through libcuda, if the program has loaded it. If it has not, glibc
+    // would have found nothing, so neither does cuscope (and it does not
+    // load libcuda to answer).
+    void* source = (handle == RTLD_DEFAULT || handle == RTLD_NEXT) ? cuscope::libcuda_if_loaded() : handle;
     void* found = source ? real(source, symbol) : nullptr;
     if (found == nullptr || cuscope::inside_cuscope(found)) {
       cuscope::census_dlsym(symbol, module, "pass");
@@ -166,8 +169,12 @@ extern "C" __attribute__((visibility("hidden"))) DlsymDecision cuscope_dlsym_dec
   int variant = 0;
   int id = cuscope::find_hook_by_export(symbol, &variant);
   if (id < 0 || handle == RTLD_DEFAULT || handle == RTLD_NEXT) return forward;
+  // Only libcuda's own function gets the wrapper: another library that
+  // exports the same name keeps its own.
   void* found = real(handle, symbol);
-  void* wrapper = found ? cuscope::hook_wrapper(static_cast<cuscope::HookId>(id), variant) : nullptr;
+  const char* found_module = nullptr;
+  if (found == nullptr || !in_libcuda(found, &found_module)) return {found, nullptr};
+  void* wrapper = cuscope::hook_wrapper(static_cast<cuscope::HookId>(id), variant);
   if (wrapper == nullptr) return {found, nullptr};
   cuscope::stats::dlsym_wrapped++;
   cuscope::census_dlsym(symbol, module, "wrap");
