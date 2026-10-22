@@ -58,6 +58,25 @@ TEST(Recorder, NoCollectorRestartAfterFinalDrain) {
   EXPECT_EQ(second.records[0].corr, r.corr);
 }
 
+TEST(Recorder, RingsOfExitedThreadsAreFreed) {
+  // A program that runs many short-lived threads (a thread pool resized, a
+  // worker per request) must not keep 1 MiB per thread it ever had, nor scan
+  // them all on every drain. Nothing they recorded may be lost.
+  constexpr int kThreads = 1000;
+  for (int t = 0; t < kThreads; ++t) {
+    std::thread([] {
+      Record r{};
+      r.type = RecType::ApiCall;
+      r.corr = next_corr();
+      record(r);
+    }).join();
+  }
+  Snapshot s;
+  collector_stop_and_drain(s);
+  EXPECT_EQ(s.records.size(), static_cast<size_t>(kThreads));
+  EXPECT_LE(live_rings(), 2u);
+}
+
 TEST(Recorder, ClockIsMonotonic) {
   uint64_t a = now_ns(), b = now_ns();
   EXPECT_GT(a, 0u);

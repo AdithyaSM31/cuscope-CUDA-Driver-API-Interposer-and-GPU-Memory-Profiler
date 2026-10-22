@@ -6,6 +6,7 @@
 // background collector thread drains every ring every 2 ms into one list.
 // The program thread's cost is a clock read and a 64-byte copy.
 
+#include <cstddef>
 #include <cstdint>
 
 #include "model.hpp"
@@ -29,6 +30,10 @@ void collector_stop_and_drain(Snapshot& s);
 
 // Whether the collector thread is running (for tests).
 bool collector_running();
+
+// Rings currently registered (for tests). A thread that exits gives its ring
+// back once the ring is drained.
+size_t live_rings();
 
 // Work the collector also does every cycle, after draining (the GPU timer
 // resolving completed events). A hook rather than a call keeps the recorder

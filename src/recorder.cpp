@@ -6,6 +6,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
 #include <mutex>
 #include <vector>
@@ -23,12 +24,14 @@ constexpr long kCollectIntervalNs = 2'000'000;
 struct ThreadRing {
   SpscRing<Record, kRingRecords> ring;
   uint32_t tid = 0;
+  std::atomic<bool> finished{false};  // its thread has exited: no more pushes
 };
 
-// Rings are never freed: a thread that exits leaves its ring for the
-// collector to drain. The lists are heap-allocated on first use (another
-// library's constructor may make a CUDA call before ours runs) and never
-// destroyed, so they survive into exit handlers. The fork child swaps in new ones.
+// A thread that exits marks its ring finished (a pthread key destructor);
+// the next drain empties it and frees it. The lists are heap-allocated on
+// first use (another library's constructor may make a CUDA call before ours
+// runs) and never destroyed, so they survive into exit handlers. The fork
+// child swaps in new ones.
 std::mutex g_registry_mu;
 std::vector<ThreadRing*>*& rings() {
   static std::vector<ThreadRing*>* list = new std::vector<ThreadRing*>();
@@ -50,20 +53,55 @@ pthread_t g_collector;
 std::atomic<uint64_t> g_next_corr{1};
 std::atomic<void (*)()> g_collector_poll{nullptr};
 std::atomic<void (*)()> g_on_first_work{nullptr};
+std::atomic<uint64_t> g_retired_drops{0};  // drops counted by rings since freed
 
 thread_local ThreadRing* t_ring __attribute__((tls_model("initial-exec"))) = nullptr;
 
-// Moves everything currently in the rings into g_collected.
+// Called on a thread's exit. If a later destructor on the same thread
+// records again, it gets a new ring (and this runs again for that one).
+void ring_thread_exit(void* p) {
+  auto* tr = static_cast<ThreadRing*>(p);
+  if (t_ring == tr) t_ring = nullptr;
+  tr->finished.store(true, std::memory_order_release);
+}
+
+pthread_key_t g_ring_key;
+bool g_ring_key_ok = false;
+pthread_once_t g_ring_key_once = PTHREAD_ONCE_INIT;
+void make_ring_key() { g_ring_key_ok = pthread_key_create(&g_ring_key, ring_thread_exit) == 0; }
+
+// Moves everything currently in the rings into g_collected, then frees the
+// rings of threads that have exited. One drainer at a time: the collector,
+// or the exit drain once the collector is joined.
 void drain_all() {
   std::vector<ThreadRing*> snapshot;
   {
     std::lock_guard<std::mutex> lock(g_registry_mu);
     snapshot = *rings();
   }
-  std::lock_guard<std::mutex> lock(g_collected_mu);
-  Record r;
-  for (ThreadRing* tr : snapshot) {
-    while (tr->ring.pop(r)) collected()->push_back(r);
+  std::vector<ThreadRing*> done;
+  {
+    std::lock_guard<std::mutex> lock(g_collected_mu);
+    Record r;
+    for (ThreadRing* tr : snapshot) {
+      // Read before popping: everything pushed before finished was set is
+      // then visible to the pops below.
+      const bool finished = tr->finished.load(std::memory_order_acquire);
+      while (tr->ring.pop(r)) collected()->push_back(r);
+      if (finished) done.push_back(tr);
+    }
+  }
+  if (done.empty()) return;
+  {
+    std::lock_guard<std::mutex> lock(g_registry_mu);
+    auto& list = *rings();
+    list.erase(std::remove_if(list.begin(), list.end(),
+                              [&](ThreadRing* tr) { return std::find(done.begin(), done.end(), tr) != done.end(); }),
+               list.end());
+  }
+  for (ThreadRing* tr : done) {
+    g_retired_drops.fetch_add(tr->ring.drops(), std::memory_order_relaxed);
+    delete tr;
   }
 }
 
@@ -102,6 +140,8 @@ ThreadRing* this_thread_ring() {
     std::lock_guard<std::mutex> lock(g_registry_mu);
     rings()->push_back(tr);
   }
+  pthread_once(&g_ring_key_once, make_ring_key);
+  if (g_ring_key_ok) pthread_setspecific(g_ring_key, tr);  // else the ring is kept, as before
   t_ring = tr;
   return tr;
 }
@@ -117,6 +157,11 @@ uint64_t now_ns() {
 uint64_t next_corr() { return g_next_corr.fetch_add(1, std::memory_order_relaxed); }
 
 void set_on_first_work(void (*hook)()) { g_on_first_work.store(hook, std::memory_order_release); }
+
+size_t live_rings() {
+  std::lock_guard<std::mutex> lock(g_registry_mu);
+  return rings()->size();
+}
 
 bool collector_running() { return g_collector_running.load(std::memory_order_acquire); }
 
@@ -144,7 +189,7 @@ void collector_stop_and_drain(Snapshot& s) {
   }
   drain_all();
 
-  uint64_t drops = 0;
+  uint64_t drops = g_retired_drops.load(std::memory_order_relaxed);
   {
     std::lock_guard<std::mutex> lock(g_registry_mu);
     for (ThreadRing* tr : *rings()) drops += tr->ring.drops();
@@ -176,6 +221,8 @@ void recorder_after_fork_child() {
   rings() = new std::vector<ThreadRing*>();
   collected() = new std::vector<Record>();
   t_ring = nullptr;
+  if (g_ring_key_ok) pthread_setspecific(g_ring_key, nullptr);
+  g_retired_drops.store(0, std::memory_order_relaxed);
   g_collector_running.store(false, std::memory_order_relaxed);
   g_collector_stop.store(false, std::memory_order_relaxed);
   g_collector_final.store(false, std::memory_order_relaxed);
