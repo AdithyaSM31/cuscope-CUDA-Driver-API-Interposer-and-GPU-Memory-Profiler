@@ -90,6 +90,28 @@ TEST(Summary, CopyBandwidth) {
   EXPECT_DOUBLE_EQ(sum.copies[0].gbps, 10.0);
 }
 
+TEST(Summary, CopyBandwidthUsesTimedBytesOnly) {
+  // A copy with no GPU span (made during a capture, say) still counts, but
+  // its bytes took no measured time and must not inflate the rate.
+  Snapshot s;
+  Record timed{};
+  timed.type = RecType::Copy;
+  timed.api = H_cuMemcpyHtoD;
+  timed.aux = copy_aux(CopyDir::HtoD, true);
+  timed.bytes = 1'000'000'000;
+  timed.corr = 7;
+  Record untimed = timed;
+  untimed.corr = 8;
+  s.records = {timed, untimed};
+  s.spans = {span(7, 0, 100'000'000)};
+
+  Summary sum = summarize(s);
+  ASSERT_EQ(sum.copies.size(), 1u);
+  EXPECT_EQ(sum.copies[0].count, 2u);
+  EXPECT_EQ(sum.copies[0].bytes, 2'000'000'000u);
+  EXPECT_DOUBLE_EQ(sum.copies[0].gbps, 10.0);
+}
+
 TEST(Summary, CopiesGroupedByDirectionAndPinning) {
   Snapshot s;
   for (bool pinned : {false, true, false}) {

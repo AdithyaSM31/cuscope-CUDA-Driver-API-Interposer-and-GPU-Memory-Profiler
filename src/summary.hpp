@@ -23,7 +23,8 @@ struct CopyStat {
   CopyDir dir;
   bool pinned;
   uint64_t count = 0, bytes = 0, gpu_ns_total = 0;
-  double gbps = 0.0;  // bytes per GPU nanosecond, which equals GB/s; 0 without GPU time
+  uint64_t timed_bytes = 0;  // bytes of the copies that have GPU time
+  double gbps = 0.0;  // timed bytes per GPU nanosecond, which equals GB/s; 0 without GPU time
 };
 
 struct Summary {

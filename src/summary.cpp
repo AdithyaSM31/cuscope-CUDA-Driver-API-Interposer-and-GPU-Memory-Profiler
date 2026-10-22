@@ -52,7 +52,10 @@ Summary summarize(const Snapshot& s) {
         CopyStat& c = copies.try_emplace(key, CopyStat{key.first, key.second}).first->second;
         c.count++;
         c.bytes += r.bytes;
-        c.gpu_ns_total += gpu_ns(r.corr);
+        if (span_of(r.corr) != nullptr) {
+          c.timed_bytes += r.bytes;
+          c.gpu_ns_total += gpu_ns(r.corr);
+        }
         break;
       }
       case RecType::GraphLaunch:
@@ -69,7 +72,7 @@ Summary summarize(const Snapshot& s) {
   });
 
   for (auto& [key, c] : copies) {
-    c.gbps = c.gpu_ns_total > 0 ? static_cast<double>(c.bytes) / static_cast<double>(c.gpu_ns_total) : 0.0;
+    c.gbps = c.gpu_ns_total > 0 ? static_cast<double>(c.timed_bytes) / static_cast<double>(c.gpu_ns_total) : 0.0;
     out.copies.push_back(c);
   }
   return out;
