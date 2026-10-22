@@ -19,7 +19,7 @@ BUILD = Path(os.environ.get("CUSCOPE_BUILD", REPO / "build"))
 TIMEOUT_S = 10
 
 SCENARIOS = ["dlsym_gpa", "dlsym_default", "via_cudart", "ptsz", "old_version", "gpa_self",
-             "capture", "launch", "launch8", "launch200", "copy", "teardown", "release_destroys", "release_keeps", "fork", "fork_quiet"]
+             "capture", "launch", "launch8", "launch200", "copy", "teardown", "release_destroys", "release_keeps", "release_keeps_launch", "fork", "fork_quiet"]
 MODES = ["direct", "shim"]
 
 

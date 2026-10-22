@@ -35,21 +35,29 @@ uint64_t active_primary_ctx(CUdevice dev) {
   return handle(ctx);
 }
 
-// Shared by Release and Reset. Both may destroy the primary context (Release
-// only when it drops the last reference); afterwards the driver says which.
+// Shared by Release and Reset. Reset always destroys the primary context;
+// Release only when it drops the last reference, which the driver tells us
+// afterwards. Timing state is kept for a context that survives.
 template <class RealCall>
-CUresult primary_teardown(CUdevice dev, RealCall&& real_call) {
+CUresult primary_teardown(CUdevice dev, bool always_destroys, RealCall&& real_call) {
   if (in_internal()) return real_call();
   uint64_t primary = 0;
   {
     InternalScope internal;
     primary = active_primary_ctx(dev);
   }
-  gpu_flush_device(dev);
+  if (always_destroys) {
+    gpu_flush_device(dev);
+  } else {
+    gpu_drain_device(dev);
+  }
   CUresult result = real_call();
   if (result == CUDA_SUCCESS && primary != 0) {
     InternalScope internal;
-    if (!primary_active(dev)) tracker().on_ctx_teardown(primary);
+    if (!primary_active(dev)) {
+      if (!always_destroys) gpu_forget_device(dev);
+      tracker().on_ctx_teardown(primary);
+    }
   }
   return result;
 }
@@ -86,13 +94,13 @@ CUresult cs_cuCtxDestroy(CUcontext ctx) {
 }
 
 // Release may or may not destroy the primary context (it is reference
-// counted). Flushing either way is safe: a surviving context simply gets
-// fresh timing state on its next launch.
+// counted): pending events are resolved first either way, and the timing
+// state is dropped only if the context is gone afterwards.
 template <int V>
 CUresult cs_cuDevicePrimaryCtxRelease(CUdevice dev) {
   note_call();
   ApiRecord rec(H_cuDevicePrimaryCtxRelease);
-  return primary_teardown(dev, [&] {
+  return primary_teardown(dev, /*always_destroys=*/false, [&] {
     CUresult r = forward<V, decltype(&::cuDevicePrimaryCtxRelease)>(H_cuDevicePrimaryCtxRelease, dev);
     rec.done();
     return r;
@@ -103,7 +111,7 @@ template <int V>
 CUresult cs_cuDevicePrimaryCtxReset(CUdevice dev) {
   note_call();
   ApiRecord rec(H_cuDevicePrimaryCtxReset);
-  return primary_teardown(dev, [&] {
+  return primary_teardown(dev, /*always_destroys=*/true, [&] {
     CUresult r = forward<V, decltype(&::cuDevicePrimaryCtxReset)>(H_cuDevicePrimaryCtxReset, dev);
     rec.done();
     return r;

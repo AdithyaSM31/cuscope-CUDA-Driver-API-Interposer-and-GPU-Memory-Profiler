@@ -22,7 +22,7 @@ namespace {
 struct Counters {
   std::atomic<uint64_t> alloc_v1{0}, alloc_v2{0}, free_{0}, memcpy_htod{0}, memcpy_dtoh{0},
       memcpy_async{0}, memcpy_async_ptsz{0}, launch{0}, launch_ptsz{0}, event_record{0},
-      event_record_on_capturing{0}, ctx_destroy{0}, event_query{0};
+      event_record_on_capturing{0}, ctx_destroy{0}, event_query{0}, event_sync{0};
 };
 Counters g_count;
 
@@ -116,6 +116,7 @@ MOCK_API void mock_get_counters(mock_counters* out) {
   out->event_record_on_capturing = g_count.event_record_on_capturing;
   out->ctx_destroy = g_count.ctx_destroy;
   out->event_query = g_count.event_query;
+  out->event_sync = g_count.event_sync;
 }
 
 // ---- Initialisation and contexts ----
@@ -298,6 +299,7 @@ MOCK_API CUresult cuEventQuery(CUevent ev) {
 }
 
 MOCK_API CUresult cuEventSynchronize(CUevent ev) {
+  g_count.event_sync++;
   auto* e = reinterpret_cast<MockEvent*>(ev);
   std::lock_guard<std::mutex> lock(g_mu);
   if (!event_alive(e)) return CUDA_ERROR_INVALID_CONTEXT;

@@ -142,6 +142,13 @@ void run(const char* scenario) {
     CHECK(get<decltype(&cuDevicePrimaryCtxRetain)>("cuDevicePrimaryCtxRetain")(&again, 0));
     alloc(1 << 20);  // deliberately not freed
     CHECK(get<decltype(&cuDevicePrimaryCtxRelease)>("cuDevicePrimaryCtxRelease")(0));
+  } else if (std::strcmp(scenario, "release_keeps_launch") == 0) {
+    // Launches on both sides of a Release that leaves the context alive.
+    launch(nullptr);
+    CUcontext again = nullptr;
+    CHECK(get<decltype(&cuDevicePrimaryCtxRetain)>("cuDevicePrimaryCtxRetain")(&again, 0));
+    CHECK(get<decltype(&cuDevicePrimaryCtxRelease)>("cuDevicePrimaryCtxRelease")(0));
+    launch(nullptr);
   } else if (std::strcmp(scenario, "fork") == 0) {
     alloc(1 << 20);  // deliberately not freed; the child must not report it
     launch(nullptr);  // timed; its span must not show up in the child's trace

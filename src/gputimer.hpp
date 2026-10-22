@@ -48,9 +48,17 @@ void gpu_cancel(const Timing& t);
 
 // Before a context goes away: waits for and resolves its pending events, then
 // forgets the context (its events die with it). Device form: every context
-// cuscope knows on that device, for cuDevicePrimaryCtxRelease/Reset.
+// cuscope knows on that device, for cuDevicePrimaryCtxReset.
 void gpu_flush_ctx(uint64_t ctx);
 void gpu_flush_device(int device);
+
+// cuDevicePrimaryCtxRelease, which destroys the context only when it drops
+// the last reference. Before the call: resolve pending events (bounded wait)
+// but keep the timing state. After it, only if the context is gone: forget
+// the state without touching its events. A surviving context keeps its
+// state, so its next launch does not wait for the GPU again.
+void gpu_drain_device(int device);
+void gpu_forget_device(int device);
 
 // At exit, after the collector has stopped: flush every context still known.
 void gputimer_finish();

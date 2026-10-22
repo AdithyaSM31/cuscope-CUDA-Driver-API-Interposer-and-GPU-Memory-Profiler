@@ -21,6 +21,7 @@ typedef struct mock_counters {
   uint64_t event_record_on_capturing;
   uint64_t ctx_destroy;
   uint64_t event_query;
+  uint64_t event_sync;
 } mock_counters;
 
 #ifdef __cplusplus

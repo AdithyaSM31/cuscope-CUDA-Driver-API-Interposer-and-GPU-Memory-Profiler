@@ -457,6 +457,42 @@ void gpu_flush_device(int device) {
   for (CtxState* st : gone) flush_and_forget(st);
 }
 
+std::vector<CtxState*> states_on_device(int device, bool remove) {
+  std::vector<CtxState*> found;
+  std::lock_guard<std::mutex> lock(g_states_mu);
+  for (auto it = states().begin(); it != states().end();) {
+    if (it->second->device != device) {
+      ++it;
+      continue;
+    }
+    found.push_back(it->second);
+    it = remove ? states().erase(it) : std::next(it);
+  }
+  if (remove && !found.empty()) g_generation.fetch_add(1, std::memory_order_acq_rel);
+  return found;
+}
+
+void gpu_drain_device(int device) {
+  if (!fns().ok) return;
+  InternalScope internal;
+  const uint64_t deadline = deadline_after_flush_timeout();
+  for (CtxState* st : states_on_device(device, /*remove=*/false)) poll_state(st, deadline);
+}
+
+void gpu_forget_device(int device) {
+  if (!fns().ok) return;
+  InternalScope internal;
+  for (CtxState* st : states_on_device(device, /*remove=*/true)) {
+    // The context is gone, and its events with it: count what was still
+    // pending (launched after the drain) rather than query it.
+    std::lock_guard<std::mutex> poll_lock(st->poll_mu);
+    std::lock_guard<std::mutex> lock(st->mu);
+    st->retired = true;
+    g_unresolved.fetch_add(st->pending.size(), std::memory_order_relaxed);
+    st->pending.clear();
+  }
+}
+
 void gputimer_finish() {
   if (!fns().ok) return;
   InternalScope internal;

@@ -177,6 +177,17 @@ def test_fixed_out_path_through_a_shell_wrapper(tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["trace.json"], r.stderr
 
 
+def test_release_that_keeps_the_context_keeps_its_timing_state(mimic):
+    # Each new timing state waits for the GPU once (the reference event). A
+    # Release that leaves the context alive must not throw the state away and
+    # make the next launch wait again.
+    r = mimic("release_keeps_launch", "shim")
+    assert r.code == 0, r.stderr
+    assert r.mock["event_sync"] == 1, r.mock
+    assert len(gpu_spans(r.trace)) == 2
+    assert r.trace["cuscope"]["unresolved_events"] == 0
+
+
 def test_api_calls_recorded_in_mock(mimic):
     r = mimic("dlsym_gpa", "shim")
     names = [e["name"] for e in r.trace["traceEvents"] if e["ph"] == "X"]
@@ -335,7 +346,7 @@ def test_preloaded_runs_keep_program_behaviour(mimic):
     # Every call the program made reaches the driver unchanged. Event calls are
     # left out: from Task 10 on, cuscope records its own timing events.
     def program_calls(mock: dict) -> dict:
-        return {k: v for k, v in mock.items() if not k.startswith(("event_record", "event_query"))}
+        return {k: v for k, v in mock.items() if not k.startswith(("event_record", "event_query", "event_sync"))}
 
     for scenario in ["dlsym_gpa", "ptsz", "old_version", "gpa_self", "fork"]:
         for mode in ["direct", "shim"]:
