@@ -50,6 +50,10 @@ def test_run_sets_config():
     assert env["CUSCOPE_SAMPLE_EVERY"] == "4"
 
 
+def test_run_sets_mem_limit():
+    assert child_env("--mem-limit", "2G")["CUSCOPE_MEM_LIMIT"] == "2G"
+
+
 def test_no_report_without_cuda(tmp_path):
     # Child processes inherit LD_PRELOAD; those that never touch CUDA (shells,
     # compilers, workers) must not leave traces or summaries behind.

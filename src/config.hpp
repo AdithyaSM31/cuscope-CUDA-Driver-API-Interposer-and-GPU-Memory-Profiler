@@ -18,6 +18,7 @@ struct Config {
   int stack_depth = 16;                 // CUSCOPE_STACK_DEPTH, clamped to 1..64
   uint32_t sample_every = 1;            // CUSCOPE_SAMPLE_EVERY, >= 1
   uint32_t flush_timeout_ms = 2000;     // CUSCOPE_FLUSH_TIMEOUT_MS, >= 0
+  uint64_t mem_limit_bytes = 0;         // CUSCOPE_MEM_LIMIT; 0 = no cap
 
   // One message per variable that was invalid and fell back to its default.
   std::vector<std::string> warnings;
@@ -26,6 +27,12 @@ struct Config {
 using GetenvFn = std::function<const char*(const char*)>;
 
 Config parse_config(const GetenvFn& getenv_fn);
+
+// A positive size: plain bytes ("268435456"), or a number with a binary
+// suffix K, M, G or T, optionally followed by B or iB, case-insensitive
+// ("512M", "1.5GiB"). Decimals need a suffix. False for anything else,
+// including zero.
+bool parse_size(const char* s, uint64_t* out);
 
 // Parsed from the real environment on first call. Safe to call before
 // cuscope's constructors have run.

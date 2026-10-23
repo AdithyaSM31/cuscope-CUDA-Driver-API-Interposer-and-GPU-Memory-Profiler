@@ -1,5 +1,6 @@
 #include "config.hpp"
 
+#include <cctype>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -65,6 +66,13 @@ Config parse_config(const GetenvFn& getenv_fn) {
     }
   }
 
+  if (const char* v = getenv_fn("CUSCOPE_MEM_LIMIT"); v != nullptr) {
+    if (!parse_size(v, &c.mem_limit_bytes)) {
+      c.mem_limit_bytes = 0;
+      warn(c, "CUSCOPE_MEM_LIMIT", v, "no cap");
+    }
+  }
+
   if (const char* v = getenv_fn("CUSCOPE_FLUSH_TIMEOUT_MS"); v != nullptr) {
     long long n = 0;
     if (!parse_int(v, &n) || n < 0 || n > UINT32_MAX) {
@@ -75,6 +83,43 @@ Config parse_config(const GetenvFn& getenv_fn) {
   }
 
   return c;
+}
+
+bool parse_size(const char* s, uint64_t* out) {
+  if (s == nullptr || !std::isdigit(static_cast<unsigned char>(*s))) return false;
+  errno = 0;
+  char* end = nullptr;
+  const double value = std::strtod(s, &end);
+  if (errno != 0 || end == s) return false;
+  bool has_fraction = false;  // strtod also takes hex and exponents: allow digits and one '.'
+  for (const char* p = s; p < end; ++p) {
+    if (*p == '.' && !has_fraction) {
+      has_fraction = true;
+    } else if (!std::isdigit(static_cast<unsigned char>(*p))) {
+      return false;
+    }
+  }
+
+  int shift = 0;
+  switch (std::toupper(static_cast<unsigned char>(*end))) {
+    case 'K': shift = 10; break;
+    case 'M': shift = 20; break;
+    case 'G': shift = 30; break;
+    case 'T': shift = 40; break;
+    case '\0': break;
+    default: return false;
+  }
+  if (shift != 0) {
+    ++end;
+    if (std::toupper(static_cast<unsigned char>(*end)) == 'I') ++end;
+    if (std::toupper(static_cast<unsigned char>(*end)) == 'B') ++end;
+  }
+  if (*end != '\0' || (has_fraction && shift == 0)) return false;
+
+  const double bytes = value * static_cast<double>(1ull << shift);
+  if (!(bytes >= 1.0) || bytes >= 18446744073709551615.0) return false;
+  *out = static_cast<uint64_t>(bytes);
+  return true;
 }
 
 const Config& config() {

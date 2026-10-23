@@ -63,6 +63,26 @@ TEST(Config, InvalidValuesFallBack) {
   EXPECT_EQ(parse_config(env({{"CUSCOPE_SAMPLE_EVERY", "-5"}})).sample_every, 1u);
 }
 
+TEST(Config, MemLimitSizes) {
+  auto limit = [](const char* v) { return parse_config(env({{"CUSCOPE_MEM_LIMIT", v}})).mem_limit_bytes; };
+  EXPECT_EQ(parse_config(env({})).mem_limit_bytes, 0u);
+  EXPECT_EQ(limit("268435456"), 268435456u);
+  EXPECT_EQ(limit("512M"), 512ull << 20);
+  EXPECT_EQ(limit("2G"), 2ull << 30);
+  EXPECT_EQ(limit("2g"), 2ull << 30);
+  EXPECT_EQ(limit("1.5GiB"), 3ull << 29);
+  EXPECT_EQ(limit("64KB"), 64ull << 10);
+  EXPECT_EQ(limit("1T"), 1ull << 40);
+}
+
+TEST(Config, MemLimitRejectsJunk) {
+  for (const char* v : {"", "0", "-1G", "G", "2X", "1.5", "two"}) {
+    Config c = parse_config(env({{"CUSCOPE_MEM_LIMIT", v}}));
+    EXPECT_EQ(c.mem_limit_bytes, 0u) << v;
+    EXPECT_EQ(c.warnings.size(), 1u) << v;
+  }
+}
+
 TEST(Config, FlushTimeout) {
   EXPECT_EQ(parse_config(env({})).flush_timeout_ms, 2000u);
   EXPECT_EQ(parse_config(env({{"CUSCOPE_FLUSH_TIMEOUT_MS", "250"}})).flush_timeout_ms, 250u);

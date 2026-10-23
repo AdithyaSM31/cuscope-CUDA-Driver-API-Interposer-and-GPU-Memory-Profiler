@@ -57,7 +57,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     env = dict(os.environ)
     env["LD_PRELOAD"] = f"{lib} {env['LD_PRELOAD']}" if env.get("LD_PRELOAD") else str(lib)
     for option, var in [("mode", "CUSCOPE_MODE"), ("out", "CUSCOPE_OUT"), ("stack_depth", "CUSCOPE_STACK_DEPTH"),
-                        ("sample_every", "CUSCOPE_SAMPLE_EVERY"), ("log", "CUSCOPE_LOG")]:
+                        ("sample_every", "CUSCOPE_SAMPLE_EVERY"), ("log", "CUSCOPE_LOG"),
+                        ("mem_limit", "CUSCOPE_MEM_LIMIT")]:
         value = getattr(args, option)
         if value is not None:
             env[var] = str(value)
@@ -231,6 +232,7 @@ def main(argv: list[str]) -> int:
     run.add_argument("--stack-depth", type=int, help="frames per call-site stack (default 16)")
     run.add_argument("--sample-every", type=int, help="time every Nth launch per thread (default 1)")
     run.add_argument("--log", help="write cuscope's messages and summary here instead of stderr")
+    run.add_argument("--mem-limit", help="cap GPU memory per process, e.g. 2G (default: none)")
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- <command> [args...]")
     run.set_defaults(func=cmd_run)
 
