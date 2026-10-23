@@ -125,8 +125,13 @@ void after_fork_child() {
 // At the first CUDA work in this process rather than at load, so the many
 // processes that inherit LD_PRELOAD and never use CUDA stay silent.
 void on_first_work() {
-  log_msg("cuscope %s loaded (pid %d, mode %s)", CUSCOPE_VERSION, static_cast<int>(getpid()),
-          mode_name(config().mode));
+  if (mem_limit().enabled()) {
+    log_msg("cuscope %s loaded (pid %d, mode %s, mem limit %s)", CUSCOPE_VERSION, static_cast<int>(getpid()),
+            mode_name(config().mode), bytes_text(mem_limit().limit()).c_str());
+  } else {
+    log_msg("cuscope %s loaded (pid %d, mode %s)", CUSCOPE_VERSION, static_cast<int>(getpid()),
+            mode_name(config().mode));
+  }
   claim_root();
   if (mem_limit().enabled() && expandable_segments_enabled([](const char* key) { return std::getenv(key); })) {
     log_msg("PYTORCH_CUDA_ALLOC_CONF turns on expandable_segments: PyTorch then allocates through "

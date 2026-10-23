@@ -17,6 +17,7 @@ then <cli>/../build/libcuscope.so.
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -46,10 +47,29 @@ def fail(message: str, code: int = 2) -> int:
 
 # ---- run ----
 
+SIZE = re.compile(r"(\d+)(\.\d*)?([kmgt]i?b?)?", re.IGNORECASE)
+SHIFTS = {"k": 10, "m": 20, "g": 30, "t": 40}
+
+
+def parse_size(text: str) -> int | None:
+    """Bytes for a size like 2G, 512M, 1.5GiB or 268435456; None if invalid or zero.
+
+    The same grammar as parse_size in src/config.cpp: decimals need a suffix."""
+    m = SIZE.fullmatch(text)
+    if m is None or (m.group(2) and not m.group(3)):
+        return None
+    shift = SHIFTS[m.group(3)[0].lower()] if m.group(3) else 0
+    size = int(float(m.group(1) + (m.group(2) or "")) * (1 << shift))
+    return size if 1 <= size < 1 << 64 else None
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not command:
         return fail("run needs a command, e.g. cuscope run -- ./app")
+    if args.mem_limit is not None and parse_size(args.mem_limit) is None:
+        # An explicit cap that does not parse must not run the program uncapped.
+        return fail(f"--mem-limit {args.mem_limit!r} is not a size (examples: 2G, 512M, 1.5GiB)")
     lib, looked = find_library()
     if lib is None:
         return fail("cannot find libcuscope.so (looked in " + ", ".join(map(str, looked)) + "); set CUSCOPE_LIB")

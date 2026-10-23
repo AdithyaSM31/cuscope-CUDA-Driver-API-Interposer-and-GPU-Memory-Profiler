@@ -143,3 +143,14 @@ def test_cuda_frames_are_runtime_names_only():
 def test_summary_of_missing_file():
     r = cuscope("summary", "/nonexistent/trace.json")
     assert r.returncode == 2 and "trace.json" in r.stderr
+
+
+def test_bad_mem_limit_is_an_error():
+    # Final review I3: an explicit --mem-limit that does not parse must not run
+    # the program uncapped; the cap exists to protect other jobs.
+    for bad in ["2.5", "2 G", "0", "-1G", "lots"]:
+        r = cuscope("run", "--mem-limit", bad, "--", sys.executable, "-c", "print(1)")
+        assert r.returncode == 2 and "--mem-limit" in r.stderr, (bad, r.returncode, r.stderr)
+        assert r.stdout == "", bad  # the program never ran
+    for good in ["2G", "512M", "1.5GiB", "268435456", "64KB"]:
+        assert child_env("--mem-limit", good)["CUSCOPE_MEM_LIMIT"] == good

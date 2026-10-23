@@ -111,3 +111,9 @@ def test_warns_when_pytorch_would_bypass_the_cap(mimic):
     capped = mimic("cap_exact", "shim", env={"CUSCOPE_MEM_LIMIT": "256M", **conf})
     assert "expandable_segments" in capped.stderr and "not capped" in capped.stderr, capped.stderr
     assert "expandable_segments" not in mimic("cap_exact", "shim", env=conf).stderr  # no cap, no warning
+
+
+def test_banner_shows_the_cap(mimic):
+    # Final review I3: users can see the cap took effect.
+    assert "mem limit 256.0 MiB" in mimic("cap_exact", "shim", env={"CUSCOPE_MEM_LIMIT": "256M"}).stderr
+    assert "mem limit" not in mimic("cap_exact", "shim").stderr
