@@ -5,7 +5,8 @@
 cuscope records every GPU allocation, copy and kernel launch of an unmodified CUDA program
 (a static or shared CUDA runtime build, or PyTorch) by sitting between the program and the
 CUDA driver, and gives you a leak report, memory and timing summaries, and a timeline for
-[Perfetto](https://ui.perfetto.dev).
+[Perfetto](https://ui.perfetto.dev). It can also give each process a GPU memory budget
+(`--mem-limit 2G`), so jobs sharing one GPU stay within the share you gave them.
 
 ![cuscope trace of tests/cuda/multistream in Perfetto: four concurrent kernels on four GPU stream tracks](docs/img/perfetto-multistream.webp)
 
@@ -31,7 +32,8 @@ python3 cli/cuscope.py summary train.json        # leaks and invalid frees with 
 ```
 
 Options: `--mode alloc` (memory only, no GPU timing), `--sample-every N` (time 1 in N kernel
-launches), `--stack-depth N`, `--log FILE`. The program's stdout and exit code are unchanged;
+launches), `--stack-depth N`, `--log FILE`, `--mem-limit SIZE` (a per-process GPU memory
+cap, below). The program's stdout and exit code are unchanged;
 `run` becomes the program (like `env`), so Ctrl-C and other signals go to it alone.
 `CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) bounds how long cuscope waits at exit and at
 context teardown for GPU work it is timing. Put `%p` (the pid) in `--out` when several
@@ -104,6 +106,36 @@ Chrome Trace JSON and prints the summary.
 
 [docs/DESIGN.md](docs/DESIGN.md) has the details, including the bugs these choices fixed.
 
+## Memory caps
+
+```bash
+python3 cli/cuscope.py run --mem-limit 2.25G -- python3 train.py
+```
+
+With a cap (`--mem-limit` or `CUSCOPE_MEM_LIMIT`, e.g. `512M`, `2G`, `1.5GiB`), every
+device, stream-ordered and managed allocation first reserves its bytes against the cap. One
+that would pass it fails with `CUDA_ERROR_OUT_OF_MEMORY` without reaching the driver, exactly
+as on a full GPU, and `cuMemGetInfo` reports a GPU the size of the cap. Pinned host memory
+does not count. Frees, context teardown and fork give bytes back. PyTorch needs no changes:
+when an allocation fails it frees its cached blocks and retries, so a capped job keeps what
+it uses and drops the rest. Each denial is in the trace, and the summary gains a section (job A of the demo below):
+
+```
+Memory cap: 2.25 GiB, peak charged 2.23 GiB (99.1%)
+  2 allocations denied (362.0 MiB); largest 200.0 MiB device at c10::cuda::CUDACachingAllocator::Native::DeviceCachingAllocator::alloc_block(...) (libc10_cuda.so+0x3c46a)
+```
+
+Two ResNet-18 training jobs sharing the 6 GiB RTX 3060 ([docs/memcaps.md](docs/memcaps.md)):
+
+| | job A reserved | job B reserved | together | step times |
+|---|---|---|---|---|
+| uncapped | 3.91 GiB | 4.78 GiB | **8.70 GiB** on a 6 GiB GPU | 60 / 103 ms |
+| capped 2.25G / 3G | 2.21 GiB | 2.97 GiB | **5.18 GiB** | 60 / 103 ms |
+
+Uncapped, PyTorch's cache makes each job hold far more than it uses (1.49 and 2.60 GiB). On
+native Linux the later job would run out of memory; WSL2 pages the excess to system RAM
+instead. Capped, both jobs finish inside their budgets at the same speed.
+
 ## Validation
 
 Checked against PyTorch's own numbers on ResNet-18 training (batch 32, 50 steps, RTX 3060
@@ -124,16 +156,18 @@ attributes every allocation to the library that made it, from its call stack.
 
 Medians on the same machine; details and notes in [docs/overhead.md](docs/overhead.md).
 
-| | off | `alloc` | `full` | `full`, 1 in 10 launches timed |
-|---|---|---|---|---|
-| Empty kernel launch | 8.0 µs | −2.5% | +155% | +26% |
-| `cudaMalloc` + `cudaFree` (4 KiB) | 368 µs | −1.1% | +1.0% | −0.4% |
-| `cudaMemcpy` 4 KiB host to device | 20.2 µs | +5.6% | +43% | +48% |
-| **PyTorch ResNet-18 training step** | 60.65 ms | **−0.1%** | **+3.0%** | **+0.3%** |
+| | off | `alloc` | `full` | `full`, 1 in 10 launches timed | `full` + 4 GiB cap |
+|---|---|---|---|---|---|
+| Empty kernel launch | 8.1 µs | −17% | +134% | +5.6% | +136% |
+| `cudaMalloc` + `cudaFree` (4 KiB) | 376 µs | −4.7% | −5.8% | −10% | −11% |
+| `cudaMemcpy` 4 KiB host to device | 35.0 µs | +1.1% | +19% | +17% | +12% |
+| **PyTorch ResNet-18 training step** | 60.61 ms | **+0.2%** | **+2.6%** | **+0.6%** | **+2.5%** |
 
 `alloc` mode costs nothing measurable on a training step. `full` mode adds four driver calls
 around each launch and copy (a capture check, a context lookup and two event records), a few
-microseconds each on WSL; real kernels hide most of it.
+microseconds each on WSL; real kernels hide most of it. A memory cap adds one atomic
+reservation per allocation and costs nothing measurable on top of `full`. Microsecond-scale
+calls on WSL vary by several percent between runs (the negative figures are noise).
 
 ## Limitations
 
@@ -176,6 +210,12 @@ microseconds each on WSL; real kernels hide most of it.
 - **Leak sites** skip the CUDA runtime's frames: functions in libcudart or libcuda, and in
   the static runtime, names starting `cuda` plus an uppercase letter (`cudaMalloc`) or
   `__cuda`. A program function named that way (`cudaAllocHelper`) is skipped too.
+- **Memory caps** bound what the program allocates through the hooked calls, not the
+  process's total GPU memory: the CUDA context and driver allocations are outside it, as are
+  the virtual memory APIs (`cuMemCreate`, `cuMemMap`; PyTorch's `expandable_segments:True`).
+  Stream-ordered pools may keep freed memory reserved. A pitched allocation is charged its
+  padded size after the call, so it can pass the cap by its row padding. The cap is per
+  process; there is no budget shared by a group of processes.
 - **Sanitizers.** The ASan and TSan CI jobs run the unit tests only: a sanitizer runtime calls
   `dlsym` while initialising, which reaches cuscope's instrumented override too early.
 
@@ -192,11 +232,8 @@ microseconds each on WSL; real kernels hide most of it.
 
 Design, decisions and findings: [docs/DESIGN.md](docs/DESIGN.md).
 
-## Roadmap (Phase 2)
+## Roadmap
 
-- **Per-process memory caps.** `CUSCOPE_MEM_LIMIT=2G`: allocation hooks return
-  `CUDA_ERROR_OUT_OF_MEMORY` past the cap, and `cuMemGetInfo` reports the capped figures so
-  PyTorch sizes its cache to them.
-- **Compute sharing.** A small daemon hands out launch tokens per process by configured share,
+- **Compute sharing (Phase 2b).** A small daemon hands out launch tokens per process by configured share,
   measured against kernel time cuscope already records.
 - More of the census list: memsets, 2D/3D copies and the VMM APIs.

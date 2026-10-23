@@ -33,6 +33,8 @@ def mode_env(mode: str, tmp: Path, sample_every: int) -> dict:
                    CUSCOPE_OUT=str(tmp / "t-%p.json"), CUSCOPE_LOG=os.devnull)
         if "+sample" in mode:
             env["CUSCOPE_SAMPLE_EVERY"] = str(sample_every)
+        if "+cap" in mode:
+            env["CUSCOPE_MEM_LIMIT"] = "4G"
     return env
 
 
@@ -66,7 +68,7 @@ def main() -> int:
     p.add_argument("--out", default=str(REPO / "docs" / "overhead.md"))
     args = p.parse_args()
 
-    modes = ["off", "alloc", "full"] + ([f"full+sample"] if args.sample_every > 1 else [])
+    modes = ["off", "alloc", "full"] + ([f"full+sample"] if args.sample_every > 1 else []) + ["full+cap"]
     results: dict[str, dict[str, float]] = {}
     with tempfile.TemporaryDirectory(prefix="cuscope-bench-") as d:
         tmp = Path(d)
@@ -82,7 +84,8 @@ def main() -> int:
             results["torch"][mode] = statistics.median(torch_step_ms(env, tmp) for _ in range(args.torch_repeats))
             print(f"torch   {mode:12} {results['torch'][mode]:9.2f} ms", flush=True)
 
-    labels = {"off": "off", "alloc": "`alloc`", "full": "`full`", "full+sample": f"`full`, sample every {args.sample_every}"}
+    labels = {"off": "off", "alloc": "`alloc`", "full": "`full`", "full+sample": f"`full`, sample every {args.sample_every}",
+              "full+cap": "`full`, 4 GiB cap"}
     lines = [
         "# Overhead",
         "",
@@ -118,8 +121,10 @@ def main() -> int:
         "  context lookup and two event records. On WSL each driver call costs a few microseconds, which",
         "  is the extra 10-16 us per call above. Kernels that run longer than that hide it, hence the",
         "  small PyTorch figure.",
-        "- `CUSCOPE_SAMPLE_EVERY=N` times 1 in N kernel launches per thread. Copies are always timed:",
-        "  bandwidth divides all copied bytes by GPU time, so a sampled copy would overstate it.",
+        "- `CUSCOPE_SAMPLE_EVERY=N` times 1 in N kernel launches per thread. Copies are always timed,",
+        "  so every copy contributes to the bandwidth figures.",
+        "- `full` with a 4 GiB cap (`CUSCOPE_MEM_LIMIT=4G`, never reached here) adds one atomic",
+        "  reservation per allocation and one release per free on top of `full`.",
         "- These are medians, but microsecond-scale calls on WSL still vary between runs by several",
         "  percent (see the alloc-mode copy figure, which can come out below `off`). Treat differences",
         "  under about 5% as noise.",

@@ -1,6 +1,6 @@
 # cuscope design
 
-This is the design as built for v0.1.1. It started from the Phase 1 spec
+This is the design as built for v0.2.0. It started from the Phase 1 spec
 ([superpowers/specs/2026-10-21-cuscope-phase1-design.md](superpowers/specs/2026-10-21-cuscope-phase1-design.md))
 and records the decisions and findings made while building it on an RTX 3060 Laptop GPU
 under WSL2 (Windows driver 617.14, CUDA 13.0).
@@ -168,7 +168,31 @@ wrapper (program thread)                     collector thread (every 2 ms)
   every symbol lookup, so anything else it exported would replace the program's own copy. A forked child still runs the exit handlers it
   inherited, the CUDA runtime's context release among them; that alone does not count.
 
-## 5. Components
+## 5. Memory caps
+
+`CUSCOPE_MEM_LIMIT` turns the allocation hooks into a gate. It is the one place cuscope
+changes what a program sees, and it does so only as a full GPU would.
+
+- **Reserve, then call.** `MemLimit` (`src/limits.cpp`, no CUDA) holds the cap and an atomic
+  `charged` count of device, stream-ordered and managed bytes. An allocation reserves its size
+  with a compare-and-swap that compares the room left against the request, so a huge request
+  cannot wrap around. If there is no room, the wrapper records an `AllocDenied` record with
+  the call site and returns `CUDA_ERROR_OUT_OF_MEMORY` without calling the driver. Reserving
+  first means threads allocating at once can never all slip under the cap.
+- **Giving bytes back.** A failed driver call releases its reservation. A free releases the
+  allocation's bytes only once the driver accepts it, so a rejected, double or stray free
+  gives back nothing. Context teardown releases what died with the context, and a forked
+  child starts a new budget. `cuMemAllocPitch` reserves `width x height` and settles the
+  padding afterwards, never denying at that point.
+- **`cuMemGetInfo`** is hooked at version 3020, the version the CUDA runtime and PyTorch ask
+  for, and reports `total = min(cap, total)`, `free = min(free, total - charged)`.
+- **No cap, no change.** Without `CUSCOPE_MEM_LIMIT` the reservation code returns at once and
+  `cuMemGetInfo` passes the driver's answer through; the trace's `mem_limit` is `null`.
+- **WSL2.** The Windows driver oversubscribes GPU memory by paging it to system RAM (one
+  process reached 12.5 GiB on the 6 GiB 3060), so uncapped jobs do not run out of memory
+  there as they would on native Linux. The cap holds on both. See [memcaps.md](memcaps.md).
+
+## 6. Components
 
 | File | Job |
 |---|---|
@@ -177,23 +201,27 @@ wrapper (program thread)                     collector thread (every 2 ms)
 | `src/hooks.def`, `src/hook_table.cpp` | the hook list (base, exports, version); wrapper and real pointers |
 | `src/wrappers/*.cpp` | alloc, memcpy, launch, teardown and name hooks; path-1 exports |
 | `src/tracker.cpp`, `src/stacks.cpp` | allocations, peaks, leaks, invalid frees; call-site stacks |
+| `src/limits.cpp`, `src/wrappers/meminfo.cpp` | the memory cap; the `cuMemGetInfo` hook |
 | `src/ring.hpp`, `src/recorder.cpp` | SPSC rings, collector thread, fork handling |
 | `src/gputimer.cpp`, `src/names.hpp` | event pool, clock alignment, exit flush; kernel names |
 | `src/summary.cpp`, `src/trace_writer.cpp`, `src/report.cpp` | aggregation, Chrome Trace JSON, text summary |
 | `cli/cuscope.py` | `run` and `summary` |
 
-## 6. Testing
+## 7. Testing
 
 - **Mock driver** (`tests/mock`): about 30 driver functions on host memory, in two modes: the
   driver itself, and a WSL-style loader shim generated from its exports. A runtime-like program
   and a `-lcuda` program exercise all three paths, both stream variants, version mismatch, the
-  shim's re-entrant `dlsym`, `RTLD_DEFAULT`, fork, capture, teardown and sampling.
+  shim's re-entrant `dlsym`, `RTLD_DEFAULT`, fork, capture, teardown and sampling, and the
+  memory cap: exact denial, eight threads never overshooting, pinned memory, pitch padding,
+  driver failures, double frees, teardown, fork and `cuMemGetInfo`.
 - **GPU programs** (`tests/cuda`): each runs with and without cuscope, and stdout and exit code
   must match. Known answers: `leak` (two leaks, exact sizes and lines), `double_free`,
   `async_pool` (live bytes 8, 12, 4, 20, 16, 0 MiB), `multistream`, `multithread`, `bandwidth`
   (pinned faster), `graph_capture` (still 3 nodes), `device_reset` (a teardown leak),
   `capture_race` (a global-mode capture while timed work is pending), `exit_busy` (exit with
-  a kernel running), `fork_after_cuda` (one trace, the parent's), and
+  a kernel running), `fork_after_cuda` (one trace, the parent's), `cap_exact` (the fifth
+  64 MiB allocation under a 256 MiB cap is denied, static and shared runtime), and
   `hello` built static and shared, which must give identical reports.
 - **Driver checks**: `tools/check_exports.py`, and `tools/census.py` for the Day 2 gate.
 - **PyTorch** ([validation.md](validation.md)) and **overhead** ([overhead.md](overhead.md)).
@@ -201,6 +229,6 @@ wrapper (program thread)                     collector thread (every 2 ms)
   only the unit tests run, because the sanitizer runtime's own early `dlsym` calls reach the
   instrumented override before the sanitizer is initialised.
 
-## 7. Limitations
+## 8. Limitations
 
 See the [README](../README.md#limitations).
