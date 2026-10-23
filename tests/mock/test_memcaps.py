@@ -84,3 +84,13 @@ def test_meminfo_reports_the_cap(mimic, mode):
 def test_meminfo_uncapped_is_untouched(mimic):  # Review Focus 5
     r = mimic("cap_meminfo", "shim")
     assert meminfo(r) == ((6 << 30) - 64 * MiB, 6 << 30)
+
+
+def test_trace_reports_the_cap_end_to_end(mimic):
+    r = mimic("cap_exact", "shim", env={"CUSCOPE_MEM_LIMIT": "256M"})
+    cap = r.trace["cuscope"]["mem_limit"]
+    assert (cap["limit_bytes"], cap["peak_charged_bytes"], cap["denied_count"]) == (256 * MiB, 256 * MiB, 1)
+    denials = [e for e in r.trace["traceEvents"] if e["ph"] == "i"]
+    assert [e["name"] for e in denials] == ["denied cuMemAlloc 64.0 MiB"]
+    assert "Memory cap: 256.0 MiB" in r.stderr
+    assert mimic("cap_exact", "shim").trace["cuscope"]["mem_limit"] is None

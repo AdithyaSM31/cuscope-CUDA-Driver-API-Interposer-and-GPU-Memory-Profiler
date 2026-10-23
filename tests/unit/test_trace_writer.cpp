@@ -198,3 +198,37 @@ TEST(TraceWriter, ReportSectionMatchesSchema) {
 TEST(TraceWriter, UnwritablePathReturnsFalse) {
   EXPECT_FALSE(write_trace_file(Snapshot{}, "/nonexistent/dir/x.json"));
 }
+
+TEST(TraceWriter, MemLimitSectionAndDenials) {
+  Snapshot s;
+  s.mem_limit = {true, 2ull << 30, 2000000000, 1, 512ull << 20, 512ull << 20, AllocKind::Device, 3};
+  Record d = make_record(RecType::AllocDenied, H_cuMemAlloc, 5000);
+  d.aux = static_cast<uint8_t>(AllocKind::Device);
+  d.bytes = 512ull << 20;
+  d.stack_id = 3;
+  s.records = {d};
+  json j = write(s);
+  EXPECT_EQ(j["cuscope"]["mem_limit"]["limit_bytes"], 2ull << 30);
+  EXPECT_EQ(j["cuscope"]["mem_limit"]["peak_charged_bytes"], 2000000000u);
+  EXPECT_EQ(j["cuscope"]["mem_limit"]["denied_count"], 1u);
+  EXPECT_EQ(j["cuscope"]["mem_limit"]["denied_bytes"], 512ull << 20);
+  EXPECT_EQ(j["cuscope"]["mem_limit"]["largest_denied"]["bytes"], 512ull << 20);
+  EXPECT_EQ(j["cuscope"]["mem_limit"]["largest_denied"]["kind"], "device");
+  EXPECT_EQ(j["cuscope"]["mem_limit"]["largest_denied"]["stack"], 3u);
+  int denied = 0;
+  for (const json& e : j["traceEvents"]) {
+    if (e["ph"] == "i" && e["name"] == "denied cuMemAlloc 512.0 MiB") {
+      ++denied;
+      EXPECT_EQ(e["args"]["kind"], "device");
+      EXPECT_EQ(e["args"]["stack"], 3u);
+    }
+    EXPECT_FALSE(e["ph"] == "X" && e.value("cat", "") == "api") << "a denial is not an API span";
+  }
+  EXPECT_EQ(denied, 1);
+}
+
+TEST(TraceWriter, NoCapIsNull) {
+  const json report = write(Snapshot{})["cuscope"];
+  ASSERT_TRUE(report.contains("mem_limit"));
+  EXPECT_TRUE(report["mem_limit"].is_null());
+}

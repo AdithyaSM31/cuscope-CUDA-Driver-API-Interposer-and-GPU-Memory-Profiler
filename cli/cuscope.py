@@ -145,7 +145,8 @@ def describe(frame: dict, lines: dict) -> str:
 def print_summary(report: dict, frames_per_site: int) -> None:
     stacks = {int(k): v for k, v in report["stacks"].items()}
     sites = {}
-    for item in report["leaks"][:MAX_LISTED] + report["invalid_frees"][:MAX_LISTED]:
+    denied = [report["mem_limit"]["largest_denied"]] if report.get("mem_limit") else []
+    for item in report["leaks"][:MAX_LISTED] + report["invalid_frees"][:MAX_LISTED] + denied:
         sites[item["stack"]] = program_frames(stacks.get(item["stack"], []), frames_per_site)
     lines = resolve_lines([f for frames in sites.values() for f in frames])
 
@@ -164,6 +165,16 @@ def print_summary(report: dict, frames_per_site: int) -> None:
           f"managed {bytes_text(peaks['managed'])}, async {bytes_text(peaks['async'])}; "
           f"pinned host {bytes_text(peaks['host_pinned'])})")
     print(f"  allocations {report['alloc_count']}, frees {report['free_count']}")
+
+    cap = report.get("mem_limit")
+    if cap:
+        pct = 100.0 * cap["peak_charged_bytes"] / cap["limit_bytes"]
+        print(f"Memory cap: {bytes_text(cap['limit_bytes'])}, peak charged {bytes_text(cap['peak_charged_bytes'])} "
+              f"({pct:.1f}%)")
+        if cap["denied_count"]:
+            n, largest = cap["denied_count"], cap["largest_denied"]
+            print(f"  {n} allocation{'' if n == 1 else 's'} denied ({bytes_text(cap['denied_bytes'])}); "
+                  f"largest {bytes_text(largest['bytes'])} {largest['kind']} at {site_text(largest['stack'])}")
 
     leaks = report["leaks"]
     if not leaks:

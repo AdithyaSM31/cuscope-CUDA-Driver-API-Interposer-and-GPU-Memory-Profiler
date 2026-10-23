@@ -11,19 +11,6 @@ namespace {
 constexpr size_t kMaxListed = 20;  // leaks and invalid frees listed before "... and N more"
 constexpr size_t kTopKernels = 10;
 
-std::string bytes_text(uint64_t bytes) {
-  char buf[32];
-  if (bytes < 1024) {
-    std::snprintf(buf, sizeof(buf), "%" PRIu64 " B", bytes);
-  } else if (bytes < (1ull << 20)) {
-    std::snprintf(buf, sizeof(buf), "%.1f KiB", bytes / 1024.0);
-  } else if (bytes < (1ull << 30)) {
-    std::snprintf(buf, sizeof(buf), "%.1f MiB", bytes / double(1 << 20));
-  } else {
-    std::snprintf(buf, sizeof(buf), "%.2f GiB", bytes / double(1ull << 30));
-  }
-  return buf;
-}
 
 std::string time_text(uint64_t ns) {
   char buf[32];
@@ -83,6 +70,20 @@ void print_memory(const Snapshot& s, FILE* out) {
                bytes_text(s.peak_device_total).c_str(), peak(AllocKind::Device).c_str(),
                peak(AllocKind::Managed).c_str(), peak(AllocKind::Async).c_str(), peak(AllocKind::HostPinned).c_str());
   std::fprintf(out, "  allocations %" PRIu64 ", frees %" PRIu64 "\n", s.alloc_count, s.free_count);
+}
+
+// Only when a cap was set (CUSCOPE_MEM_LIMIT).
+void print_mem_limit(const Snapshot& s, FILE* out) {
+  const MemLimitStats& m = s.mem_limit;
+  if (!m.enabled) return;
+  const double pct = m.limit_bytes ? 100.0 * static_cast<double>(m.peak_charged_bytes) / m.limit_bytes : 0.0;
+  std::fprintf(out, "Memory cap: %s, peak charged %s (%.1f%%)\n", bytes_text(m.limit_bytes).c_str(),
+               bytes_text(m.peak_charged_bytes).c_str(), pct);
+  if (m.denied_count == 0) return;
+  std::fprintf(out, "  %" PRIu64 " allocation%s denied (%s); largest %s %s at %s\n", m.denied_count,
+               m.denied_count == 1 ? "" : "s", bytes_text(m.denied_bytes).c_str(),
+               bytes_text(m.largest_denied_bytes).c_str(), alloc_kind_name(m.largest_denied_kind),
+               call_site(s, m.largest_denied_stack).c_str());
 }
 
 void print_leaks(const Snapshot& s, FILE* out) {
@@ -159,6 +160,20 @@ void print_copies(const Summary& sum, FILE* out) {
 
 }  // namespace
 
+std::string bytes_text(uint64_t bytes) {
+  char buf[32];
+  if (bytes < 1024) {
+    std::snprintf(buf, sizeof(buf), "%" PRIu64 " B", bytes);
+  } else if (bytes < (1ull << 20)) {
+    std::snprintf(buf, sizeof(buf), "%.1f KiB", bytes / 1024.0);
+  } else if (bytes < (1ull << 30)) {
+    std::snprintf(buf, sizeof(buf), "%.1f MiB", bytes / double(1 << 20));
+  } else {
+    std::snprintf(buf, sizeof(buf), "%.2f GiB", bytes / double(1ull << 30));
+  }
+  return buf;
+}
+
 void print_summary(const Snapshot& s, const Summary& sum, FILE* out) {
   const bool sampled = s.sample_every > 1;
   if (sampled) {
@@ -168,6 +183,7 @@ void print_summary(const Snapshot& s, const Summary& sum, FILE* out) {
     std::fprintf(out, "== cuscope summary (pid %d, mode %s) ==\n", s.pid, s.mode.c_str());
   }
   print_memory(s, out);
+  print_mem_limit(s, out);
   print_leaks(s, out);
   print_invalid_frees(s, out);
   print_kernels(sum, sampled, out);

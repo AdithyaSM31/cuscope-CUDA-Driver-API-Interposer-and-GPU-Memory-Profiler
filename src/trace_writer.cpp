@@ -9,6 +9,7 @@
 
 #include "hook_names.hpp"
 #include "log.hpp"
+#include "report.hpp"
 #include "summary.hpp"
 
 #ifndef CUSCOPE_VERSION
@@ -67,6 +68,17 @@ void write_cpu_events(const Snapshot& s, EventList& events) {
   const std::string pid = std::to_string(s.pid);
   uint64_t device_bytes = 0;
   for (const Record* r : sorted) {
+    if (r->type == RecType::AllocDenied) {
+      // The call never reached the driver: an instant on the calling thread,
+      // not an API span.
+      const auto kind = static_cast<AllocKind>(r->aux);
+      events.add("{\"name\":" + quoted(std::string("denied ") + hook_name(r->api) + " " + bytes_text(r->bytes)) +
+                 ",\"cat\":\"mem_limit\",\"ph\":\"i\",\"s\":\"t\",\"ts\":" + micros(r->cpu_ns) +
+                 ",\"pid\":" + pid + ",\"tid\":" + std::to_string(r->tid) + ",\"args\":{\"bytes\":" +
+                 std::to_string(r->bytes) + ",\"kind\":" + quoted(alloc_kind_name(kind)) +
+                 ",\"stack\":" + std::to_string(r->stack_id) + "}}");
+      continue;
+    }
     std::string args;
     auto add_arg = [&args](const std::string& key_value) { args += (args.empty() ? "" : ",") + key_value; };
     if (r->bytes != 0) add_arg("\"bytes\":" + std::to_string(r->bytes));
@@ -135,6 +147,18 @@ void write_report(const Snapshot& s, std::ostream& out) {
       << ",\"managed\":" << kind_peak(AllocKind::Managed) << ",\"host_pinned\":" << kind_peak(AllocKind::HostPinned)
       << ",\"async\":" << kind_peak(AllocKind::Async) << ",\"device_total\":" << s.peak_device_total << "}"
       << ",\n\"alloc_count\":" << s.alloc_count << ",\"free_count\":" << s.free_count;
+
+  const MemLimitStats& m = s.mem_limit;
+  out << ",\n\"mem_limit\":";
+  if (!m.enabled) {
+    out << "null";
+  } else {
+    out << "{\"limit_bytes\":" << m.limit_bytes << ",\"peak_charged_bytes\":" << m.peak_charged_bytes
+        << ",\"denied_count\":" << m.denied_count << ",\"denied_bytes\":" << m.denied_bytes
+        << ",\"largest_denied\":{\"bytes\":" << m.largest_denied_bytes
+        << ",\"kind\":" << quoted(alloc_kind_name(m.largest_denied_kind))
+        << ",\"stack\":" << m.largest_denied_stack << "}}";
+  }
 
   out << ",\n\"leaks\":[";
   for (size_t i = 0; i < s.leaks.size(); ++i) {

@@ -72,6 +72,7 @@ void write_report_at_exit() {
   fill_kernel_names(s);
   tracker().finalize();
   tracker().fill(s);
+  mem_limit().fill(s);
   s.stacks = symbolize_all();
 
   const std::string path = expand_out_path(config().out, s.pid, is_root_process());

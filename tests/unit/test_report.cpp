@@ -126,3 +126,14 @@ TEST(Report, EmptySnapshotSaysSo) {
   EXPECT_TRUE(contains(text, "Leaks: none")) << text;
   EXPECT_TRUE(contains(text, "Invalid frees: none")) << text;
 }
+
+TEST(Report, MemoryCapSection) {
+  Snapshot s = sample();
+  s.mem_limit = {true, 2ull << 30, 2140000000, 3, 1610612736, 512ull << 20, AllocKind::Device, 7};
+  const std::string text = render(s);
+  EXPECT_TRUE(contains(text, "Memory cap: 2.00 GiB, peak charged 1.99 GiB (99.7%)")) << text;
+  EXPECT_TRUE(contains(text, "3 allocations denied (1.50 GiB); largest 512.0 MiB device at main")) << text;
+  EXPECT_LT(text.find("Memory cap"), text.find("Leaks"));
+}
+
+TEST(Report, NoCapNoSection) { EXPECT_FALSE(contains(render(sample()), "Memory cap")); }
