@@ -73,6 +73,7 @@ CUresult forward(HookId id, Args... args) {
 }
 
 void register_alloc_hooks();
+void register_meminfo_hooks();
 void register_memcpy_hooks();
 void register_launch_hooks();
 void register_teardown_hooks();

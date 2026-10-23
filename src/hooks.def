@@ -26,6 +26,10 @@ HOOK(cuMemAllocHost,          "cuMemAllocHost_v2",          nullptr,            
 HOOK(cuMemHostAlloc,          "cuMemHostAlloc",             nullptr,                         CUDA_VERSION)
 HOOK(cuMemFreeHost,           "cuMemFreeHost",              nullptr,                         CUDA_VERSION)
 
+// Memory queries (wrappers/meminfo.cpp). The CUDA runtime and PyTorch ask for
+// cuMemGetInfo at version 3020 (docs/census), which gives the _v2 function.
+HOOK(cuMemGetInfo,           "cuMemGetInfo_v2",            nullptr,                         3020)
+
 // Copies (wrappers/memcpy.cpp)
 HOOK(cuMemcpy,                "cuMemcpy",                   "cuMemcpy_ptds",                 CUDA_VERSION)
 HOOK(cuMemcpyAsync,           "cuMemcpyAsync",              "cuMemcpyAsync_ptsz",            CUDA_VERSION)

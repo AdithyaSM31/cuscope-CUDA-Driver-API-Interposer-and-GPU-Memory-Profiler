@@ -249,6 +249,14 @@ void run(const char* scenario) {
     for (CUdeviceptr q : p) {
       if (q != 0) release(q);
     }
+  } else if (std::strcmp(scenario, "cap_meminfo") == 0) {
+    // Version 3020, as the CUDA runtime and PyTorch ask for it.
+    CUdeviceptr p = 0;
+    try_alloc(64 * kMiB, &p);
+    size_t free_bytes = 0, total_bytes = 0;
+    CHECK(get<decltype(&cuMemGetInfo)>("cuMemGetInfo", 3020)(&free_bytes, &total_bytes));
+    std::printf("MEMINFO %zu %zu\n", free_bytes, total_bytes);
+    if (p != 0) release(p);
   } else if (std::strcmp(scenario, "cap_teardown") == 0) {
     // The release destroys the only reference, and with it the 96 MiB the
     // program never freed; a new context must have the whole cap again.

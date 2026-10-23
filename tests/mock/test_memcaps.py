@@ -66,3 +66,21 @@ def test_context_teardown_gives_bytes_back(mimic):
 
 def test_forked_child_starts_with_an_empty_budget(mimic):
     assert results(mimic("cap_fork", "direct", env={"CUSCOPE_MEM_LIMIT": "128M"})) == [OK, OK]
+
+
+def meminfo(r) -> tuple[int, int]:
+    line = next(l for l in r.stdout.splitlines() if l.startswith("MEMINFO "))
+    free_bytes, total_bytes = (int(x) for x in line.split()[1:])
+    return free_bytes, total_bytes
+
+
+@pytest.mark.parametrize("mode", MODES)
+def test_meminfo_reports_the_cap(mimic, mode):
+    r = mimic("cap_meminfo", mode, env={"CUSCOPE_MEM_LIMIT": "256M"})
+    assert r.code == 0, r.stderr
+    assert meminfo(r) == (192 * MiB, 256 * MiB)
+
+
+def test_meminfo_uncapped_is_untouched(mimic):  # Review Focus 5
+    r = mimic("cap_meminfo", "shim")
+    assert meminfo(r) == ((6 << 30) - 64 * MiB, 6 << 30)

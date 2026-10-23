@@ -27,6 +27,7 @@ pthread_once_t g_init_once = PTHREAD_ONCE_INIT;
 
 void register_all() {
   register_alloc_hooks();
+  register_meminfo_hooks();
   register_memcpy_hooks();
   register_launch_hooks();
   register_teardown_hooks();

@@ -220,6 +220,16 @@ MOCK_API CUresult cuMemAllocPitch(CUdeviceptr* dptr, size_t* pitch, size_t width
   return CUDA_SUCCESS;
 }
 
+// A 6 GiB GPU; free is what the program has not allocated.
+MOCK_API CUresult cuMemGetInfo(size_t* free_bytes, size_t* total_bytes) {
+  if (free_bytes == nullptr || total_bytes == nullptr) return CUDA_ERROR_INVALID_VALUE;
+  constexpr size_t kTotal = size_t{6} << 30;
+  std::lock_guard<std::mutex> lock(g_mu);
+  *total_bytes = kTotal;
+  *free_bytes = kTotal - g_live_bytes;
+  return CUDA_SUCCESS;
+}
+
 MOCK_API CUresult cuMemAllocHost(void** pp, size_t bytes) {
   if (pp == nullptr || bytes == 0) return CUDA_ERROR_INVALID_VALUE;
   void* p = std::malloc(bytes);
@@ -386,7 +396,7 @@ const ProcEntry kProcTable[] = {
     ENTRY(cuInit), ENTRY(cuDriverGetVersion), ENTRY(cuCtxGetCurrent), ENTRY(cuCtxSetCurrent),
     ENTRY(cuCtxGetDevice), ENTRY(cuCtxSynchronize), ENTRY(cuCtxDestroy),
     ENTRY(cuDevicePrimaryCtxRetain), ENTRY(cuDevicePrimaryCtxRelease), ENTRY(cuDevicePrimaryCtxGetState),
-    ENTRY(cuMemFree), ENTRY(cuMemAllocPitch), ENTRY(cuMemAllocHost), ENTRY(cuMemFreeHost),
+    ENTRY(cuMemFree), ENTRY(cuMemAllocPitch), ENTRY(cuMemAllocHost), ENTRY(cuMemFreeHost), ENTRY(cuMemGetInfo),
     ENTRY(cuPointerGetAttribute), ENTRY(cuMemcpyHtoD), ENTRY(cuMemcpyDtoH),
     ENTRY_PTSZ(cuMemcpyAsync), ENTRY_PTSZ(cuLaunchKernel), ENTRY(cuFuncGetName),
     ENTRY_PTSZ(cuStreamIsCapturing), ENTRY(cuStreamSynchronize), ENTRY(cuEventCreate),
