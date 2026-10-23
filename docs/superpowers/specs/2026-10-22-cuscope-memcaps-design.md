@@ -53,7 +53,7 @@ this ships as `v0.2.0`.
 | Exact denial | 64 MiB allocations under a 256 MiB cap succeed until the next one would pass the cap, and that one fails with `cudaErrorMemoryAllocation`; after freeing one, the next succeeds. On the mock that is exactly the fifth; on the GPU, any device memory the CUDA runtime allocates itself counts too, so the test checks against the charged bytes in the trace | `cap_exact.cu` on the GPU, and the mock equivalent |
 | No overshoot under concurrency | Eight threads allocating against one cap never hold more than the cap at once | Mock test with a live-bytes high-water mark |
 | Capped `cuMemGetInfo` | `cudaMemGetInfo` reports total = cap and free = cap − charged | `cap_exact.cu` and mock |
-| Demo | Two PyTorch jobs started together: uncapped, at least one dies with `torch.OutOfMemoryError`; capped, both exit 0 | `tools/demo_memcaps.py`, results in `docs/memcaps.md` |
+| Demo | Two PyTorch jobs sharing the GPU: uncapped, together they reserve more than the GPU has (on native Linux one dies with `torch.OutOfMemoryError`; WSL2 pages the excess to system RAM instead); capped, both exit 0 and stay within their caps | `tools/demo_memcaps.py`, results in `docs/memcaps.md` |
 | Overhead | Uncapped: unchanged. Capped: one atomic add per allocation and per free, measured on the alloc/free microbenchmark | `bench/` rerun, numbers in `docs/overhead.md` |
 
 ## 3. Behaviour
@@ -244,6 +244,6 @@ Expected task outline (the plan finalises it):
 |---|---|
 | PyTorch fetches `cuMemGetInfo` through a variant or version cuscope does not hook | Task 1's census decides the hook entries before any code; if PyTorch never calls it, the demo still works, because PyTorch reacts to the out-of-memory error, not to `cuMemGetInfo` |
 | PyTorch uses the VMM APIs (`expandable_segments:True`) and bypasses the cap | Detect the setting in the demo and run with `expandable_segments:False`, as Phase 1 validation already does; document it as a limitation |
-| The demo pair does not run out of memory uncapped, or a job does not fit its cap | Tune model, batch size and start offset in the plan; the criterion is the observable outcome, not specific numbers |
+| The demo pair does not run out of memory uncapped, or a job does not fit its cap | Found during Task 8: WSL2 oversubscribes device memory (one process reached 12.5 GiB on the 6 GiB card), so an uncapped pair survives on paged memory. The demo shows oversubscription uncapped versus staying in budget capped, and documents the native-Linux outcome (amended 2026-10-23 with the user) |
 | Stream-ordered pools keep freed memory reserved, so real usage exceeds charged bytes | Documented: the cap counts live allocations; pool reservation is not visible without hooking pool management |
 | Context and driver memory make the process use more VRAM than its cap | Documented: the cap bounds what the program allocates; `docs/memcaps.md` reports the measured per-process overhead on the 3060 |

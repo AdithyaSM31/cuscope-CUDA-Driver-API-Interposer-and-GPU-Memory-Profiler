@@ -1,0 +1,89 @@
+{
+ "job_args": {
+  "A": [
+   "--batch",
+   "32",
+   "--min-res",
+   "128",
+   "--max-res",
+   "320"
+  ],
+  "B": [
+   "--batch",
+   "48",
+   "--min-res",
+   "128",
+   "--max-res",
+   "352"
+  ]
+ },
+ "steps": 60,
+ "offset_s": 8.0,
+ "gpu_total_bytes": 6441926656,
+ "runs": [
+  {
+   "job": "A",
+   "cap": null,
+   "exit": "ok",
+   "steps_done": 60,
+   "max_allocated": 1605160448,
+   "max_reserved": 4200595456,
+   "step_ms_median": 60.051710500001576,
+   "cuscope_peak_device": 4217648392,
+   "mem_limit": null
+  },
+  {
+   "job": "B",
+   "cap": null,
+   "exit": "ok",
+   "steps_done": 60,
+   "max_allocated": 2796064256,
+   "max_reserved": 5135925248,
+   "step_ms_median": 102.85973399999904,
+   "cuscope_peak_device": 5152978184,
+   "mem_limit": null
+  },
+  {
+   "job": "A",
+   "cap": "2.25G",
+   "exit": "ok",
+   "steps_done": 60,
+   "max_allocated": 1596509696,
+   "max_reserved": 2376073216,
+   "step_ms_median": 60.191428500001365,
+   "cuscope_peak_device": 2393126152,
+   "mem_limit": {
+    "limit_bytes": 2415919104,
+    "peak_charged_bytes": 2393126152,
+    "denied_count": 2,
+    "denied_bytes": 379584512,
+    "largest_denied": {
+     "bytes": 209715200,
+     "kind": "device",
+     "stack": 3342568056
+    }
+   }
+  },
+  {
+   "job": "B",
+   "cap": "3G",
+   "exit": "ok",
+   "steps_done": 60,
+   "max_allocated": 2797669376,
+   "max_reserved": 3185573888,
+   "step_ms_median": 103.33308799999585,
+   "cuscope_peak_device": 3202626824,
+   "mem_limit": {
+    "limit_bytes": 3221225472,
+    "peak_charged_bytes": 3202626824,
+    "denied_count": 4,
+    "denied_bytes": 767557632,
+    "largest_denied": {
+     "bytes": 381681664,
+     "kind": "device",
+     "stack": 4042270631
+    }
+   }
+  }
+ ]
+}
