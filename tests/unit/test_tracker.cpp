@@ -161,3 +161,16 @@ TEST(Tracker, TeardownReportsReleasedBytesPerKind) {
   EXPECT_EQ(gone[static_cast<int>(AllocKind::Device)], 100u);
   EXPECT_EQ(gone[static_cast<int>(AllocKind::Managed)], 50u);
 }
+
+TEST(Tracker, ReusedAddressReturnsTheStaleEntry) {
+  // The driver hands back an address cuscope still thinks is live: its free
+  // went through a path cuscope does not see. The caller must learn what was
+  // dropped (the memory cap gives those bytes back).
+  Tracker t;
+  EXPECT_FALSE(t.on_alloc({0x1000, 100, AllocKind::Device, 0, 7}).has_value());
+  auto stale = t.on_alloc({0x1000, 40, AllocKind::Managed, 0, 7});
+  ASSERT_TRUE(stale.has_value());
+  EXPECT_EQ(stale->bytes, 100u);
+  EXPECT_EQ(stale->kind, AllocKind::Device);
+  EXPECT_EQ(t.live_bytes(), 40u);
+}

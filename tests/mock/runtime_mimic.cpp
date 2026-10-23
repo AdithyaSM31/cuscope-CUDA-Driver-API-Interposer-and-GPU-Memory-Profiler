@@ -257,6 +257,19 @@ void run(const char* scenario) {
     CHECK(get<decltype(&cuMemGetInfo)>("cuMemGetInfo", 3020)(&free_bytes, &total_bytes));
     std::printf("MEMINFO %zu %zu\n", free_bytes, total_bytes);
     if (p != 0) release(p);
+  } else if (std::strcmp(scenario, "cap_reuse") == 0) {
+    // 96 MiB disappears without a free cuscope sees, and the driver hands the
+    // address out again: the stale 96 MiB must leave the budget.
+    auto forget = reinterpret_cast<void (*)(CUdeviceptr)>(dlsym(g_driver, "mock_forget_allocation"));
+    if (forget == nullptr) die("dlsym mock_forget_allocation", dlerror());
+    CUdeviceptr first = 0, reused = 0, more = 0;
+    try_alloc(96 * kMiB, &first);
+    forget(first);
+    try_alloc(96 * kMiB, &reused);
+    try_alloc(128 * kMiB, &more);
+    for (CUdeviceptr q : {reused, more}) {
+      if (q != 0) release(q);
+    }
   } else if (std::strcmp(scenario, "cap_teardown") == 0) {
     // The release destroys the only reference, and with it the 96 MiB the
     // program never freed; a new context must have the whole cap again.

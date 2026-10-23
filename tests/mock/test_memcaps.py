@@ -94,3 +94,11 @@ def test_trace_reports_the_cap_end_to_end(mimic):
     assert [e["name"] for e in denials] == ["denied cuMemAlloc 64.0 MiB"]
     assert "Memory cap: 256.0 MiB" in r.stderr
     assert mimic("cap_exact", "shim").trace["cuscope"]["mem_limit"] is None
+
+
+def test_reused_address_gives_the_stale_bytes_back(mimic):
+    # Final review I1: 96 MiB freed behind cuscope's back (an unhooked context
+    # release, say) stayed charged when the driver reused its address, so the
+    # budget shrank for good: the 128 MiB allocation was denied.
+    r = mimic("cap_reuse", "shim", env={"CUSCOPE_MEM_LIMIT": "256M"})
+    assert results(r) == [OK, OK, OK], r.stderr

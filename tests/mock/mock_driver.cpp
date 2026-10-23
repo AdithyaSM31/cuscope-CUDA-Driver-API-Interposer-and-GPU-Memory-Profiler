@@ -49,6 +49,8 @@ std::unordered_set<void*>& host_allocs() {
   return *s;
 }
 uint64_t g_live_bytes = 0, g_live_hwm = 0;  // device memory, guarded by g_mu
+CUdeviceptr g_reuse_ptr = 0;  // mock_forget_allocation: the next cuMemAlloc that fits gets it
+size_t g_reuse_bytes = 0;
 
 void add_device_alloc_locked(CUdeviceptr p, size_t bytes) {
   device_allocs()[p] = bytes;
@@ -196,8 +198,30 @@ MOCK_API CUresult cuDevicePrimaryCtxGetState(CUdevice dev, unsigned int* flags, 
 
 // ---- Memory ----
 
+// The allocation stops existing as far as the driver is concerned, without a
+// cuMemFree cuscope can see, and its address is handed out again next.
+MOCK_API void mock_forget_allocation(CUdeviceptr p) {
+  std::lock_guard<std::mutex> lock(g_mu);
+  auto it = device_allocs().find(p);
+  if (it == device_allocs().end()) return;
+  g_live_bytes -= it->second;
+  g_reuse_ptr = p;
+  g_reuse_bytes = it->second;
+  device_allocs().erase(it);
+}
+
 MOCK_API CUresult cuMemAlloc(CUdeviceptr* dptr, size_t bytes) {
   if (dptr == nullptr || bytes == 0) return CUDA_ERROR_INVALID_VALUE;
+  {
+    std::lock_guard<std::mutex> lock(g_mu);
+    if (g_reuse_ptr != 0 && bytes <= g_reuse_bytes) {
+      *dptr = g_reuse_ptr;
+      g_reuse_ptr = 0;
+      add_device_alloc_locked(*dptr, bytes);
+      g_count.alloc_v2++;
+      return CUDA_SUCCESS;
+    }
+  }
   void* p = std::malloc(bytes);
   if (p == nullptr) return CUDA_ERROR_OUT_OF_MEMORY;
   std::lock_guard<std::mutex> lock(g_mu);

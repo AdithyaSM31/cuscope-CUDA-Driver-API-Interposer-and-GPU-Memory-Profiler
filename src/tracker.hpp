@@ -28,7 +28,10 @@ struct AllocInfo {
 
 class Tracker {
  public:
-  void on_alloc(const AllocInfo& info);
+  // Returns the entry it replaced when the driver reused an address cuscope
+  // still thought was live (its free went through a path cuscope does not
+  // see); the memory cap gives those bytes back.
+  std::optional<AllocInfo> on_alloc(const AllocInfo& info);
 
   // Removes a live allocation and returns it; nullopt if ptr is not live.
   // Called before the real free, so the driver can reuse the address at once.

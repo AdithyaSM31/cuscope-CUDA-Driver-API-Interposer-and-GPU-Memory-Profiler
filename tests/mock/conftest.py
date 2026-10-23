@@ -20,7 +20,7 @@ TIMEOUT_S = 10
 
 SCENARIOS = ["dlsym_gpa", "dlsym_default", "via_cudart", "ptsz", "old_version", "gpa_self",
              "capture", "launch", "launch8", "launch200", "copy", "teardown", "release_destroys", "release_keeps", "release_keeps_launch", "fork", "fork_quiet",
-             "cap_exact", "cap_threads", "cap_pinned", "cap_pitch", "cap_driver_fail", "cap_double_free", "cap_teardown", "cap_fork", "cap_meminfo"]
+             "cap_exact", "cap_threads", "cap_pinned", "cap_pitch", "cap_driver_fail", "cap_double_free", "cap_teardown", "cap_fork", "cap_meminfo", "cap_reuse"]
 MODES = ["direct", "shim"]
 
 

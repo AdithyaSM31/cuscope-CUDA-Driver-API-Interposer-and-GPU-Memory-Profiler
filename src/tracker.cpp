@@ -37,7 +37,7 @@ void Tracker::remove_live(const AllocInfo& info) {
   live_allocs_.fetch_sub(1, std::memory_order_relaxed);
 }
 
-void Tracker::on_alloc(const AllocInfo& info) {
+std::optional<AllocInfo> Tracker::on_alloc(const AllocInfo& info) {
   std::optional<AllocInfo> replaced;
   {
     Shard& shard = shard_for(info.ptr);
@@ -53,6 +53,7 @@ void Tracker::on_alloc(const AllocInfo& info) {
   if (replaced) remove_live(*replaced);
   add_live(info);
   alloc_count_.fetch_add(1, std::memory_order_relaxed);
+  return replaced;
 }
 
 std::optional<AllocInfo> Tracker::on_free(uint64_t ptr) {

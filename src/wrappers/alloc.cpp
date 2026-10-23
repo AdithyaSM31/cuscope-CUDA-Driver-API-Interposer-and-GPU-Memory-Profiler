@@ -67,7 +67,9 @@ CUresult after_alloc(ApiRecord& rec, CUresult result, uint64_t ptr, uint64_t byt
   }
   if (in_internal()) return result;
   const uint32_t stack = capture_caller_stack();
-  tracker().on_alloc(AllocInfo{ptr, bytes, kind, stack, current_ctx()});
+  if (std::optional<AllocInfo> stale = tracker().on_alloc(AllocInfo{ptr, bytes, kind, stack, current_ctx()})) {
+    mem_limit().release(stale->kind, stale->bytes);  // freed where cuscope could not see it
+  }
   rec.rec.type = RecType::Alloc;
   rec.rec.ptr = ptr;
   rec.rec.stack_id = stack;
