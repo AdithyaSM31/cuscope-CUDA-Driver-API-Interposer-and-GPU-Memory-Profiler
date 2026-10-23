@@ -111,3 +111,14 @@ TEST(Config, FixedPathBelongsToTheRootProcess) {
   EXPECT_EQ(expand_out_path("v1.2/trace", 42, /*root=*/false), "v1.2/trace.42");
   EXPECT_EQ(expand_out_path("t-%p.json", 42, /*root=*/false), "t-42.json");
 }
+
+TEST(Config, ExpandableSegmentsDetected) {
+  // PyTorch's out-of-memory message suggests this setting, which allocates
+  // through the virtual memory APIs that the cap does not see.
+  EXPECT_FALSE(expandable_segments_enabled(env({})));
+  EXPECT_TRUE(expandable_segments_enabled(env({{"PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True"}})));
+  EXPECT_TRUE(expandable_segments_enabled(
+      env({{"PYTORCH_CUDA_ALLOC_CONF", "max_split_size_mb:128, expandable_segments : true"}})));
+  EXPECT_TRUE(expandable_segments_enabled(env({{"PYTORCH_ALLOC_CONF", "expandable_segments:True"}})));
+  EXPECT_FALSE(expandable_segments_enabled(env({{"PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:False"}})));
+}

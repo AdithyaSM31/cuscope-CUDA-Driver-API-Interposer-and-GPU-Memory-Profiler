@@ -122,6 +122,39 @@ bool parse_size(const char* s, uint64_t* out) {
   return true;
 }
 
+namespace {
+
+std::string trim_lower(const std::string& s) {
+  size_t start = s.find_first_not_of(" \t");
+  size_t end = s.find_last_not_of(" \t");
+  std::string out = start == std::string::npos ? "" : s.substr(start, end - start + 1);
+  for (char& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return out;
+}
+
+}  // namespace
+
+bool expandable_segments_enabled(const GetenvFn& getenv_fn) {
+  for (const char* var : {"PYTORCH_CUDA_ALLOC_CONF", "PYTORCH_ALLOC_CONF"}) {
+    const char* conf = getenv_fn(var);
+    if (conf == nullptr) continue;
+    // Comma-separated key:value pairs, e.g. "max_split_size_mb:128,expandable_segments:True".
+    std::string rest = conf;
+    while (!rest.empty()) {
+      const size_t comma = rest.find(',');
+      const std::string pair = rest.substr(0, comma);
+      rest = comma == std::string::npos ? "" : rest.substr(comma + 1);
+      const size_t colon = pair.find(':');
+      if (colon == std::string::npos) continue;
+      if (trim_lower(pair.substr(0, colon)) == "expandable_segments" &&
+          trim_lower(pair.substr(colon + 1)) == "true") {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 const Config& config() {
   static const Config c = parse_config([](const char* key) { return std::getenv(key); });
   return c;

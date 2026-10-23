@@ -34,6 +34,11 @@ Config parse_config(const GetenvFn& getenv_fn);
 // including zero.
 bool parse_size(const char* s, uint64_t* out);
 
+// True if PYTORCH_CUDA_ALLOC_CONF (or its newer name PYTORCH_ALLOC_CONF) turns
+// on expandable_segments. PyTorch then allocates through the virtual memory
+// APIs (cuMemCreate, cuMemMap), which the memory cap does not see.
+bool expandable_segments_enabled(const GetenvFn& getenv_fn);
+
 // Parsed from the real environment on first call. Safe to call before
 // cuscope's constructors have run.
 const Config& config();

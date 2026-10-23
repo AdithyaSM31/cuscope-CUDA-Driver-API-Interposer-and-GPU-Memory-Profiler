@@ -128,6 +128,10 @@ void on_first_work() {
   log_msg("cuscope %s loaded (pid %d, mode %s)", CUSCOPE_VERSION, static_cast<int>(getpid()),
           mode_name(config().mode));
   claim_root();
+  if (mem_limit().enabled() && expandable_segments_enabled([](const char* key) { return std::getenv(key); })) {
+    log_msg("PYTORCH_CUDA_ALLOC_CONF turns on expandable_segments: PyTorch then allocates through "
+            "cuMemCreate, which is not capped. Set expandable_segments:False for CUSCOPE_MEM_LIMIT to apply.");
+  }
 }
 
 // Runs when the dynamic loader initialises libcuscope.so, before main().

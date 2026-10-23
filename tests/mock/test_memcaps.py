@@ -102,3 +102,12 @@ def test_reused_address_gives_the_stale_bytes_back(mimic):
     # budget shrank for good: the 128 MiB allocation was denied.
     r = mimic("cap_reuse", "shim", env={"CUSCOPE_MEM_LIMIT": "256M"})
     assert results(r) == [OK, OK, OK], r.stderr
+
+
+def test_warns_when_pytorch_would_bypass_the_cap(mimic):
+    # Final review I2: expandable segments allocate through cuMemCreate, which
+    # the cap does not see, and PyTorch's own out-of-memory message suggests them.
+    conf = {"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
+    capped = mimic("cap_exact", "shim", env={"CUSCOPE_MEM_LIMIT": "256M", **conf})
+    assert "expandable_segments" in capped.stderr and "not capped" in capped.stderr, capped.stderr
+    assert "expandable_segments" not in mimic("cap_exact", "shim", env=conf).stderr  # no cap, no warning
