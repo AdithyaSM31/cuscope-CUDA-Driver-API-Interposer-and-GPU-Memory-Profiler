@@ -12,6 +12,7 @@ FetchContent_MakeAvailable(googletest json)
 
 add_executable(cuscope_unit_tests
   test_config.cpp
+  test_limits.cpp
   test_recorder.cpp
   test_report.cpp
   test_ring.cpp

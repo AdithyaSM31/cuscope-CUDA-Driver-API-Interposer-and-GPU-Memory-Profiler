@@ -91,6 +91,16 @@ struct InvalidFree {
   uint32_t stack_id;
 };
 
+// The memory cap's figures at exit (CUSCOPE_MEM_LIMIT). enabled is false when
+// no cap was set, and then nothing else is meaningful.
+struct MemLimitStats {
+  bool enabled = false;
+  uint64_t limit_bytes = 0, peak_charged_bytes = 0, denied_count = 0, denied_bytes = 0;
+  uint64_t largest_denied_bytes = 0;
+  AllocKind largest_denied_kind = AllocKind::Device;
+  uint32_t largest_denied_stack = 0;
+};
+
 // Everything known at exit.
 struct Snapshot {
   int pid = 0;
@@ -106,6 +116,7 @@ struct Snapshot {
   std::vector<InvalidFree> invalid_frees;
   std::map<uint32_t, std::vector<StackFrame>> stacks;
   uint64_t dropped_records = 0, unresolved_events = 0, gpu_untimed = 0;
+  MemLimitStats mem_limit;
 };
 
 }  // namespace cuscope
