@@ -48,8 +48,9 @@ Raw results: [memcaps.json](memcaps.json). The seeds are fixed; two runs gave th
 
 ## Why the uncapped pair did not crash here
 
-On native Linux, the GPU's memory is all there is: once job A's cache holds most of it, job
-B's allocations fail, and B, which cannot make A release anything, dies with
+On native Linux (not measured here; this is what we expect), the GPU's memory is all there
+is: once job A's cache holds most of it, job B's allocations fail, and B, which cannot make
+A release anything, dies with
 `torch.OutOfMemoryError`. Under WSL2 the Windows driver (WDDM) pages GPU memory out to
 shared system RAM instead. On this machine one process allocated **12.5 GiB** on the 6 GiB
 card before getting `CUDA_ERROR_OUT_OF_MEMORY`. So the uncapped pair survived on

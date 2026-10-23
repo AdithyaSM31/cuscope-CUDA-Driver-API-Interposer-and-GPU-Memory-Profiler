@@ -133,7 +133,8 @@ Two ResNet-18 training jobs sharing the 6 GiB RTX 3060 ([docs/memcaps.md](docs/m
 | capped 2.25G / 3G | 2.21 GiB | 2.97 GiB | **5.18 GiB** | 60 / 103 ms |
 
 Uncapped, PyTorch's cache makes each job hold far more than it uses (1.49 and 2.60 GiB). On
-native Linux the later job would run out of memory; WSL2 pages the excess to system RAM
+native Linux the later job is expected to run out of memory (not measured here); WSL2 pages
+the excess to system RAM
 instead. Capped, both jobs finish inside their budgets at the same speed.
 
 ## Validation

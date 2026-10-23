@@ -91,8 +91,9 @@ process over its cap by at most the row padding of that one allocation.
 ### 3.3 Giving bytes back
 
 - **Free** (`cuMemFree`, `cuMemFreeAsync`): once the tracker removes the allocation, its
-  bytes are subtracted if its kind counts. A free the driver rejects restores the tracker
-  entry and charges the bytes again. Stream-ordered frees release at call time, matching how
+  bytes are subtracted once the driver accepts the free; a free it rejects leaves the
+  allocation live and its bytes charged (amended during execution: releasing only after
+  the driver accepts means a rejected, double or stray free never gains budget). Stream-ordered frees release at call time, matching how
   Phase 1 counts them.
 - **Context teardown**: allocations that die with a context (`on_ctx_teardown`) release
   their bytes.
@@ -160,8 +161,8 @@ alloc wrapper ──► limits::try_charge(kind, n) ──denied──► record
                           ▼
                 tracker.on_alloc(...)          (unchanged from Phase 1)
 
-free wrapper ───► tracker.on_free(ptr) ─► limits::release(kind, bytes) ─► real free
-                                              (re-charged if the driver rejects it)
+free wrapper ───► tracker.on_free(ptr) ─► real free ─► limits::release(kind, bytes)
+                                              (only if the driver accepted the free)
 cuMemGetInfo ───► real call ─► limits::cap_info(&free, &total)
 ```
 

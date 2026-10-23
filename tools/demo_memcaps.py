@@ -10,7 +10,7 @@ virtual memory APIs, which cuscope does not hook.
 Uncapped, PyTorch's allocator keeps every block it ever reserved and gives
 memory back only when one of its own allocations fails, so each job holds far
 more than it uses. Together they reserve more than the GPU has. On native
-Linux the later job would run out of memory; under WSL2 the Windows driver
+Linux the later job is expected to run out of memory; under WSL2 the Windows driver
 pages the excess to system RAM instead, so both survive on oversubscribed
 memory. Capped, each job trims its cache at its cap and the pair stays within
 the budgets it was given.
