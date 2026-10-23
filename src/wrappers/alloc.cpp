@@ -5,8 +5,14 @@
 // allocation from the tracker *before* the real call, because the driver may
 // hand the same address to another thread the moment it is freed; if the
 // driver rejects the free, the allocation is put back.
+//
+// With a memory cap (CUSCOPE_MEM_LIMIT), an allocation of a GPU-resident kind
+// first reserves its bytes; one that would pass the cap is denied with
+// CUDA_ERROR_OUT_OF_MEMORY and never reaches the driver. The reservation is
+// given back if the driver fails the call, and when the memory is freed.
 #include "wrappers.hpp"
 
+#include "limits.hpp"
 #include "stacks.hpp"
 #include "tracker.hpp"
 
@@ -23,12 +29,39 @@ uint64_t current_ctx() {
   return get_current(&ctx) == CUDA_SUCCESS ? reinterpret_cast<uint64_t>(ctx) : 0;
 }
 
-// Fills in an allocation's record and, if it succeeded, tracks it.
-CUresult after_alloc(ApiRecord& rec, CUresult result, uint64_t ptr, uint64_t bytes, AllocKind kind) {
+// Reserves an allocation's bytes against the memory cap before the driver
+// sees the call. *charged is what was reserved (0 when there is no cap, the
+// kind does not count, or the call is cuscope's own). False when the cap
+// would be passed: the denial is recorded with the caller's stack, and the
+// wrapper returns CUDA_ERROR_OUT_OF_MEMORY without calling the driver, as a
+// full GPU would.
+bool reserve(ApiRecord& rec, AllocKind kind, uint64_t bytes, uint64_t* charged) {
+  *charged = 0;
+  MemLimit& limit = mem_limit();
+  if (!limit.enabled() || !is_device_memory(kind) || in_internal()) return true;
+  if (limit.try_charge(kind, bytes)) {
+    *charged = bytes;
+    return true;
+  }
+  rec.done();
+  const uint32_t stack = capture_caller_stack();
+  limit.on_denied(kind, bytes, stack);
+  rec.rec.type = RecType::AllocDenied;
+  rec.rec.aux = static_cast<uint8_t>(kind);
+  rec.rec.bytes = bytes;
+  rec.rec.stack_id = stack;
+  return false;
+}
+
+// Fills in an allocation's record and, if it succeeded, tracks it. If it
+// failed, the bytes reserved for it go back to the cap.
+CUresult after_alloc(ApiRecord& rec, CUresult result, uint64_t ptr, uint64_t bytes, AllocKind kind,
+                     uint64_t charged) {
   rec.done();
   rec.rec.bytes = bytes;
   rec.rec.aux = static_cast<uint8_t>(kind);
   if (result != CUDA_SUCCESS) {
+    mem_limit().release(kind, charged);
     rec.rec.type = RecType::AllocFailed;
     return result;
   }
@@ -61,6 +94,10 @@ CUresult tracked_free(ApiRecord& rec, uint64_t ptr, RealFree&& real_free) {
   rec.done();
   if (result == CUDA_SUCCESS) {
     if (freed) {
+      // Only a free the driver accepted gives bytes back: a rejected one
+      // leaves the allocation live, and a stray or double free never had
+      // a charge to give back.
+      mem_limit().release(freed->kind, freed->bytes);
       rec.rec.type = RecType::Free;
       rec.rec.bytes = freed->bytes;
       rec.rec.aux = static_cast<uint8_t>(freed->kind);
@@ -82,8 +119,10 @@ template <int V>
 CUresult cs_cuMemAlloc(CUdeviceptr* dptr, size_t bytesize) {
   note_call();
   ApiRecord rec(H_cuMemAlloc);
+  uint64_t charged = 0;
+  if (!reserve(rec, AllocKind::Device, bytesize, &charged)) return CUDA_ERROR_OUT_OF_MEMORY;
   CUresult r = forward<V, decltype(&::cuMemAlloc)>(H_cuMemAlloc, dptr, bytesize);
-  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Device);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Device, charged);
 }
 
 template <int V>
@@ -91,10 +130,22 @@ CUresult cs_cuMemAllocPitch(CUdeviceptr* dptr, size_t* pPitch, size_t WidthInByt
                             unsigned int ElementSizeBytes) {
   note_call();
   ApiRecord rec(H_cuMemAllocPitch);
+  // The pitch is not known until the driver picks it: reserve the unpadded
+  // size, then settle the difference. The settling never denies, so the
+  // cap can be passed by one allocation's row padding.
+  uint64_t charged = 0;
+  if (!reserve(rec, AllocKind::Device, static_cast<uint64_t>(WidthInBytes) * Height, &charged)) {
+    return CUDA_ERROR_OUT_OF_MEMORY;
+  }
   CUresult r = forward<V, decltype(&::cuMemAllocPitch)>(H_cuMemAllocPitch, dptr, pPitch, WidthInBytes, Height,
                                                         ElementSizeBytes);
   const bool ok = r == CUDA_SUCCESS;
-  return after_alloc(rec, r, ok ? *dptr : 0, ok ? static_cast<uint64_t>(*pPitch) * Height : 0, AllocKind::Device);
+  const uint64_t bytes = ok ? static_cast<uint64_t>(*pPitch) * Height : 0;
+  if (ok && charged != 0) {
+    if (bytes > charged) mem_limit().charge(AllocKind::Device, bytes - charged);
+    if (bytes < charged) mem_limit().release(AllocKind::Device, charged - bytes);
+  }
+  return after_alloc(rec, r, ok ? *dptr : 0, bytes, AllocKind::Device, charged);
 }
 
 template <int V>
@@ -109,8 +160,10 @@ CUresult cs_cuMemAllocAsync(CUdeviceptr* dptr, size_t bytesize, CUstream hStream
   note_call();
   ApiRecord rec(H_cuMemAllocAsync);
   rec.rec.stream = handle(hStream);
+  uint64_t charged = 0;
+  if (!reserve(rec, AllocKind::Async, bytesize, &charged)) return CUDA_ERROR_OUT_OF_MEMORY;
   CUresult r = forward<V, decltype(&::cuMemAllocAsync)>(H_cuMemAllocAsync, dptr, bytesize, hStream);
-  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async, charged);
 }
 
 template <int V>
@@ -118,9 +171,11 @@ CUresult cs_cuMemAllocFromPoolAsync(CUdeviceptr* dptr, size_t bytesize, CUmemory
   note_call();
   ApiRecord rec(H_cuMemAllocFromPoolAsync);
   rec.rec.stream = handle(hStream);
+  uint64_t charged = 0;
+  if (!reserve(rec, AllocKind::Async, bytesize, &charged)) return CUDA_ERROR_OUT_OF_MEMORY;
   CUresult r = forward<V, decltype(&::cuMemAllocFromPoolAsync)>(H_cuMemAllocFromPoolAsync, dptr, bytesize, pool,
                                                                 hStream);
-  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Async, charged);
 }
 
 // Stream-ordered: the memory is released when the stream reaches the free,
@@ -138,8 +193,10 @@ template <int V>
 CUresult cs_cuMemAllocManaged(CUdeviceptr* dptr, size_t bytesize, unsigned int flags) {
   note_call();
   ApiRecord rec(H_cuMemAllocManaged);
+  uint64_t charged = 0;
+  if (!reserve(rec, AllocKind::Managed, bytesize, &charged)) return CUDA_ERROR_OUT_OF_MEMORY;
   CUresult r = forward<V, decltype(&::cuMemAllocManaged)>(H_cuMemAllocManaged, dptr, bytesize, flags);
-  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Managed);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? *dptr : 0, bytesize, AllocKind::Managed, charged);
 }
 
 template <int V>
@@ -147,7 +204,7 @@ CUresult cs_cuMemAllocHost(void** pp, size_t bytesize) {
   note_call();
   ApiRecord rec(H_cuMemAllocHost);
   CUresult r = forward<V, decltype(&::cuMemAllocHost)>(H_cuMemAllocHost, pp, bytesize);
-  return after_alloc(rec, r, r == CUDA_SUCCESS ? handle(*pp) : 0, bytesize, AllocKind::HostPinned);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? handle(*pp) : 0, bytesize, AllocKind::HostPinned, 0);
 }
 
 template <int V>
@@ -155,7 +212,7 @@ CUresult cs_cuMemHostAlloc(void** pp, size_t bytesize, unsigned int Flags) {
   note_call();
   ApiRecord rec(H_cuMemHostAlloc);
   CUresult r = forward<V, decltype(&::cuMemHostAlloc)>(H_cuMemHostAlloc, pp, bytesize, Flags);
-  return after_alloc(rec, r, r == CUDA_SUCCESS ? handle(*pp) : 0, bytesize, AllocKind::HostPinned);
+  return after_alloc(rec, r, r == CUDA_SUCCESS ? handle(*pp) : 0, bytesize, AllocKind::HostPinned, 0);
 }
 
 template <int V>

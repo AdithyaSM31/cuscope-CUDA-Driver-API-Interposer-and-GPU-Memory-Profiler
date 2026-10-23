@@ -42,7 +42,7 @@ set_target_properties(fake_cudart PROPERTIES
 add_executable(runtime_mimic runtime_mimic.cpp)
 target_include_directories(runtime_mimic PRIVATE ${CUDA_DRIVER_INCLUDE} ${PROJECT_SOURCE_DIR}/include)
 target_compile_definitions(runtime_mimic PRIVATE FAKE_CUDART_PATH="$<TARGET_FILE:fake_cudart>")
-target_link_libraries(runtime_mimic PRIVATE dl)
+target_link_libraries(runtime_mimic PRIVATE dl Threads::Threads)
 add_dependencies(runtime_mimic fake_cudart)
 set_target_properties(runtime_mimic PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${MOCK_DIR})
 

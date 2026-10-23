@@ -12,7 +12,9 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <atomic>
 #include <cstring>
+#include <thread>
 #include <vector>
 
 #include "mimic_common.hpp"
@@ -82,6 +84,22 @@ CUdeviceptr alloc(size_t bytes) {
 }
 
 void release(CUdeviceptr p) { CHECK(get<decltype(&cuMemFree)>("cuMemFree")(p)); }
+
+// For the memory-cap scenarios: calls whose result is the point of the test
+// print it as "RESULT <what> <CUresult>" instead of failing the program.
+CUresult result(const char* what, CUresult r) {
+  std::printf("RESULT %s %d\n", what, static_cast<int>(r));
+  return r;
+}
+
+CUresult try_alloc(size_t bytes, CUdeviceptr* out) {
+  *out = 0;
+  return result("alloc", get<decltype(&cuMemAlloc)>("cuMemAlloc")(out, bytes));
+}
+
+CUresult try_free(CUdeviceptr p) { return result("free", get<decltype(&cuMemFree)>("cuMemFree")(p)); }
+
+constexpr size_t kMiB = 1 << 20;
 
 void launch(CUstream stream, cuuint64_t flags = CU_GET_PROC_ADDRESS_LEGACY_STREAM) {
   auto fn = get<decltype(&cuLaunchKernel)>("cuLaunchKernel", CUDA_VERSION, flags);
@@ -182,6 +200,64 @@ void run(const char* scenario) {
     int status = 0;
     if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
       die("child", "did not exit cleanly");
+    }
+  } else if (std::strcmp(scenario, "cap_exact") == 0) {
+    CUdeviceptr p[6] = {};
+    for (int i = 0; i < 5; ++i) try_alloc(64 * kMiB, &p[i]);
+    release(p[0]);
+    try_alloc(64 * kMiB, &p[5]);
+    for (int i = 1; i < 6; ++i) {
+      if (p[i] != 0) release(p[i]);
+    }
+  } else if (std::strcmp(scenario, "cap_threads") == 0) {
+    std::atomic<int> denied{0};
+    std::vector<std::thread> threads;
+    for (int t = 0; t < 8; ++t) {
+      threads.emplace_back([&] {
+        CHECK(get<decltype(&cuCtxSetCurrent)>("cuCtxSetCurrent")(ctx));
+        auto mem_alloc = get<decltype(&cuMemAlloc)>("cuMemAlloc");
+        for (int i = 0; i < 500; ++i) {
+          CUdeviceptr q = 0;
+          if (mem_alloc(&q, kMiB) == CUDA_SUCCESS) {
+            release(q);
+          } else {
+            denied++;
+          }
+        }
+      });
+    }
+    for (auto& t : threads) t.join();
+    result("denied_any", denied > 0 ? CUDA_ERROR_OUT_OF_MEMORY : CUDA_SUCCESS);
+  } else if (std::strcmp(scenario, "cap_pinned") == 0) {
+    void* h = nullptr;
+    if (result("alloc_host", get<decltype(&cuMemAllocHost)>("cuMemAllocHost")(&h, 64 * kMiB)) == CUDA_SUCCESS) {
+      CHECK(get<decltype(&cuMemFreeHost)>("cuMemFreeHost")(h));
+    }
+  } else if (std::strcmp(scenario, "cap_pitch") == 0) {
+    CUdeviceptr pitched = 0, a = 0, b = 0;
+    size_t pitch = 0;
+    result("alloc_pitch", get<decltype(&cuMemAllocPitch)>("cuMemAllocPitch")(&pitched, &pitch, 1000, 1024, 4));
+    try_alloc(kMiB, &a);
+    try_alloc(1, &b);
+    for (CUdeviceptr q : {pitched, a, b}) {
+      if (q != 0) release(q);
+    }
+  } else if (std::strcmp(scenario, "cap_driver_fail") == 0) {
+    result("alloc_null", get<decltype(&cuMemAlloc)>("cuMemAlloc")(nullptr, 64 * kMiB));
+    CUdeviceptr p[4] = {};
+    for (CUdeviceptr& q : p) try_alloc(64 * kMiB, &q);
+    for (CUdeviceptr q : p) {
+      if (q != 0) release(q);
+    }
+  } else if (std::strcmp(scenario, "cap_double_free") == 0) {
+    CUdeviceptr first = 0;
+    try_alloc(64 * kMiB, &first);
+    try_free(first);
+    try_free(first);
+    CUdeviceptr p[5] = {};
+    for (CUdeviceptr& q : p) try_alloc(64 * kMiB, &q);
+    for (CUdeviceptr q : p) {
+      if (q != 0) release(q);
     }
   } else {
     die("unknown scenario", scenario);

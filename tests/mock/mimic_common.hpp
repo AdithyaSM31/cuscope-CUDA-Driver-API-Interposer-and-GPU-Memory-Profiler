@@ -34,12 +34,12 @@ inline void print_mock(void (*get_counters)(mock_counters*)) {
       "MOCK {\"alloc_v1\": %llu, \"alloc_v2\": %llu, \"free_\": %llu, \"memcpy_htod\": %llu, "
       "\"memcpy_dtoh\": %llu, \"memcpy_async\": %llu, \"memcpy_async_ptsz\": %llu, "
       "\"launch\": %llu, \"launch_ptsz\": %llu, \"event_record\": %llu, "
-      "\"event_record_on_capturing\": %llu, \"ctx_destroy\": %llu, \"event_query\": %llu, \"event_sync\": %llu}\n",
+      "\"event_record_on_capturing\": %llu, \"ctx_destroy\": %llu, \"event_query\": %llu, \"event_sync\": %llu, \"live_hwm\": %llu}\n",
       (unsigned long long)c.alloc_v1, (unsigned long long)c.alloc_v2, (unsigned long long)c.free_,
       (unsigned long long)c.memcpy_htod, (unsigned long long)c.memcpy_dtoh,
       (unsigned long long)c.memcpy_async, (unsigned long long)c.memcpy_async_ptsz,
       (unsigned long long)c.launch, (unsigned long long)c.launch_ptsz,
       (unsigned long long)c.event_record, (unsigned long long)c.event_record_on_capturing,
       (unsigned long long)c.ctx_destroy, (unsigned long long)c.event_query,
-      (unsigned long long)c.event_sync);
+      (unsigned long long)c.event_sync, (unsigned long long)c.live_hwm);
 }

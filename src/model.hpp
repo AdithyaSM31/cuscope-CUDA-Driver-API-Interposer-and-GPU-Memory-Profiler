@@ -47,12 +47,13 @@ constexpr uint8_t copy_aux(CopyDir dir, bool pinned) {
 constexpr CopyDir copy_dir(uint8_t aux) { return static_cast<CopyDir>(aux & 0x0F); }
 constexpr bool copy_pinned(uint8_t aux) { return (aux & 0x10) != 0; }
 
-enum class RecType : uint8_t { ApiCall, Alloc, AllocFailed, Free, InvalidFree, Launch, Copy, GraphLaunch };
+// AllocDenied: an allocation the memory cap refused; it never reached the driver.
+enum class RecType : uint8_t { ApiCall, Alloc, AllocFailed, Free, InvalidFree, Launch, Copy, GraphLaunch, AllocDenied };
 
 // One hooked call, written by the calling thread into its ring buffer.
 struct alignas(64) Record {
   RecType type;
-  uint8_t aux;         // AllocKind for Alloc/AllocFailed/Free, copy_aux() for Copy
+  uint8_t aux;         // AllocKind for Alloc/AllocFailed/AllocDenied/Free, copy_aux() for Copy
   uint16_t api;        // HookId
   uint32_t tid;
   uint64_t cpu_ns;     // CLOCK_MONOTONIC when the call started

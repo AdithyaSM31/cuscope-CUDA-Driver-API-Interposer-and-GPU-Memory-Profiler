@@ -22,6 +22,7 @@ typedef struct mock_counters {
   uint64_t ctx_destroy;
   uint64_t event_query;
   uint64_t event_sync;
+  uint64_t live_hwm;  /* highest live device bytes */
 } mock_counters;
 
 #ifdef __cplusplus

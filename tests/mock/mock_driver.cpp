@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <unordered_map>
 #include <unordered_set>
 
 #define MOCK_API extern "C" __attribute__((visibility("default")))
@@ -39,9 +40,20 @@ thread_local CUcontext t_current = nullptr;
 
 // Heap-allocated and never freed, so the mock still works from exit handlers
 // that run after static destructors.
-std::unordered_set<CUdeviceptr>& device_allocs() {
-  static auto* s = new std::unordered_set<CUdeviceptr>();
+std::unordered_map<CUdeviceptr, size_t>& device_allocs() {  // pointer -> bytes
+  static auto* m = new std::unordered_map<CUdeviceptr, size_t>();
+  return *m;
+}
+std::unordered_set<void*>& host_allocs() {
+  static auto* s = new std::unordered_set<void*>();
   return *s;
+}
+uint64_t g_live_bytes = 0, g_live_hwm = 0;  // device memory, guarded by g_mu
+
+void add_device_alloc_locked(CUdeviceptr p, size_t bytes) {
+  device_allocs()[p] = bytes;
+  g_live_bytes += bytes;
+  if (g_live_bytes > g_live_hwm) g_live_hwm = g_live_bytes;
 }
 
 struct MockEvent {
@@ -117,6 +129,8 @@ MOCK_API void mock_get_counters(mock_counters* out) {
   out->ctx_destroy = g_count.ctx_destroy;
   out->event_query = g_count.event_query;
   out->event_sync = g_count.event_sync;
+  std::lock_guard<std::mutex> lock(g_mu);
+  out->live_hwm = g_live_hwm;
 }
 
 // ---- Initialisation and contexts ----
@@ -188,14 +202,47 @@ MOCK_API CUresult cuMemAlloc(CUdeviceptr* dptr, size_t bytes) {
   if (p == nullptr) return CUDA_ERROR_OUT_OF_MEMORY;
   std::lock_guard<std::mutex> lock(g_mu);
   *dptr = reinterpret_cast<CUdeviceptr>(p);
-  device_allocs().insert(*dptr);
+  add_device_alloc_locked(*dptr, bytes);
   g_count.alloc_v2++;
+  return CUDA_SUCCESS;
+}
+
+// Rows are padded to 512 bytes, like a real device's pitch alignment.
+MOCK_API CUresult cuMemAllocPitch(CUdeviceptr* dptr, size_t* pitch, size_t width, size_t height, unsigned int) {
+  if (dptr == nullptr || pitch == nullptr || width == 0 || height == 0) return CUDA_ERROR_INVALID_VALUE;
+  const size_t padded = (width + 511) / 512 * 512;
+  void* p = std::malloc(padded * height);
+  if (p == nullptr) return CUDA_ERROR_OUT_OF_MEMORY;
+  std::lock_guard<std::mutex> lock(g_mu);
+  *dptr = reinterpret_cast<CUdeviceptr>(p);
+  *pitch = padded;
+  add_device_alloc_locked(*dptr, padded * height);
+  return CUDA_SUCCESS;
+}
+
+MOCK_API CUresult cuMemAllocHost(void** pp, size_t bytes) {
+  if (pp == nullptr || bytes == 0) return CUDA_ERROR_INVALID_VALUE;
+  void* p = std::malloc(bytes);
+  if (p == nullptr) return CUDA_ERROR_OUT_OF_MEMORY;
+  std::lock_guard<std::mutex> lock(g_mu);
+  host_allocs().insert(p);
+  *pp = p;
+  return CUDA_SUCCESS;
+}
+
+MOCK_API CUresult cuMemFreeHost(void* p) {
+  std::lock_guard<std::mutex> lock(g_mu);
+  if (host_allocs().erase(p) == 0) return CUDA_ERROR_INVALID_VALUE;
+  std::free(p);
   return CUDA_SUCCESS;
 }
 
 MOCK_API CUresult cuMemFree(CUdeviceptr dptr) {
   std::lock_guard<std::mutex> lock(g_mu);
-  if (device_allocs().erase(dptr) == 0) return CUDA_ERROR_INVALID_VALUE;
+  auto it = device_allocs().find(dptr);
+  if (it == device_allocs().end()) return CUDA_ERROR_INVALID_VALUE;
+  g_live_bytes -= it->second;
+  device_allocs().erase(it);
   std::free(reinterpret_cast<void*>(dptr));
   g_count.free_++;
   return CUDA_SUCCESS;
@@ -339,7 +386,8 @@ const ProcEntry kProcTable[] = {
     ENTRY(cuInit), ENTRY(cuDriverGetVersion), ENTRY(cuCtxGetCurrent), ENTRY(cuCtxSetCurrent),
     ENTRY(cuCtxGetDevice), ENTRY(cuCtxSynchronize), ENTRY(cuCtxDestroy),
     ENTRY(cuDevicePrimaryCtxRetain), ENTRY(cuDevicePrimaryCtxRelease), ENTRY(cuDevicePrimaryCtxGetState),
-    ENTRY(cuMemFree), ENTRY(cuPointerGetAttribute), ENTRY(cuMemcpyHtoD), ENTRY(cuMemcpyDtoH),
+    ENTRY(cuMemFree), ENTRY(cuMemAllocPitch), ENTRY(cuMemAllocHost), ENTRY(cuMemFreeHost),
+    ENTRY(cuPointerGetAttribute), ENTRY(cuMemcpyHtoD), ENTRY(cuMemcpyDtoH),
     ENTRY_PTSZ(cuMemcpyAsync), ENTRY_PTSZ(cuLaunchKernel), ENTRY(cuFuncGetName),
     ENTRY_PTSZ(cuStreamIsCapturing), ENTRY(cuStreamSynchronize), ENTRY(cuEventCreate),
     ENTRY(cuEventDestroy), ENTRY_PTSZ(cuEventRecord), ENTRY(cuEventQuery), ENTRY(cuEventSynchronize),

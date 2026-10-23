@@ -12,7 +12,7 @@ from conftest import MODES, SCENARIOS
 def test_baseline_without_cuscope(mimic, scenario, mode):
     r = mimic(scenario, mode, preload=False)
     assert r.code == 0, r.stderr
-    assert r.stdout.startswith(f"OK {scenario}")
+    assert f"OK {scenario}" in r.stdout.splitlines()  # after any RESULT lines (memory-cap scenarios)
     assert r.mock is not None
     assert r.stats is None  # cuscope not loaded
 
