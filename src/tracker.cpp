@@ -95,7 +95,7 @@ void Tracker::add_leaks(std::vector<AllocInfo>& gone, bool at_ctx_teardown) {
   }
 }
 
-void Tracker::on_ctx_teardown(uint64_t ctx) {
+std::array<uint64_t, kAllocKinds> Tracker::on_ctx_teardown(uint64_t ctx) {
   std::vector<AllocInfo> gone;
   for (Shard& shard : shards_) {
     std::lock_guard<std::mutex> lock(shard.mu);
@@ -108,7 +108,10 @@ void Tracker::on_ctx_teardown(uint64_t ctx) {
       }
     }
   }
+  std::array<uint64_t, kAllocKinds> bytes{};
+  for (const AllocInfo& info : gone) bytes[static_cast<int>(info.kind)] += info.bytes;
   add_leaks(gone, /*at_ctx_teardown=*/true);
+  return bytes;
 }
 
 void Tracker::finalize() {

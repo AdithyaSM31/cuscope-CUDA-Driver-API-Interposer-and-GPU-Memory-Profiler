@@ -58,3 +58,11 @@ def test_double_free_releases_nothing_twice(mimic):  # Review Focus 3
 
 def test_no_cap_changes_nothing(mimic):
     assert results(mimic("cap_exact", "shim")) == [OK] * 6
+
+
+def test_context_teardown_gives_bytes_back(mimic):
+    assert results(mimic("cap_teardown", "shim", env={"CUSCOPE_MEM_LIMIT": "128M"})) == [OK, OK]
+
+
+def test_forked_child_starts_with_an_empty_budget(mimic):
+    assert results(mimic("cap_fork", "direct", env={"CUSCOPE_MEM_LIMIT": "128M"})) == [OK, OK]

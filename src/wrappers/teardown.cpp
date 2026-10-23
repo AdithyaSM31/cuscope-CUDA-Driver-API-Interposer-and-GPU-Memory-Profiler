@@ -9,10 +9,18 @@
 #include "wrappers.hpp"
 
 #include "gputimer.hpp"
+#include "limits.hpp"
 #include "tracker.hpp"
 
 namespace cuscope {
 namespace {
+
+// The context's memory went with it: record the leaks, and give the bytes
+// back to the memory cap.
+void on_ctx_gone(uint64_t ctx) {
+  const std::array<uint64_t, kAllocKinds> gone = tracker().on_ctx_teardown(ctx);
+  for (int kind = 0; kind < kAllocKinds; ++kind) mem_limit().release(static_cast<AllocKind>(kind), gone[kind]);
+}
 
 bool primary_active(CUdevice dev) {
   static const auto get_state = CS_DRIVER_FN(cuDevicePrimaryCtxGetState);
@@ -56,7 +64,7 @@ CUresult primary_teardown(CUdevice dev, bool always_destroys, RealCall&& real_ca
     InternalScope internal;
     if (!primary_active(dev)) {
       if (!always_destroys) gpu_forget_device(dev);
-      tracker().on_ctx_teardown(primary);
+      on_ctx_gone(primary);
     }
   }
   return result;
@@ -89,7 +97,7 @@ CUresult cs_cuCtxDestroy(CUcontext ctx) {
   rec.rec.ptr = handle(ctx);
   CUresult r = forward<V, decltype(&::cuCtxDestroy)>(H_cuCtxDestroy, ctx);
   rec.done();
-  if (r == CUDA_SUCCESS && !in_internal()) tracker().on_ctx_teardown(handle(ctx));
+  if (r == CUDA_SUCCESS && !in_internal()) on_ctx_gone(handle(ctx));
   return r;
 }
 

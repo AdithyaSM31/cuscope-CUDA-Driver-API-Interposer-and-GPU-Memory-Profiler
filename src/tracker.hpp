@@ -40,8 +40,9 @@ class Tracker {
   void on_invalid_free(uint64_t ptr, uint32_t stack_id);
 
   // The context is gone, and the driver freed its memory with it: whatever the
-  // program still held there becomes a leak marked at_ctx_teardown.
-  void on_ctx_teardown(uint64_t ctx);
+  // program still held there becomes a leak marked at_ctx_teardown. Returns
+  // the bytes of each kind that went with it (the memory cap gives them back).
+  std::array<uint64_t, kAllocKinds> on_ctx_teardown(uint64_t ctx);
 
   // At exit: everything still live becomes a leak.
   void finalize();

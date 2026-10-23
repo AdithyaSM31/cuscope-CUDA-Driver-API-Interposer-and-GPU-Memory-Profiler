@@ -249,6 +249,33 @@ void run(const char* scenario) {
     for (CUdeviceptr q : p) {
       if (q != 0) release(q);
     }
+  } else if (std::strcmp(scenario, "cap_teardown") == 0) {
+    // The release destroys the only reference, and with it the 96 MiB the
+    // program never freed; a new context must have the whole cap again.
+    CUdeviceptr leaked = 0, again = 0;
+    try_alloc(96 * kMiB, &leaked);
+    CHECK(get<decltype(&cuDevicePrimaryCtxRelease)>("cuDevicePrimaryCtxRelease")(0));
+    init_context();
+    if (try_alloc(96 * kMiB, &again) == CUDA_SUCCESS) release(again);
+  } else if (std::strcmp(scenario, "cap_fork") == 0) {
+    CUdeviceptr parent = 0;
+    try_alloc(96 * kMiB, &parent);
+    std::fflush(stdout);
+    pid_t child = fork();
+    if (child < 0) die("fork", std::strerror(errno));
+    if (child == 0) {
+      // Real CUDA forbids this in a forked child; the mock allows it, which
+      // shows the child's budget is its own.
+      CUdeviceptr mine = 0;
+      if (try_alloc(96 * kMiB, &mine) == CUDA_SUCCESS) release(mine);
+      std::fflush(stdout);
+      std::_Exit(0);
+    }
+    int status = 0;
+    if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+      die("child", "did not exit cleanly");
+    }
+    release(parent);
   } else if (std::strcmp(scenario, "cap_double_free") == 0) {
     CUdeviceptr first = 0;
     try_alloc(64 * kMiB, &first);

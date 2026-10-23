@@ -1,6 +1,7 @@
 #include "config.hpp"
 #include "gputimer.hpp"
 #include "guard.hpp"
+#include "limits.hpp"
 #include "log.hpp"
 #include "model.hpp"
 #include "names.hpp"
@@ -115,6 +116,7 @@ void after_fork_child() {
   recorder_after_fork_child();
   stacks_after_fork();
   tracker_after_fork_child();
+  mem_limit_after_fork_child();
   stats::after_fork_child();
   g_forked_child = true;
 }

@@ -151,3 +151,13 @@ TEST(Tracker, ConcurrentAllocFree) {
   EXPECT_EQ(s.alloc_count, 80000u);
   EXPECT_EQ(s.free_count, 80000u);
 }
+
+TEST(Tracker, TeardownReportsReleasedBytesPerKind) {
+  Tracker t;
+  t.on_alloc({0x1000, 100, AllocKind::Device, 0, 7});
+  t.on_alloc({0x2000, 50, AllocKind::Managed, 0, 7});
+  t.on_alloc({0x3000, 30, AllocKind::Device, 0, 8});
+  auto gone = t.on_ctx_teardown(7);
+  EXPECT_EQ(gone[static_cast<int>(AllocKind::Device)], 100u);
+  EXPECT_EQ(gone[static_cast<int>(AllocKind::Managed)], 50u);
+}
