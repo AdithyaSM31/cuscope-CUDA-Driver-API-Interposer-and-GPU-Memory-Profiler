@@ -131,3 +131,31 @@ def test_charged_time_matches_measured_kernels(sched_daemon, mimic):
     # Each mock kernel measures 1 ms; cuEventElapsedTime is float milliseconds,
     # so allow 1 us per launch of rounding.
     assert abs(charged - launches * 1_000_000) <= launches * 1_000, (charged, launches)
+
+
+# ---- Final review C1: a daemon restarted after a crash ----
+
+
+def test_jobs_survive_a_daemon_crash_and_restart(sched_daemon, mimic_pair):
+    # SIGKILL leaves the segment behind; a new daemon takes over. Jobs that
+    # were registered must not hang: they fail open (or are served again).
+    import threading
+
+    def crash_and_restart():
+        sched_daemon.kill()
+        sched_daemon.start()
+
+    threading.Timer(0.3, crash_and_restart).start()
+    a, b = mimic_pair("share_loop", weights=(1, 1),
+                      env={**sched_daemon.env, **FAST, "MIMIC_SECONDS": "0.8"})
+    for r in (a, b):
+        assert r.code == 0, r.stderr
+
+
+def test_daemon_stops_on_sighup(sched_daemon):
+    # Closing the terminal the daemon runs in sends SIGHUP: it must close the
+    # segment like SIGTERM does, not leave it behind.
+    import signal
+    sched_daemon.proc.send_signal(signal.SIGHUP)
+    sched_daemon.proc.wait(timeout=5)
+    assert not Path("/dev/shm" + sched_daemon.name).exists()

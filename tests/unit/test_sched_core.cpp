@@ -13,8 +13,17 @@ void fake_sleep(uint64_t ns) { g_fake_ns += ns; }
 
 uint64_t g_fake_wait_ns = 0;
 
+// A sleep during which a live daemon beats but grants nothing.
+SchedShm* g_beat_shm = nullptr;
+void beat_on_sleep(uint64_t ns);
+
 // A sleep during which a live daemon beats and grants 100 us of credit.
 SchedShm* g_refill_shm = nullptr;
+void beat_on_sleep(uint64_t ns) {
+  g_fake_ns += ns;
+  g_refill_shm->heartbeat_ns = g_fake_ns;
+}
+
 void refill_on_sleep(uint64_t ns) {
   g_fake_ns += ns;
   g_refill_shm->heartbeat_ns = g_fake_ns;
@@ -270,4 +279,27 @@ TEST(SchedCore, NoFastForwardWhileAJobCanRun) {
   apply_refill(&shm, 2, 1000000);
   EXPECT_EQ(shm.slots[0].balance_ns.load(), -5500000);
   EXPECT_EQ(shm.slots[1].balance_ns.load(), 1500000);
+}
+
+TEST(SchedClient, SlotTakenAwayWhileWaitingFailsOpen) {  // Final review C1
+  // A restarted daemon re-initialised the segment: this job's slot is no
+  // longer its own, nobody refills it, and the heartbeat is fresh again.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  g_refill_shm = &shm;
+  SchedClient c(&shm, 4242, 50, fake_now, beat_on_sleep);
+  shm.slots[0].balance_ns = -50'000'000;
+  shm.slots[0].pid = 0;  // re-initialised by the new daemon
+  c.before_launch(7);
+  EXPECT_EQ(c.state(), SchedState::Stopped);
+}
+
+TEST(SchedClient, StaleSegmentAtRegistrationFailsOpen) {  // Final review C1
+  // A segment left behind by a dead daemon: magic and version are fine, but
+  // nobody has beaten for a long time.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now() - kStaleNs - 1);
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  EXPECT_EQ(c.state(), SchedState::NoScheduler);
+  EXPECT_EQ(shm.slots[0].pid.load(), 0);  // and it did not claim a slot
 }

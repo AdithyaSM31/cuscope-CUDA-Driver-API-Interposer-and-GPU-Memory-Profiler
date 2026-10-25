@@ -82,9 +82,12 @@ SchedShm* create(const std::string& name) {
       std::fprintf(stderr, "cuscope-sched: already running (pid %d)\n", existing->daemon_pid.load());
       return nullptr;
     }
-    // Left behind by a daemon that crashed: start it afresh.
-    sched_shm_init(existing, static_cast<int32_t>(getpid()), now_ns());
-    return existing;
+    // Left behind by a daemon that crashed. Jobs may still map it: close it
+    // (they then run unthrottled, as after a clean stop) and start a new
+    // segment, rather than re-initialise slots that live jobs think are theirs.
+    existing->closed.store(1, std::memory_order_release);
+    munmap(existing, sizeof(SchedShm));
+    shm_unlink(name.c_str());
   }
   const int fd = shm_open(name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
   if (fd < 0) {
@@ -160,6 +163,7 @@ int run(const std::string& name, bool verbose) {
   sa.sa_handler = on_signal;
   sigaction(SIGINT, &sa, nullptr);
   sigaction(SIGTERM, &sa, nullptr);
+  sigaction(SIGHUP, &sa, nullptr);  // its terminal closed
 
   Reporter reporter;
   uint64_t last = now_ns(), last_reap = last, last_report = last;

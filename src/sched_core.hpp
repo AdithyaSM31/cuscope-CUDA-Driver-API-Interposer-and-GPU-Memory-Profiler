@@ -88,6 +88,7 @@ class SchedClient {
  private:
   SchedShm* shm_;
   SchedSlot* slot_ = nullptr;
+  int32_t pid_;
   uint32_t weight_;
   Clock now_;
   Sleep sleep_;

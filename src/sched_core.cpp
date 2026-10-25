@@ -125,9 +125,13 @@ void apply_refill(SchedShm* shm, uint64_t now_ns, uint64_t delta_ns) {
 }
 
 SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now, Sleep sleep)
-    : shm_(shm), weight_(weight), now_(now), sleep_(sleep) {
+    : shm_(shm), pid_(pid), weight_(weight), now_(now), sleep_(sleep) {
+  // A segment nobody serves (left by a daemon that died) is no scheduler:
+  // a job registered there would wait for refills that never come.
+  const uint64_t t = now();
+  const uint64_t beat = shm != nullptr ? shm->heartbeat_ns.load(std::memory_order_acquire) : 0;
   if (shm == nullptr || shm->magic != kSchedMagic || shm->version != kSchedVersion ||
-      shm->closed.load(std::memory_order_acquire) != 0) {
+      shm->closed.load(std::memory_order_acquire) != 0 || (t > beat && t - beat > kStaleNs)) {
     state_ = SchedState::NoScheduler;
     return;
   }
@@ -165,7 +169,11 @@ uint64_t SchedClient::before_launch(uint64_t key) {
   while (balance < 0 && slot_->solo.load(std::memory_order_acquire) == 0) {
     const uint64_t now = now_();
     const uint64_t beat = shm_->heartbeat_ns.load(std::memory_order_acquire);
-    if (shm_->closed.load(std::memory_order_acquire) != 0 || (now > beat && now - beat > kStaleNs)) {
+    // Stop throttling for good when the daemon has stopped (closed segment),
+    // stopped beating, or no longer serves this slot (a restarted daemon
+    // re-initialised it): never stuck.
+    if (shm_->closed.load(std::memory_order_acquire) != 0 || (now > beat && now - beat > kStaleNs) ||
+        slot_->pid.load(std::memory_order_acquire) != pid_) {
       state_.store(SchedState::Stopped, std::memory_order_release);
       break;
     }
