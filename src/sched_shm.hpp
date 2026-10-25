@@ -23,6 +23,7 @@ constexpr uint64_t kDefaultEstimateNs = 50'000;    // a launch never measured
 constexpr uint64_t kWaitStepNs = 200'000;          // a waiting launch sleeps this long
 constexpr uint64_t kStaleNs = 100'000'000;         // a heartbeat older than this: daemon gone
 constexpr uint64_t kReapEveryNs = 100'000'000;     // the daemon frees dead jobs' slots
+constexpr uint64_t kMaxWaitNs = 30'000'000'000;    // a single wait longer than this: give up throttling
 
 // One job. pid 0 means the slot is free.
 struct SchedSlot {
@@ -46,6 +47,10 @@ struct SchedShm {
 
 // "/cuscope-sched-<uid>", or CUSCOPE_SCHED_NAME when set (tests run their own).
 std::string sched_shm_name();
+
+// The segment must belong to this user and be closed to everyone else: any
+// other user who could write it could hold this user's jobs.
+bool sched_shm_private(int fd);
 
 // A fresh segment: magic, version, the daemon's pid, empty slots.
 void sched_shm_init(SchedShm* shm, int32_t daemon_pid, uint64_t now_ns);

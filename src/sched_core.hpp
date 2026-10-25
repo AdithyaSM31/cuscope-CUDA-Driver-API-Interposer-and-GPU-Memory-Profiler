@@ -50,7 +50,9 @@ class Estimator {
   std::unordered_map<uint64_t, uint64_t> average_ns_;
 };
 
-enum class SchedState { Registered, NoScheduler, NoFreeSlot, AllocMode, Stopped };
+// Released: the slot was given back at exit; other threads stop waiting.
+// Unsafe: the segment is owned by another user or open to others; not used.
+enum class SchedState { Registered, NoScheduler, NoFreeSlot, AllocMode, Stopped, Released, Unsafe };
 
 // One job's side of the scheduler, on a mapped segment (or an in-memory one
 // in tests). The clock and sleep are passed in so tests control time.
@@ -82,7 +84,9 @@ class SchedClient {
   using WaitHook = void (*)(uint64_t start_ns, uint64_t dur_ns);
   void set_on_wait(WaitHook hook) { on_wait_ = hook; }
 
-  // Gives the slot back (at exit). Stats stay readable afterwards.
+  // Gives the slot back (at exit). Other threads may still be inside
+  // before_launch: they see the Released state and return. The slot pointer
+  // stays valid (the segment is never unmapped). Stats stay readable.
   void release();
 
   SchedStats stats() const;

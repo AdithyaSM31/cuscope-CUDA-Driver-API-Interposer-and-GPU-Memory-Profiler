@@ -2,6 +2,10 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <chrono>
+#include <thread>
+
 using namespace cuscope;
 
 namespace {
@@ -344,4 +348,46 @@ TEST(SchedCore, FrozenWaiterWithCreditIsNotActive) {  // Final review I1
   shm.slots[1].last_launch_ns = 99'000'000;
   apply_refill(&shm, 100'000'000, 1'000'000);
   EXPECT_EQ(shm.slots[1].solo.load(), 1u);
+}
+
+namespace {
+uint64_t frozen_now() { return 5'000'000'000; }  // the heartbeat never goes stale
+void short_sleep(uint64_t) { std::this_thread::sleep_for(std::chrono::microseconds(50)); }
+}  // namespace
+
+TEST(SchedClient, ReleaseWhileAnotherThreadWaits) {  // Final review I2
+  // exit() runs the release handler while a worker thread is throttled: the
+  // worker must stop waiting and return, not touch a released slot.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, frozen_now());
+  SchedClient c(&shm, 4242, 50, frozen_now, short_sleep);
+  shm.slots[0].balance_ns = -50'000'000;  // and nobody refills it
+  std::atomic<bool> returned{false};
+  std::thread worker([&] {
+    c.before_launch(7);
+    returned = true;
+  });
+  while (shm.slots[0].waiting.load() == 0) std::this_thread::sleep_for(std::chrono::microseconds(50));
+  c.release();
+  worker.join();
+  EXPECT_TRUE(returned.load());
+  EXPECT_EQ(shm.slots[0].pid.load(), 0);
+  c.on_span(7, 50'000, 1'000'000);  // a span resolved after release changes nothing
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), -50'000'000 - int64_t(kDefaultEstimateNs));
+  EXPECT_TRUE(c.stats().registered);
+}
+
+TEST(SchedClient, AWaitThatNeverEndsIsCutOff) {  // Final review I3
+  // A segment that keeps beating but never refills (corrupt, or written by
+  // someone else) must not hold a launch forever.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  g_refill_shm = &shm;
+  SchedClient c(&shm, 4242, 50, fake_now, beat_on_sleep);
+  shm.slots[0].balance_ns = -50'000'000;
+  const uint64_t start = fake_now();
+  c.before_launch(7);
+  EXPECT_EQ(c.state(), SchedState::Stopped);
+  EXPECT_GE(fake_now() - start, kMaxWaitNs);
+  EXPECT_LT(fake_now() - start, kMaxWaitNs + 1'000'000);
 }

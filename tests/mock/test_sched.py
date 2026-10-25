@@ -162,3 +162,32 @@ def test_daemon_stops_on_sighup(sched_daemon):
     sched_daemon.proc.send_signal(signal.SIGHUP)
     sched_daemon.proc.wait(timeout=5)
     assert not Path("/dev/shm" + sched_daemon.name).exists()
+
+
+# ---- Final review I3: the segment must be private to its user ----
+
+
+def _plant_open_segment(name: str) -> None:
+    """What another local user could do: create the victim's segment, writable by all."""
+    import os
+    old = os.umask(0)
+    try:
+        fd = os.open("/dev/shm" + name, os.O_CREAT | os.O_RDWR, 0o666)
+        os.ftruncate(fd, 1 << 20)
+        os.close(fd)
+    finally:
+        os.umask(old)
+
+
+def test_daemon_refuses_a_segment_open_to_others(tmp_name_env):
+    _plant_open_segment(tmp_name_env["CUSCOPE_SCHED_NAME"])
+    r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
+    assert r.returncode == 1 and "not private" in r.stderr, r.stderr
+
+
+def test_job_ignores_a_segment_open_to_others(mimic, tmp_name_env):
+    _plant_open_segment(tmp_name_env["CUSCOPE_SCHED_NAME"])
+    r = mimic("share_loop", "shim", env={**tmp_name_env, "CUSCOPE_SHARE": "50", "MIMIC_SECONDS": "0.2"})
+    assert r.code == 0, r.stderr
+    sched = r.trace["cuscope"]["sched"]
+    assert (sched["registered"], sched["reason"]) == (False, "scheduler segment is not private to this user")

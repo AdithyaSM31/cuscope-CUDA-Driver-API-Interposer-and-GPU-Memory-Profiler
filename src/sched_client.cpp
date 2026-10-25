@@ -29,10 +29,17 @@ void sleep_ns(uint64_t ns) {
   nanosleep(&ts, nullptr);
 }
 
-// The daemon's segment, mapped read-write; nullptr if there is none.
-SchedShm* map_segment() {
+// The daemon's segment, mapped read-write; nullptr if there is none, or if it
+// is not private to this user (*unsafe is then set).
+SchedShm* map_segment(bool* unsafe) {
+  *unsafe = false;
   const int fd = shm_open(sched_shm_name().c_str(), O_RDWR, 0);
   if (fd < 0) return nullptr;
+  if (!sched_shm_private(fd)) {
+    close(fd);
+    *unsafe = true;
+    return nullptr;
+  }
   struct stat st {};
   void* p = MAP_FAILED;
   if (fstat(fd, &st) == 0 && static_cast<size_t>(st.st_size) >= sizeof(SchedShm)) {
@@ -77,7 +84,10 @@ SchedClient* client() {
     made = new SchedClient(nullptr, static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
     made->fail_open(SchedState::AllocMode);
   } else {
-    made = new SchedClient(map_segment(), static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
+    bool unsafe = false;
+    SchedShm* shm = map_segment(&unsafe);
+    made = new SchedClient(shm, static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
+    if (unsafe) made->fail_open(SchedState::Unsafe);
   }
   made->set_on_wait(record_wait);
   SchedClient* expected = nullptr;

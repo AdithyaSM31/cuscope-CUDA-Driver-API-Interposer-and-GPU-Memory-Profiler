@@ -39,10 +39,17 @@ uint64_t now_ns() {
 
 bool alive(int32_t pid) { return pid > 0 && (kill(pid, 0) == 0 || errno == EPERM); }
 
-// Maps an existing segment, or returns nullptr.
-SchedShm* map_existing(const std::string& name, bool writable) {
+// Maps an existing segment, or returns nullptr. A segment that is not
+// private to this user is never used: *foreign is set instead.
+SchedShm* map_existing(const std::string& name, bool writable, bool* foreign) {
+  *foreign = false;
   const int fd = shm_open(name.c_str(), writable ? O_RDWR : O_RDONLY, 0);
   if (fd < 0) return nullptr;
+  if (!sched_shm_private(fd)) {
+    close(fd);
+    *foreign = true;
+    return nullptr;
+  }
   struct stat st {};
   void* p = MAP_FAILED;
   if (fstat(fd, &st) == 0 && static_cast<size_t>(st.st_size) >= sizeof(SchedShm)) {
@@ -59,7 +66,12 @@ bool serving(const SchedShm* shm) {
 }
 
 int print_status(const std::string& name) {
-  SchedShm* shm = map_existing(name, /*writable=*/false);
+  bool foreign = false;
+  SchedShm* shm = map_existing(name, /*writable=*/false, &foreign);
+  if (foreign) {
+    std::fprintf(stderr, "cuscope-sched: %s is not private to this user\n", name.c_str());
+    return 1;
+  }
   if (!serving(shm)) {
     std::fprintf(stderr, "cuscope-sched: no scheduler running\n");
     return 1;
@@ -77,7 +89,16 @@ int print_status(const std::string& name) {
 // Creates the segment, or takes over one whose daemon has died. nullptr (and a
 // message) if another daemon is serving it or it cannot be created.
 SchedShm* create(const std::string& name) {
-  if (SchedShm* existing = map_existing(name, /*writable=*/true)) {
+  bool foreign = false;
+  SchedShm* existing = map_existing(name, /*writable=*/true, &foreign);
+  if (foreign) {
+    std::fprintf(stderr,
+                 "cuscope-sched: %s is not private to this user (another user could control it); "
+                 "refusing to use it\n",
+                 name.c_str());
+    return nullptr;
+  }
+  if (existing != nullptr) {
     if (serving(existing)) {
       std::fprintf(stderr, "cuscope-sched: already running (pid %d)\n", existing->daemon_pid.load());
       return nullptr;

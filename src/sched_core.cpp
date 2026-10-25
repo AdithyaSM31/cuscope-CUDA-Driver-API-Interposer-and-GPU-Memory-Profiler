@@ -1,5 +1,6 @@
 #include "sched_core.hpp"
 
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -11,6 +12,11 @@ namespace cuscope {
 std::string sched_shm_name() {
   if (const char* name = std::getenv("CUSCOPE_SCHED_NAME"); name != nullptr && *name != '\0') return name;
   return "/cuscope-sched-" + std::to_string(getuid());
+}
+
+bool sched_shm_private(int fd) {
+  struct stat st {};
+  return fstat(fd, &st) == 0 && st.st_uid == geteuid() && (st.st_mode & 077) == 0;
 }
 
 void sched_shm_init(SchedShm* shm, int32_t daemon_pid, uint64_t now_ns) {
@@ -179,45 +185,50 @@ SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now,
 
 uint64_t SchedClient::before_launch(uint64_t key) {
   if (state() != SchedState::Registered || slot_ == nullptr) return 0;
+  SchedSlot* const slot = slot_;
   const uint64_t est = estimator_.estimate(key);
   const uint64_t start = now_();
-  slot_->last_launch_ns.store(start, std::memory_order_relaxed);
-  slot_->charged_ns.fetch_add(est, std::memory_order_relaxed);
-  int64_t balance = slot_->balance_ns.fetch_sub(static_cast<int64_t>(est), std::memory_order_acq_rel) -
+  slot->last_launch_ns.store(start, std::memory_order_relaxed);
+  slot->charged_ns.fetch_add(est, std::memory_order_relaxed);
+  int64_t balance = slot->balance_ns.fetch_sub(static_cast<int64_t>(est), std::memory_order_acq_rel) -
                     static_cast<int64_t>(est);
 
   // Over its share: wait for the daemon's refill. A solo job never waits,
   // and a daemon that has stopped (closed segment) or stopped beating
   // (stale heartbeat) ends throttling for good: never stuck.
   bool waited = false;
-  while (balance < 0 && slot_->solo.load(std::memory_order_acquire) == 0) {
+  while (balance < 0 && slot->solo.load(std::memory_order_acquire) == 0 && state() == SchedState::Registered) {
     const uint64_t now = now_();
     const uint64_t beat = shm_->heartbeat_ns.load(std::memory_order_acquire);
     // Stop throttling for good when the daemon has stopped (closed segment),
     // stopped beating, or no longer serves this slot (a restarted daemon
     // re-initialised it): never stuck.
+    // A wait longer than kMaxWaitNs means the daemon is not refilling at all
+    // (a corrupt or foreign segment that still beats): give up as well.
     if (shm_->closed.load(std::memory_order_acquire) != 0 || (now > beat && now - beat > kStaleNs) ||
-        slot_->pid.load(std::memory_order_acquire) != pid_) {
+        slot->pid.load(std::memory_order_acquire) != pid_ || now - start >= kMaxWaitNs) {
       state_.store(SchedState::Stopped, std::memory_order_release);
       break;
     }
-    slot_->waiting.store(1, std::memory_order_release);
+    slot->waiting.store(1, std::memory_order_release);
     waited = true;
     sleep_(kWaitStepNs);
-    balance = slot_->balance_ns.load(std::memory_order_acquire);
+    balance = slot->balance_ns.load(std::memory_order_acquire);
   }
   if (waited) {
-    slot_->waiting.store(0, std::memory_order_release);
     const uint64_t dur = now_() - start;
-    slot_->waits.fetch_add(1, std::memory_order_relaxed);
-    slot_->wait_ns.fetch_add(dur, std::memory_order_relaxed);
+    if (state() != SchedState::Released) {  // a released slot may be another job's now
+      slot->waiting.store(0, std::memory_order_release);
+      slot->waits.fetch_add(1, std::memory_order_relaxed);
+      slot->wait_ns.fetch_add(dur, std::memory_order_relaxed);
+    }
     if (on_wait_ != nullptr) on_wait_(start, dur);
   }
   return est;
 }
 
 void SchedClient::on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns) {
-  if (charged_ns == 0 || slot_ == nullptr) return;
+  if (charged_ns == 0 || slot_ == nullptr || state() == SchedState::Released) return;
   const int64_t diff = static_cast<int64_t>(charged_ns) - static_cast<int64_t>(actual_ns);
   slot_->balance_ns.fetch_add(diff, std::memory_order_acq_rel);
   slot_->charged_ns.fetch_sub(static_cast<uint64_t>(diff), std::memory_order_relaxed);  // now = actual
@@ -225,13 +236,14 @@ void SchedClient::on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns)
 }
 
 void SchedClient::release() {
-  if (slot_ == nullptr) return;
+  if (slot_ == nullptr || state() == SchedState::Released) return;
   released_charged_ = slot_->charged_ns.load(std::memory_order_relaxed);
   released_waits_ = slot_->waits.load(std::memory_order_relaxed);
   released_wait_ns_ = slot_->wait_ns.load(std::memory_order_relaxed);
+  // First: waiting threads leave their loop and spans stop correcting.
+  state_.store(SchedState::Released, std::memory_order_release);
   slot_->waiting.store(0, std::memory_order_relaxed);
   slot_->pid.store(0, std::memory_order_release);  // last: the slot is free
-  slot_ = nullptr;
 }
 
 SchedStats SchedClient::stats() const {
@@ -239,9 +251,9 @@ SchedStats SchedClient::stats() const {
   s.enabled = true;
   s.weight = weight_;
   const SchedState st = state();
-  s.registered = st == SchedState::Registered || st == SchedState::Stopped;
+  s.registered = st == SchedState::Registered || st == SchedState::Stopped || st == SchedState::Released;
   s.reason = sched_reason(st);
-  if (slot_ != nullptr) {
+  if (slot_ != nullptr && st != SchedState::Released) {
     s.charged_ns = slot_->charged_ns.load(std::memory_order_relaxed);
     s.waits = slot_->waits.load(std::memory_order_relaxed);
     s.wait_ns = slot_->wait_ns.load(std::memory_order_relaxed);
@@ -260,6 +272,8 @@ const char* sched_reason(SchedState state) {
     case SchedState::NoFreeSlot: return "no free slot";
     case SchedState::AllocMode: return "alloc mode has no GPU timing";
     case SchedState::Stopped: return "scheduler stopped";
+    case SchedState::Released: return "";
+    case SchedState::Unsafe: return "scheduler segment is not private to this user";
   }
   return "";
 }
