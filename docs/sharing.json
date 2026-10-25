@@ -1,0 +1,184 @@
+{
+ "seconds": 20,
+ "kernel_ms": 2,
+ "batch": 10,
+ "iters": 247279,
+ "warmup_s": 15,
+ "configurations": [
+  {
+   "label": "solo plain",
+   "daemon": false,
+   "jobs": [
+    {
+     "weight": null,
+     "kernels_per_s": 358.5,
+     "busy": 0.99021964815,
+     "p50_ms": 27.942,
+     "p99_ms": 28.934,
+     "gpu_ns": 19804392963,
+     "waits": 0,
+     "wait_ns": 0,
+     "registered": false,
+     "share": 1.0,
+     "work": 1.0
+    }
+   ]
+  },
+  {
+   "label": "solo fail-open",
+   "daemon": false,
+   "jobs": [
+    {
+     "weight": 50,
+     "kernels_per_s": 357.5,
+     "busy": 0.9905859862,
+     "p50_ms": 27.996,
+     "p99_ms": 29.414,
+     "gpu_ns": 19811719724,
+     "waits": 0,
+     "wait_ns": 0,
+     "registered": false,
+     "share": 1.0,
+     "work": 1.0
+    }
+   ]
+  },
+  {
+   "label": "solo scheduled",
+   "daemon": true,
+   "jobs": [
+    {
+     "weight": 50,
+     "kernels_per_s": 357.5,
+     "busy": 0.9912369336,
+     "p50_ms": 28.03,
+     "p99_ms": 28.793,
+     "gpu_ns": 19824738672,
+     "waits": 0,
+     "wait_ns": 0,
+     "registered": true,
+     "share": 1.0,
+     "work": 1.0
+    }
+   ]
+  },
+  {
+   "label": "pair none",
+   "daemon": false,
+   "jobs": [
+    {
+     "weight": null,
+     "kernels_per_s": 132.0,
+     "busy": 0.9921134164,
+     "p50_ms": 75.741,
+     "p99_ms": 78.353,
+     "gpu_ns": 19842268328,
+     "waits": 0,
+     "wait_ns": 0,
+     "registered": false,
+     "share": 0.5000472845999314,
+     "work": 0.5009487666034156
+    },
+    {
+     "weight": null,
+     "kernels_per_s": 131.5,
+     "busy": 0.9919257874,
+     "p50_ms": 75.853,
+     "p99_ms": 78.294,
+     "gpu_ns": 19838515748,
+     "waits": 0,
+     "wait_ns": 0,
+     "registered": false,
+     "share": 0.4999527154000685,
+     "work": 0.4990512333965844
+    }
+   ]
+  },
+  {
+   "label": "pair 50/50",
+   "daemon": true,
+   "jobs": [
+    {
+     "weight": 50,
+     "kernels_per_s": 132.5,
+     "busy": 0.99167794355,
+     "p50_ms": 75.689,
+     "p99_ms": 78.655,
+     "gpu_ns": 19833558871,
+     "waits": 2257,
+     "wait_ns": 11908266203,
+     "registered": true,
+     "share": 0.4999518285296062,
+     "work": 0.5
+    },
+    {
+     "weight": 50,
+     "kernels_per_s": 132.5,
+     "busy": 0.9918690443,
+     "p50_ms": 75.696,
+     "p99_ms": 79.109,
+     "gpu_ns": 19837380886,
+     "waits": 2118,
+     "wait_ns": 10818619420,
+     "registered": true,
+     "share": 0.5000481714703938,
+     "work": 0.5
+    }
+   ]
+  },
+  {
+   "label": "pair 80/20",
+   "daemon": true,
+   "jobs": [
+    {
+     "weight": 80,
+     "kernels_per_s": 297.5,
+     "busy": 0.99044311655,
+     "p50_ms": 32.927,
+     "p99_ms": 38.595,
+     "gpu_ns": 19808862331,
+     "waits": 2534,
+     "wait_ns": 2955163137,
+     "registered": true,
+     "share": 0.7901362152403852,
+     "work": 0.8960843373493976
+    },
+    {
+     "weight": 20,
+     "kernels_per_s": 34.5,
+     "busy": 0.2630662119,
+     "p50_ms": 300.886,
+     "p99_ms": 303.715,
+     "gpu_ns": 5261324238,
+     "waits": 664,
+     "wait_ns": 19309305890,
+     "registered": true,
+     "share": 0.20986378475961473,
+     "work": 0.10391566265060241
+    }
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "check": "fail-open keeps the GPU 95% as busy as solo",
+   "ok": true
+  },
+  {
+   "check": "fail-open did not register",
+   "ok": true
+  },
+  {
+   "check": "scheduled solo keeps the GPU 95% as busy as solo",
+   "ok": true
+  },
+  {
+   "check": "50/50 within 5 points",
+   "ok": true
+  },
+  {
+   "check": "80/20 within 5 points",
+   "ok": true
+  }
+ ]
+}

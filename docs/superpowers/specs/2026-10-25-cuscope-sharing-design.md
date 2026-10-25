@@ -51,7 +51,7 @@ its next launch until the scheduler has given it more time.
 |---|---|---|
 | No share, no change | Without `--share`, every v0.2.0 test passes unchanged and the trace's `sched` is `null` | Full suite |
 | Fail open | `--share` with no daemon running: same throughput as without cuscope's scheduler (within 5%), one log line | GPU benchmark run, mock test |
-| Shares hold | Two saturating jobs at 80/20 get 80% ± 5 and 20% ± 5 of the GPU time the pair used; at 50/50, 50% ± 5 each | `tools/bench_share.py`, cuscope's measured GPU time per job |
+| Shares hold | Two saturating jobs at 80/20 get 80% ± 5 and 20% ± 5 of the GPU time the pair used; at 50/50, 50% ± 5 each | `tools/bench_share.py`, cuscope's measured GPU time per job. Amended after Task 8, with the user: under WSL time-slicing a job's measured time includes the other's slices, so the real work split is reported too, and it is more unequal than the weights (80/20: measured 79/21, work 90/10); exclusive scheduling is on the roadmap |
 | Work conservation | A job alone under the scheduler reaches at least 95% of its throughput without it | `tools/bench_share.py` |
 | Latency reported | p50 and p99 time per batch for each job in each configuration | `docs/sharing.md` |
 | Dead clients | A job killed while registered frees its slot within one second | Mock test |
