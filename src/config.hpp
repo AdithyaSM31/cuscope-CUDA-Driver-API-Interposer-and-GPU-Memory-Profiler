@@ -19,6 +19,7 @@ struct Config {
   uint32_t sample_every = 1;            // CUSCOPE_SAMPLE_EVERY, >= 1
   uint32_t flush_timeout_ms = 2000;     // CUSCOPE_FLUSH_TIMEOUT_MS, >= 0
   uint64_t mem_limit_bytes = 0;         // CUSCOPE_MEM_LIMIT; 0 = no cap
+  uint32_t share_weight = 0;            // CUSCOPE_SHARE, 1..1000; 0 = not sharing
 
   // One message per variable that was invalid and fell back to its default.
   std::vector<std::string> warnings;

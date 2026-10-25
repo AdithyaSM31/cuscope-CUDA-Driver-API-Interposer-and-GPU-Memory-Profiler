@@ -66,6 +66,15 @@ Config parse_config(const GetenvFn& getenv_fn) {
     }
   }
 
+  if (const char* v = getenv_fn("CUSCOPE_SHARE"); v != nullptr) {
+    long long n = 0;
+    if (!parse_int(v, &n) || n < 1 || n > 1000) {
+      warn(c, "CUSCOPE_SHARE", v, "not sharing");
+    } else {
+      c.share_weight = static_cast<uint32_t>(n);
+    }
+  }
+
   if (const char* v = getenv_fn("CUSCOPE_MEM_LIMIT"); v != nullptr) {
     if (!parse_size(v, &c.mem_limit_bytes)) {
       c.mem_limit_bytes = 0;

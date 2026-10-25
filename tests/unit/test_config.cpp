@@ -122,3 +122,15 @@ TEST(Config, ExpandableSegmentsDetected) {
   EXPECT_TRUE(expandable_segments_enabled(env({{"PYTORCH_ALLOC_CONF", "expandable_segments:True"}})));
   EXPECT_FALSE(expandable_segments_enabled(env({{"PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:False"}})));
 }
+
+TEST(Config, ShareWeight) {
+  EXPECT_EQ(parse_config(env({})).share_weight, 0u);
+  EXPECT_EQ(parse_config(env({{"CUSCOPE_SHARE", "80"}})).share_weight, 80u);
+  EXPECT_EQ(parse_config(env({{"CUSCOPE_SHARE", "1"}})).share_weight, 1u);
+  EXPECT_EQ(parse_config(env({{"CUSCOPE_SHARE", "1000"}})).share_weight, 1000u);
+  for (const char* bad : {"", "0", "1001", "-5", "4.5", "lots"}) {
+    Config c = parse_config(env({{"CUSCOPE_SHARE", bad}}));
+    EXPECT_EQ(c.share_weight, 0u) << bad;
+    EXPECT_EQ(c.warnings.size(), 1u) << bad;
+  }
+}

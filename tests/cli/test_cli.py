@@ -154,3 +154,18 @@ def test_bad_mem_limit_is_an_error():
         assert r.stdout == "", bad  # the program never ran
     for good in ["2G", "512M", "1.5GiB", "268435456", "64KB"]:
         assert child_env("--mem-limit", good)["CUSCOPE_MEM_LIMIT"] == good
+
+
+def test_run_sets_share():
+    assert child_env("--share", "80")["CUSCOPE_SHARE"] == "80"
+
+
+def test_bad_share_is_an_error():
+    for bad in ["0", "1001", "4.5", "lots"]:
+        r = cuscope("run", "--share", bad, "--", sys.executable, "-c", "print(1)")
+        assert r.returncode == 2 and "--share" in r.stderr and r.stdout == "", bad
+
+
+def test_share_needs_full_mode():
+    r = cuscope("run", "--share", "50", "--mode", "alloc", "--", sys.executable, "-c", "print(1)")
+    assert r.returncode == 2 and "full" in r.stderr and r.stdout == ""

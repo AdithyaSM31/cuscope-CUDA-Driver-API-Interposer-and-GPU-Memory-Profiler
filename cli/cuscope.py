@@ -70,6 +70,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     if args.mem_limit is not None and parse_size(args.mem_limit) is None:
         # An explicit cap that does not parse must not run the program uncapped.
         return fail(f"--mem-limit {args.mem_limit!r} is not a size (examples: 2G, 512M, 1.5GiB)")
+    if args.share is not None:
+        if not (args.share.isdigit() and 1 <= int(args.share) <= 1000):
+            return fail(f"--share {args.share!r} must be a whole number from 1 to 1000")
+        if args.mode == "alloc":
+            return fail("--share needs GPU timing: use the default full mode, not --mode alloc")
     lib, looked = find_library()
     if lib is None:
         return fail("cannot find libcuscope.so (looked in " + ", ".join(map(str, looked)) + "); set CUSCOPE_LIB")
@@ -78,7 +83,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     env["LD_PRELOAD"] = f"{lib} {env['LD_PRELOAD']}" if env.get("LD_PRELOAD") else str(lib)
     for option, var in [("mode", "CUSCOPE_MODE"), ("out", "CUSCOPE_OUT"), ("stack_depth", "CUSCOPE_STACK_DEPTH"),
                         ("sample_every", "CUSCOPE_SAMPLE_EVERY"), ("log", "CUSCOPE_LOG"),
-                        ("mem_limit", "CUSCOPE_MEM_LIMIT")]:
+                        ("mem_limit", "CUSCOPE_MEM_LIMIT"), ("share", "CUSCOPE_SHARE")]:
         value = getattr(args, option)
         if value is not None:
             env[var] = str(value)
@@ -264,6 +269,8 @@ def main(argv: list[str]) -> int:
     run.add_argument("--sample-every", type=int, help="time every Nth launch per thread (default 1)")
     run.add_argument("--log", help="write cuscope's messages and summary here instead of stderr")
     run.add_argument("--mem-limit", help="cap GPU memory per process, e.g. 2G (default: none)")
+    run.add_argument("--share", help="share of GPU time when jobs compete, a weight 1-1000 "
+                                      "(needs cuscope sched)")
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- <command> [args...]")
     run.set_defaults(func=cmd_run)
 
