@@ -143,13 +143,17 @@ def main() -> int:
         ("fail-open keeps the GPU 95% as busy as solo", by["solo fail-open"][0]["busy"] >= 0.95 * base),
         ("fail-open did not register", not by["solo fail-open"][0]["registered"]),
         ("scheduled solo keeps the GPU 95% as busy as solo", by["solo scheduled"][0]["busy"] >= 0.95 * base),
-        ("50/50 within 5 points", all(abs(j["share"] - 0.5) <= 0.05 for j in by["pair 50/50"])),
-        ("80/20 within 5 points", abs(by["pair 80/20"][0]["share"] - 0.8) <= 0.05
+        ("50/50 measured GPU time within 5 points", all(abs(j["share"] - 0.5) <= 0.05 for j in by["pair 50/50"])),
+        ("80/20 measured GPU time within 5 points", abs(by["pair 80/20"][0]["share"] - 0.8) <= 0.05
          and abs(by["pair 80/20"][1]["share"] - 0.2) <= 0.05),
     ]
     print()
     for text, ok in checks:
         print(f"{'PASS' if ok else 'FAIL'}  {text}")
+    # Not a check: under time-slicing the work split is wider than the GPU-time
+    # split (docs/sharing.md says why).
+    for label in ("pair 50/50", "pair 80/20"):
+        print(f"info  {label} work split: " + "/".join(f"{100 * j['work']:.1f}" for j in by[label]))
     Path(args.out).write_text(json.dumps({"seconds": args.seconds, "kernel_ms": args.kernel_ms, "batch": args.batch,
                                           "iters": args.iters, "warmup_s": args.warmup,
                                           "configurations": configs,

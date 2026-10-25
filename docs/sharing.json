@@ -2,7 +2,7 @@
  "seconds": 20,
  "kernel_ms": 2,
  "batch": 10,
- "iters": 247279,
+ "iters": 244140,
  "warmup_s": 15,
  "configurations": [
   {
@@ -11,11 +11,11 @@
    "jobs": [
     {
      "weight": null,
-     "kernels_per_s": 358.5,
-     "busy": 0.99021964815,
-     "p50_ms": 27.942,
-     "p99_ms": 28.934,
-     "gpu_ns": 19804392963,
+     "kernels_per_s": 497.0,
+     "busy": 0.9894599968,
+     "p50_ms": 19.927,
+     "p99_ms": 29.201,
+     "gpu_ns": 19789199936,
      "waits": 0,
      "wait_ns": 0,
      "registered": false,
@@ -30,11 +30,11 @@
    "jobs": [
     {
      "weight": 50,
-     "kernels_per_s": 357.5,
-     "busy": 0.9905859862,
-     "p50_ms": 27.996,
-     "p99_ms": 29.414,
-     "gpu_ns": 19811719724,
+     "kernels_per_s": 496.5,
+     "busy": 0.9899904099,
+     "p50_ms": 20.053,
+     "p99_ms": 21.314,
+     "gpu_ns": 19799808198,
      "waits": 0,
      "wait_ns": 0,
      "registered": false,
@@ -49,11 +49,11 @@
    "jobs": [
     {
      "weight": 50,
-     "kernels_per_s": 357.5,
-     "busy": 0.9912369336,
-     "p50_ms": 28.03,
-     "p99_ms": 28.793,
-     "gpu_ns": 19824738672,
+     "kernels_per_s": 497.0,
+     "busy": 0.99032933375,
+     "p50_ms": 20.083,
+     "p99_ms": 20.474,
+     "gpu_ns": 19806586675,
      "waits": 0,
      "wait_ns": 0,
      "registered": true,
@@ -68,29 +68,29 @@
    "jobs": [
     {
      "weight": null,
-     "kernels_per_s": 132.0,
-     "busy": 0.9921134164,
-     "p50_ms": 75.741,
-     "p99_ms": 78.353,
-     "gpu_ns": 19842268328,
+     "kernels_per_s": 185.5,
+     "busy": 0.99132535045,
+     "p50_ms": 53.877,
+     "p99_ms": 54.745,
+     "gpu_ns": 19826507009,
      "waits": 0,
      "wait_ns": 0,
      "registered": false,
-     "share": 0.5000472845999314,
-     "work": 0.5009487666034156
+     "share": 0.49999379168395264,
+     "work": 0.5
     },
     {
      "weight": null,
-     "kernels_per_s": 131.5,
-     "busy": 0.9919257874,
-     "p50_ms": 75.853,
-     "p99_ms": 78.294,
-     "gpu_ns": 19838515748,
+     "kernels_per_s": 185.5,
+     "busy": 0.9913499686,
+     "p50_ms": 53.898,
+     "p99_ms": 54.7,
+     "gpu_ns": 19826999372,
      "waits": 0,
      "wait_ns": 0,
      "registered": false,
-     "share": 0.4999527154000685,
-     "work": 0.4990512333965844
+     "share": 0.5000062083160474,
+     "work": 0.5
     }
    ]
   },
@@ -100,28 +100,28 @@
    "jobs": [
     {
      "weight": 50,
-     "kernels_per_s": 132.5,
-     "busy": 0.99167794355,
-     "p50_ms": 75.689,
-     "p99_ms": 78.655,
-     "gpu_ns": 19833558871,
-     "waits": 2257,
-     "wait_ns": 11908266203,
+     "kernels_per_s": 184.5,
+     "busy": 0.98951326335,
+     "p50_ms": 54.009,
+     "p99_ms": 54.779,
+     "gpu_ns": 19790265267,
+     "waits": 2855,
+     "wait_ns": 9016915514,
      "registered": true,
-     "share": 0.4999518285296062,
+     "share": 0.49979940029468717,
      "work": 0.5
     },
     {
      "weight": 50,
-     "kernels_per_s": 132.5,
-     "busy": 0.9918690443,
-     "p50_ms": 75.696,
-     "p99_ms": 79.109,
-     "gpu_ns": 19837380886,
-     "waits": 2118,
-     "wait_ns": 10818619420,
+     "kernels_per_s": 184.5,
+     "busy": 0.9903075663,
+     "p50_ms": 54.429,
+     "p99_ms": 54.899,
+     "gpu_ns": 19806151326,
+     "waits": 3068,
+     "wait_ns": 11230210691,
      "registered": true,
-     "share": 0.5000481714703938,
+     "share": 0.5002005997053128,
      "work": 0.5
     }
    ]
@@ -132,29 +132,29 @@
    "jobs": [
     {
      "weight": 80,
-     "kernels_per_s": 297.5,
-     "busy": 0.99044311655,
-     "p50_ms": 32.927,
-     "p99_ms": 38.595,
-     "gpu_ns": 19808862331,
-     "waits": 2534,
-     "wait_ns": 2955163137,
+     "kernels_per_s": 408.5,
+     "busy": 0.9937392308,
+     "p50_ms": 23.855,
+     "p99_ms": 27.646,
+     "gpu_ns": 19874784616,
+     "waits": 3489,
+     "wait_ns": 3710226361,
      "registered": true,
-     "share": 0.7901362152403852,
-     "work": 0.8960843373493976
+     "share": 0.7939691513901462,
+     "work": 0.8919213973799127
     },
     {
      "weight": 20,
-     "kernels_per_s": 34.5,
-     "busy": 0.2630662119,
-     "p50_ms": 300.886,
-     "p99_ms": 303.715,
-     "gpu_ns": 5261324238,
-     "waits": 664,
-     "wait_ns": 19309305890,
+     "kernels_per_s": 49.5,
+     "busy": 0.257870141,
+     "p50_ms": 210.957,
+     "p99_ms": 217.294,
+     "gpu_ns": 5157402820,
+     "waits": 946,
+     "wait_ns": 19224132821,
      "registered": true,
-     "share": 0.20986378475961473,
-     "work": 0.10391566265060241
+     "share": 0.2060308486098538,
+     "work": 0.10807860262008734
     }
    ]
   }
@@ -173,11 +173,11 @@
    "ok": true
   },
   {
-   "check": "50/50 within 5 points",
+   "check": "50/50 measured GPU time within 5 points",
    "ok": true
   },
   {
-   "check": "80/20 within 5 points",
+   "check": "80/20 measured GPU time within 5 points",
    "ok": true
   }
  ]

@@ -155,7 +155,7 @@ runs unthrottled and says so once. Waits appear as `throttled` spans on the time
 the summary gains a line (job A of the 80/20 benchmark below):
 
 ```
-Sharing: weight 80, 19.809 s GPU time; 2534 launches waited, 2.955 s in total
+Sharing: weight 80, 19.875 s GPU time; 3489 launches waited, 3.710 s in total
 ```
 
 Two jobs running the same GPU-filling kernel on the RTX 3060
@@ -163,16 +163,16 @@ Two jobs running the same GPU-filling kernel on the RTX 3060
 
 | | job A kernels/s | job B kernels/s | split of the work |
 |---|---|---|---|
-| one job alone, with or without the daemon | 358 | | |
-| two jobs, no scheduler | 132 | 132 | 50 / 50 |
-| `--share 50` / `--share 50` | 133 | 133 | 50 / 50 |
-| `--share 80` / `--share 20` | 298 | 35 | 90 / 10 |
+| one job alone, with or without the daemon | 497 | | |
+| two jobs, no scheduler | 186 | 186 | 50 / 50 |
+| `--share 50` / `--share 50` | 185 | 185 | 50 / 50 |
+| `--share 80` / `--share 20` | 409 | 50 | 89 / 11 |
 
 Sharing costs no throughput: the 50/50 pair does as much work as the unscheduled one, and
-at 80/20 the heavy job runs 2.3 times faster than without a scheduler. The scheduler divides
-*measured* GPU time exactly by weight (79/21), but under WSL the Windows driver time-slices
-the two processes and a kernel's measured time includes the other job's slices, so unequal
-weights come out more unequal in real work.
+at 80/20 the heavy job runs 2.2 times faster than without a scheduler. The scheduler divides
+*measured* GPU time by weight (79/21), but the driver time-slices the two processes (measured
+on WSL) and a kernel's measured time includes the other job's slices, so unequal weights come
+out more unequal in real work.
 
 ## Validation
 
@@ -205,7 +205,8 @@ Medians on the same machine; details and notes in [docs/overhead.md](docs/overhe
 around each launch and copy (a capture check, a context lookup and two event records), a few
 microseconds each on WSL; real kernels hide most of it. A memory cap adds one atomic
 reservation per allocation. `--share` (here a job alone with the daemon running) adds a
-capture check and two atomics per launch, about 2.5 µs on top of `full`. Microsecond-scale
+capture check, a clock read, an estimate lookup and a few atomics per launch, about 2.5 µs
+on top of `full`. Microsecond-scale
 calls on WSL vary by several percent between runs (the negative figures are noise), and the
 laptop GPU's clock moves with power and temperature: this run's baseline training step is
 84.5 ms against 60.6 ms in earlier runs.
@@ -259,8 +260,8 @@ laptop GPU's clock moves with power and temperature: this run's baseline trainin
   process; there is no budget shared by a group of processes.
 - **Compute sharing** delays launches; it cannot pre-empt a running or queued kernel, so one
   long kernel holds the GPU until it finishes. Copies are not charged. Under time-slicing
-  (WSL) a kernel's measured time includes the other job's slices, so unequal weights come
-  out more unequal in real work (80/20 measured, 90/10 work). It needs `full` mode, and the
+  (measured on WSL) a kernel's measured time includes the other job's slices, so unequal
+  weights come out more unequal in real work (80/20 measured, 89/11 work). It needs `full` mode, and the
   daemon's table holds 32 jobs per user.
 - **Sanitizers.** The ASan and TSan CI jobs run the unit tests only: a sanitizer runtime calls
   `dlsym` while initialising, which reaches cuscope's instrumented override too early.

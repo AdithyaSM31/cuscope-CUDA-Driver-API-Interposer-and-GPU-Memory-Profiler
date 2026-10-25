@@ -199,10 +199,12 @@ changes what a program sees, and it does so only as a full GPU would.
 launch, and waiting and solo flags. Jobs with `CUSCOPE_SHARE` claim a slot at their first
 launch.
 
-- **Refill.** Every millisecond the daemon hands the elapsed time to the active jobs (waiting,
-  or launched in the last 50 ms) by weight, capped at 20 ms of credit. The only active job is
-  *solo*: full credit, debt forgiven, and it never waits. A launch made after the tick read
-  the clock still counts as active.
+- **Refill.** Every millisecond the daemon hands the elapsed time to the active jobs (waiting
+  while in debt, or launched in the last 50 ms) by weight, capped at 20 ms of credit. Credit a
+  capped job cannot take goes to the others by weight (water-filling), so a lightly active
+  peer does not hold a busy job to its share. A job no other active job competes with is
+  *solo*: full credit, debt forgiven, and it never waits, even after idling. A launch made
+  after the tick read the clock still counts as active.
 - **Charge and correct.** A launch charges an estimate (a running average of that kernel's
   measured time, 50 µs until measured) and waits in 200 µs steps while the balance is
   negative. When the collector resolves the kernel's GPU span, the charge is corrected to the
@@ -210,9 +212,16 @@ launch.
 - **Never idle.** Under time-slicing each job's measured time includes the other's slices, so
   every job can run short at once. When all active jobs are waiting, the daemon grants credit
   by weight until the least indebted can launch.
-- **Fail open.** No segment, a closed one, a full table, alloc mode, or a heartbeat older than
-  100 ms while waiting: the job runs unthrottled and logs once. The client is created with a
-  compare-and-swap, never a lock, so a fork cannot inherit one held.
+- **Fail open.** No segment, a closed or stale one, a full table, or alloc mode at the first
+  launch; or, while waiting, a stale heartbeat, a slot that is no longer the job's, or a wait
+  over 30 s: the job runs unthrottled and logs once. The client is created with a
+  compare-and-swap, never a lock, so a fork cannot inherit one held. At exit the slot is
+  released first in state, so a thread still waiting returns without touching it.
+- **Restart and ownership.** A daemon that finds a segment nobody serves (the old daemon
+  crashed) closes and unlinks it and creates a fresh one; jobs on the old one see it closed
+  and run unthrottled. A segment not owned by this user, or open to group or others, is
+  never used: the daemon refuses to start and a job fails open, since anyone who could
+  write it could hold the user's jobs. SIGINT, SIGTERM and SIGHUP stop the daemon cleanly.
 - **Measured, not exclusive.** The split is of measured GPU time. Under WSL's time-slicing
   unequal weights come out more unequal in real work; see [sharing.md](sharing.md).
 

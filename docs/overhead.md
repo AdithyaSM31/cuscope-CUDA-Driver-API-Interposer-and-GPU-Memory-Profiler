@@ -31,7 +31,8 @@ PyTorch configuration; wall-clock time on the calling thread.
 - `full` with a 4 GiB cap (`CUSCOPE_MEM_LIMIT=4G`, never reached here) adds one atomic
   reservation per allocation and one release per free on top of `full`.
 - `full` with `--share` runs alone with the scheduler daemon: each kernel launch charges an
-  estimate to the job's balance in shared memory (two atomics); a job alone never waits.
+  estimate to the job's balance in shared memory (a capture check, a clock read, a lookup of
+  the kernel's running average under a lock, and a few atomics); a job alone never waits.
 - These are medians, but microsecond-scale calls on WSL still vary between runs by several
   percent (see the alloc-mode copy figure, which can come out below `off`). Treat differences
   under about 5% as noise.
