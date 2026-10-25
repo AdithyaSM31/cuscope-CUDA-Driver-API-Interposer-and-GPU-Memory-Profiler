@@ -93,3 +93,78 @@ def direct_mimic(tmp_path_factory):
         tmp = tmp_path_factory.mktemp("direct_mimic")
         return _run([str(BUILD / "mock" / "direct_mimic")], "direct", preload, env, tmp)
     return run
+
+
+# ---- Compute sharing: the scheduler daemon ----
+
+import signal
+import time
+import uuid
+
+SCHED = BUILD / "cuscope-sched"
+
+
+def wait_until(predicate, timeout: float, step: float = 0.02) -> None:
+    deadline = time.monotonic() + timeout
+    while not predicate():
+        if time.monotonic() > deadline:
+            raise AssertionError(f"condition not met within {timeout}s")
+        time.sleep(step)
+
+
+class SchedDaemon:
+    """A cuscope-sched with a segment name of its own (CUSCOPE_SCHED_NAME)."""
+
+    def __init__(self) -> None:
+        self.name = f"/cuscope-test-{uuid.uuid4().hex[:12]}"
+        self.env = {"CUSCOPE_SCHED_NAME": self.name}
+        self.proc = None
+
+    def start(self) -> None:
+        env = {**os.environ, **self.env}
+        self.proc = subprocess.Popen([str(SCHED)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                     text=True)
+        wait_until(lambda: self.proc.poll() is not None or Path("/dev/shm" + self.name).exists(), timeout=5)
+        assert self.proc.poll() is None, self.proc.stderr.read()
+        wait_until(lambda: self._status_run().returncode == 0, timeout=5)
+
+    def _status_run(self) -> subprocess.CompletedProcess:
+        return subprocess.run([str(SCHED), "--status"], env={**os.environ, **self.env}, capture_output=True,
+                              text=True, timeout=5)
+
+    def status(self) -> list[dict]:
+        """One dict per used slot: slot, pid, weight, balance_ns, solo, waiting."""
+        r = self._status_run()
+        assert r.returncode == 0, r.stderr
+        keys = ["slot", "pid", "weight", "balance_ns", "solo", "waiting"]
+        return [dict(zip(keys, map(int, line.split()))) for line in r.stdout.splitlines() if line.strip()]
+
+    def stop(self) -> None:
+        if self.proc is not None and self.proc.poll() is None:
+            self.proc.send_signal(signal.SIGTERM)
+            self.proc.wait(timeout=5)
+
+    def kill(self) -> None:
+        if self.proc is not None and self.proc.poll() is None:
+            self.proc.kill()
+            self.proc.wait(timeout=5)
+
+    def cleanup(self) -> None:
+        self.kill()
+        Path("/dev/shm" + self.name).unlink(missing_ok=True)
+
+
+@pytest.fixture
+def sched_daemon():
+    daemon = SchedDaemon()
+    daemon.start()
+    yield daemon
+    daemon.cleanup()
+
+
+@pytest.fixture
+def tmp_name_env():
+    """A segment name no daemon owns."""
+    name = f"/cuscope-test-{uuid.uuid4().hex[:12]}"
+    yield {"CUSCOPE_SCHED_NAME": name}
+    Path("/dev/shm" + name).unlink(missing_ok=True)

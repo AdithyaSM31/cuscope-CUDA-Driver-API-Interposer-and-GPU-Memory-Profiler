@@ -10,8 +10,12 @@
       Prints the summary of a trace, with source file:line for each leak and
       invalid free (programs built with -g or -lineinfo).
 
+  cuscope sched [--verbose] [--status]
+      Runs the compute-sharing daemon in the foreground. Jobs started with
+      `cuscope run --share N` get GPU time by weight while it runs.
+
 The library is found through $CUSCOPE_LIB, then <cli>/../lib/libcuscope.so,
-then <cli>/../build/libcuscope.so.
+then <cli>/../build/libcuscope.so; the daemon likewise through $CUSCOPE_SCHED.
 """
 
 import argparse
@@ -36,6 +40,19 @@ def find_library() -> tuple[Path | None, list[Path]]:
         candidates = [here.parent / "lib" / "libcuscope.so", here.parent / "build" / "libcuscope.so"]
     for path in candidates:
         if path.is_file():
+            return path.resolve(), candidates
+    return None, candidates
+
+
+def find_sched() -> tuple[Path | None, list[Path]]:
+    """The compute-sharing daemon, found like the library."""
+    here = Path(__file__).resolve().parent
+    if os.environ.get("CUSCOPE_SCHED"):
+        candidates = [Path(os.environ["CUSCOPE_SCHED"])]
+    else:
+        candidates = [here.parent / "lib" / "cuscope-sched", here.parent / "build" / "cuscope-sched"]
+    for path in candidates:
+        if path.is_file() and os.access(path, os.X_OK):
             return path.resolve(), candidates
     return None, candidates
 
@@ -99,6 +116,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         return fail(f"command not found: {command[0]}", 127)
     except PermissionError:
         return fail(f"command not executable: {command[0]}", 126)
+
+
+# ---- sched ----
+
+def cmd_sched(args: argparse.Namespace) -> int:
+    daemon, looked = find_sched()
+    if daemon is None:
+        return fail("cannot find cuscope-sched (looked in " + ", ".join(map(str, looked)) + "); set CUSCOPE_SCHED")
+    argv = [str(daemon)] + (["--verbose"] if args.verbose else []) + (["--status"] if args.status else [])
+    sys.stdout.flush()
+    os.execv(argv[0], argv)  # the daemon runs in the foreground; Ctrl-C stops it
 
 
 # ---- summary ----
@@ -278,6 +306,11 @@ def main(argv: list[str]) -> int:
     summary.add_argument("trace")
     summary.add_argument("--frames", type=int, default=1, help="program frames to show per call site")
     summary.set_defaults(func=cmd_summary)
+
+    sched = sub.add_parser("sched", help="run the compute-sharing daemon that --share jobs register with")
+    sched.add_argument("--verbose", action="store_true", help="print each job's share of GPU time every second")
+    sched.add_argument("--status", action="store_true", help="list the running daemon's jobs and exit")
+    sched.set_defaults(func=cmd_sched)
 
     args = parser.parse_args(argv)
     return args.func(args)

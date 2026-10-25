@@ -102,6 +102,14 @@ if(NOT CUSCOPE_SANITIZE)
 endif()
 set_target_properties(cuscope PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+# The compute-sharing daemon. It shares only the token math with the library
+# and loads no CUDA; `cuscope sched` finds it next to libcuscope.so.
+add_executable(cuscope-sched tools/cuscope_sched.cpp src/sched_core.cpp)
+target_include_directories(cuscope-sched PRIVATE src)
+target_compile_options(cuscope-sched PRIVATE -Wall -Wextra)
+target_link_libraries(cuscope-sched PRIVATE rt)
+set_target_properties(cuscope-sched PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
 if(CUSCOPE_BUILD_TESTS)
   enable_testing()
   enable_language(ASM)  # the mock shim's generated trampolines
