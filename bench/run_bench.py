@@ -19,6 +19,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 BUILD = Path(os.environ.get("CUSCOPE_BUILD", REPO / "build"))
+SCHED_NAME = f"/cuscope-runbench-{os.getpid()}"  # a daemon of its own for the full+share mode
 MICRO = BUILD / "bench" / "micro"
 RESNET = REPO / "bench" / "pytorch_resnet.py"
 
@@ -35,6 +36,8 @@ def mode_env(mode: str, tmp: Path, sample_every: int) -> dict:
             env["CUSCOPE_SAMPLE_EVERY"] = str(sample_every)
         if "+cap" in mode:
             env["CUSCOPE_MEM_LIMIT"] = "4G"
+        if "+share" in mode:
+            env.update(CUSCOPE_SHARE="100", CUSCOPE_SCHED_NAME=SCHED_NAME)
     return env
 
 
@@ -68,8 +71,19 @@ def main() -> int:
     p.add_argument("--out", default=str(REPO / "docs" / "overhead.md"))
     args = p.parse_args()
 
-    modes = ["off", "alloc", "full"] + ([f"full+sample"] if args.sample_every > 1 else []) + ["full+cap"]
+    modes = ["off", "alloc", "full"] + ([f"full+sample"] if args.sample_every > 1 else []) + ["full+cap",
+                                                                                        "full+share"]
     results: dict[str, dict[str, float]] = {}
+    sched_env = {k: v for k, v in os.environ.items() if not k.startswith("CUSCOPE_")}
+    sched = subprocess.Popen([str(BUILD / "cuscope-sched")], env={**sched_env, "CUSCOPE_SCHED_NAME": SCHED_NAME})
+    try:
+        return measure(args, modes, results)
+    finally:
+        sched.terminate()
+        sched.wait(timeout=5)
+
+
+def measure(args, modes: list, results: dict) -> int:
     with tempfile.TemporaryDirectory(prefix="cuscope-bench-") as d:
         tmp = Path(d)
         for name, _, iters in MICROS:
@@ -85,7 +99,7 @@ def main() -> int:
             print(f"torch   {mode:12} {results['torch'][mode]:9.2f} ms", flush=True)
 
     labels = {"off": "off", "alloc": "`alloc`", "full": "`full`", "full+sample": f"`full`, sample every {args.sample_every}",
-              "full+cap": "`full`, 4 GiB cap"}
+              "full+cap": "`full`, 4 GiB cap", "full+share": "`full`, `--share` (alone)"}
     lines = [
         "# Overhead",
         "",
@@ -125,6 +139,8 @@ def main() -> int:
         "  so every copy contributes to the bandwidth figures.",
         "- `full` with a 4 GiB cap (`CUSCOPE_MEM_LIMIT=4G`, never reached here) adds one atomic",
         "  reservation per allocation and one release per free on top of `full`.",
+        "- `full` with `--share` runs alone with the scheduler daemon: each kernel launch charges an",
+        "  estimate to the job's balance in shared memory (two atomics); a job alone never waits.",
         "- These are medians, but microsecond-scale calls on WSL still vary between runs by several",
         "  percent (see the alloc-mode copy figure, which can come out below `off`). Treat differences",
         "  under about 5% as noise.",

@@ -1,6 +1,6 @@
 # cuscope design
 
-This is the design as built for v0.2.0. It started from the Phase 1 spec
+This is the design as built for v0.3.0. It started from the Phase 1 spec
 ([superpowers/specs/2026-10-21-cuscope-phase1-design.md](superpowers/specs/2026-10-21-cuscope-phase1-design.md))
 and records the decisions and findings made while building it on an RTX 3060 Laptop GPU
 under WSL2 (Windows driver 617.14, CUDA 13.0).
@@ -192,7 +192,31 @@ changes what a program sees, and it does so only as a full GPU would.
   process reached 12.5 GiB on the 6 GiB 3060), so uncapped jobs do not run out of memory
   there as they would on native Linux. The cap holds on both. See [memcaps.md](memcaps.md).
 
-## 6. Components
+## 6. Compute sharing
+
+`cuscope sched` (`tools/cuscope_sched.cpp`) owns a per-user POSIX shared-memory segment
+(`/cuscope-sched-<uid>`, mode 0600) with 32 job slots of atomics: weight, balance, last
+launch, and waiting and solo flags. Jobs with `CUSCOPE_SHARE` claim a slot at their first
+launch.
+
+- **Refill.** Every millisecond the daemon hands the elapsed time to the active jobs (waiting,
+  or launched in the last 50 ms) by weight, capped at 20 ms of credit. The only active job is
+  *solo*: full credit, debt forgiven, and it never waits. A launch made after the tick read
+  the clock still counts as active.
+- **Charge and correct.** A launch charges an estimate (a running average of that kernel's
+  measured time, 50 µs until measured) and waits in 200 µs steps while the balance is
+  negative. When the collector resolves the kernel's GPU span, the charge is corrected to the
+  measured time. Launches on a capturing stream are not charged.
+- **Never idle.** Under time-slicing each job's measured time includes the other's slices, so
+  every job can run short at once. When all active jobs are waiting, the daemon grants credit
+  by weight until the least indebted can launch.
+- **Fail open.** No segment, a closed one, a full table, alloc mode, or a heartbeat older than
+  100 ms while waiting: the job runs unthrottled and logs once. The client is created with a
+  compare-and-swap, never a lock, so a fork cannot inherit one held.
+- **Measured, not exclusive.** The split is of measured GPU time. Under WSL's time-slicing
+  unequal weights come out more unequal in real work; see [sharing.md](sharing.md).
+
+## 7. Components
 
 | File | Job |
 |---|---|
@@ -202,26 +226,30 @@ changes what a program sees, and it does so only as a full GPU would.
 | `src/wrappers/*.cpp` | alloc, memcpy, launch, teardown and name hooks; path-1 exports |
 | `src/tracker.cpp`, `src/stacks.cpp` | allocations, peaks, leaks, invalid frees; call-site stacks |
 | `src/limits.cpp`, `src/wrappers/meminfo.cpp` | the memory cap; the `cuMemGetInfo` hook |
+| `src/sched_shm.hpp`, `src/sched_core.cpp`, `src/sched_client.cpp`, `tools/cuscope_sched.cpp` | compute sharing: layout, token math, the job side, the daemon |
 | `src/ring.hpp`, `src/recorder.cpp` | SPSC rings, collector thread, fork handling |
 | `src/gputimer.cpp`, `src/names.hpp` | event pool, clock alignment, exit flush; kernel names |
 | `src/summary.cpp`, `src/trace_writer.cpp`, `src/report.cpp` | aggregation, Chrome Trace JSON, text summary |
-| `cli/cuscope.py` | `run` and `summary` |
+| `cli/cuscope.py` | `run`, `summary` and `sched` |
 
-## 7. Testing
+## 8. Testing
 
 - **Mock driver** (`tests/mock`): about 30 driver functions on host memory, in two modes: the
   driver itself, and a WSL-style loader shim generated from its exports. A runtime-like program
   and a `-lcuda` program exercise all three paths, both stream variants, version mismatch, the
   shim's re-entrant `dlsym`, `RTLD_DEFAULT`, fork, capture, teardown and sampling, and the
   memory cap: exact denial, eight threads never overshooting, pinned memory, pitch padding,
-  driver failures, double frees, teardown, fork and `cuMemGetInfo`.
+  driver failures, double frees, teardown, fork and `cuMemGetInfo`; and compute sharing
+  with the real daemon: registration, fail-open, dead jobs freed, a 3:1 split, solo jobs
+  never waiting, the daemon stopping mid-run, capture launches and corrected charges.
 - **GPU programs** (`tests/cuda`): each runs with and without cuscope, and stdout and exit code
   must match. Known answers: `leak` (two leaks, exact sizes and lines), `double_free`,
   `async_pool` (live bytes 8, 12, 4, 20, 16, 0 MiB), `multistream`, `multithread`, `bandwidth`
   (pinned faster), `graph_capture` (still 3 nodes), `device_reset` (a teardown leak),
   `capture_race` (a global-mode capture while timed work is pending), `exit_busy` (exit with
   a kernel running), `fork_after_cuda` (one trace, the parent's), `cap_exact` (the fifth
-  64 MiB allocation under a 256 MiB cap is denied, static and shared runtime), and
+  64 MiB allocation under a 256 MiB cap is denied, static and shared runtime), `share_load`
+  (two jobs at 50/50 split within 40-60%), and
   `hello` built static and shared, which must give identical reports.
 - **Driver checks**: `tools/check_exports.py`, and `tools/census.py` for the Day 2 gate.
 - **PyTorch** ([validation.md](validation.md)) and **overhead** ([overhead.md](overhead.md)).
@@ -229,6 +257,6 @@ changes what a program sees, and it does so only as a full GPU would.
   only the unit tests run, because the sanitizer runtime's own early `dlsym` calls reach the
   instrumented override before the sanitizer is initialised.
 
-## 8. Limitations
+## 9. Limitations
 
 See the [README](../README.md#limitations).

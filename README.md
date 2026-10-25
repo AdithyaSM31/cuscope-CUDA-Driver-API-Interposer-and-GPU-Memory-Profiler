@@ -6,7 +6,8 @@ cuscope records every GPU allocation, copy and kernel launch of an unmodified CU
 (a static or shared CUDA runtime build, or PyTorch) by sitting between the program and the
 CUDA driver, and gives you a leak report, memory and timing summaries, and a timeline for
 [Perfetto](https://ui.perfetto.dev). It can also give each process a GPU memory budget
-(`--mem-limit 2G`), so jobs sharing one GPU stay within the share you gave them.
+(`--mem-limit 2G`) and a weighted share of GPU time (`--share 80` with `cuscope sched`), so
+jobs sharing one GPU stay within the share you gave them.
 
 ![cuscope trace of tests/cuda/multistream in Perfetto: four concurrent kernels on four GPU stream tracks](docs/img/perfetto-multistream.webp)
 
@@ -33,7 +34,7 @@ python3 cli/cuscope.py summary train.json        # leaks and invalid frees with 
 
 Options: `--mode alloc` (memory only, no GPU timing), `--sample-every N` (time 1 in N kernel
 launches), `--stack-depth N`, `--log FILE`, `--mem-limit SIZE` (a per-process GPU memory
-cap, below). The program's stdout and exit code are unchanged;
+cap, below), `--share N` (a weight for GPU time, below). The program's stdout and exit code are unchanged;
 `run` becomes the program (like `env`), so Ctrl-C and other signals go to it alone.
 `CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) bounds how long cuscope waits at exit and at
 context teardown for GPU work it is timing. Put `%p` (the pid) in `--out` when several
@@ -137,6 +138,42 @@ native Linux the later job is expected to run out of memory (not measured here);
 the excess to system RAM
 instead. Capped, both jobs finish inside their budgets at the same speed.
 
+## Compute sharing
+
+```bash
+python3 cli/cuscope.py sched &                                   # the scheduler daemon
+python3 cli/cuscope.py run --share 80 -- python3 train.py
+python3 cli/cuscope.py run --share 20 -- python3 eval.py
+```
+
+Jobs started with `--share N` register with the daemon and get GPU time by weight when they
+compete; a job alone gets the whole GPU. Each kernel or graph launch charges the job an
+estimate of its GPU time, corrected once cuscope has measured the kernel; a job over its
+share waits before its next launch until the daemon (refilling every millisecond) has given
+it more. A launch is only ever delayed, never failed or changed. Without the daemon a job
+runs unthrottled and says so once. Waits appear as `throttled` spans on the timeline, and
+the summary gains a line (job A of the 80/20 benchmark below):
+
+```
+Sharing: weight 80, 19.809 s GPU time; 2534 launches waited, 2.955 s in total
+```
+
+Two jobs running the same GPU-filling kernel on the RTX 3060
+([docs/sharing.md](docs/sharing.md)):
+
+| | job A kernels/s | job B kernels/s | split of the work |
+|---|---|---|---|
+| one job alone, with or without the daemon | 358 | | |
+| two jobs, no scheduler | 132 | 132 | 50 / 50 |
+| `--share 50` / `--share 50` | 133 | 133 | 50 / 50 |
+| `--share 80` / `--share 20` | 298 | 35 | 90 / 10 |
+
+Sharing costs no throughput: the 50/50 pair does as much work as the unscheduled one, and
+at 80/20 the heavy job runs 2.3 times faster than without a scheduler. The scheduler divides
+*measured* GPU time exactly by weight (79/21), but under WSL the Windows driver time-slices
+the two processes and a kernel's measured time includes the other job's slices, so unequal
+weights come out more unequal in real work.
+
 ## Validation
 
 Checked against PyTorch's own numbers on ResNet-18 training (batch 32, 50 steps, RTX 3060
@@ -157,18 +194,21 @@ attributes every allocation to the library that made it, from its call stack.
 
 Medians on the same machine; details and notes in [docs/overhead.md](docs/overhead.md).
 
-| | off | `alloc` | `full` | `full`, 1 in 10 launches timed | `full` + 4 GiB cap |
-|---|---|---|---|---|---|
-| Empty kernel launch | 8.1 µs | −17% | +134% | +5.6% | +136% |
-| `cudaMalloc` + `cudaFree` (4 KiB) | 376 µs | −4.7% | −5.8% | −10% | −11% |
-| `cudaMemcpy` 4 KiB host to device | 35.0 µs | +1.1% | +19% | +17% | +12% |
-| **PyTorch ResNet-18 training step** | 60.61 ms | **+0.2%** | **+2.6%** | **+0.6%** | **+2.5%** |
+| | off | `alloc` | `full` | `full`, 1 in 10 launches timed | `full` + 4 GiB cap | `full` + `--share` |
+|---|---|---|---|---|---|---|
+| Empty kernel launch | 8.9 µs | +5.6% | +172% | +11% | +197% | +200% |
+| `cudaMalloc` + `cudaFree` (4 KiB) | 444 µs | −4.1% | −11% | −11% | −7.5% | −7.6% |
+| `cudaMemcpy` 4 KiB host to device | 22.9 µs | −3.4% | +42% | +36% | +50% | +42% |
+| **PyTorch ResNet-18 training step** | 84.53 ms | **+0.3%** | **+1.6%** | **+0.6%** | **+1.8%** | **+2.2%** |
 
 `alloc` mode costs nothing measurable on a training step. `full` mode adds four driver calls
 around each launch and copy (a capture check, a context lookup and two event records), a few
 microseconds each on WSL; real kernels hide most of it. A memory cap adds one atomic
-reservation per allocation and costs nothing measurable on top of `full`. Microsecond-scale
-calls on WSL vary by several percent between runs (the negative figures are noise).
+reservation per allocation. `--share` (here a job alone with the daemon running) adds a
+capture check and two atomics per launch, about 2.5 µs on top of `full`. Microsecond-scale
+calls on WSL vary by several percent between runs (the negative figures are noise), and the
+laptop GPU's clock moves with power and temperature: this run's baseline training step is
+84.5 ms against 60.6 ms in earlier runs.
 
 ## Limitations
 
@@ -217,6 +257,11 @@ calls on WSL vary by several percent between runs (the negative figures are nois
   Stream-ordered pools may keep freed memory reserved. A pitched allocation is charged its
   padded size after the call, so it can pass the cap by its row padding. The cap is per
   process; there is no budget shared by a group of processes.
+- **Compute sharing** delays launches; it cannot pre-empt a running or queued kernel, so one
+  long kernel holds the GPU until it finishes. Copies are not charged. Under time-slicing
+  (WSL) a kernel's measured time includes the other job's slices, so unequal weights come
+  out more unequal in real work (80/20 measured, 90/10 work). It needs `full` mode, and the
+  daemon's table holds 32 jobs per user.
 - **Sanitizers.** The ASan and TSan CI jobs run the unit tests only: a sanitizer runtime calls
   `dlsym` while initialising, which reaches cuscope's instrumented override too early.
 
@@ -235,6 +280,6 @@ Design, decisions and findings: [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Roadmap
 
-- **Compute sharing (Phase 2b).** A small daemon hands out launch tokens per process by configured share,
-  measured against kernel time cuscope already records.
+- **Exclusive scheduling.** Jobs take turns on the GPU, so measured time equals real work and
+  unequal shares come out exact under time-slicing too.
 - More of the census list: memsets, 2D/3D copies and the VMM APIs.
