@@ -48,7 +48,10 @@ constexpr CopyDir copy_dir(uint8_t aux) { return static_cast<CopyDir>(aux & 0x0F
 constexpr bool copy_pinned(uint8_t aux) { return (aux & 0x10) != 0; }
 
 // AllocDenied: an allocation the memory cap refused; it never reached the driver.
-enum class RecType : uint8_t { ApiCall, Alloc, AllocFailed, Free, InvalidFree, Launch, Copy, GraphLaunch, AllocDenied };
+// Throttled: a launch waited for its share of GPU time (cpu_ns, dur_ns).
+enum class RecType : uint8_t {
+  ApiCall, Alloc, AllocFailed, Free, InvalidFree, Launch, Copy, GraphLaunch, AllocDenied, Throttled
+};
 
 // One hooked call, written by the calling thread into its ring buffer.
 struct alignas(64) Record {
@@ -70,6 +73,7 @@ static_assert(sizeof(Record) == 64, "a Record is one cache line");
 // GPU execution of one launch or copy, on the CPU clock.
 struct GpuSpan {
   uint64_t corr, stream, start_ns, end_ns, func, bytes;
+  uint64_t charged_ns;  // GPU time compute sharing charged at launch; 0 if none
   uint16_t api;
   uint8_t aux;
 };

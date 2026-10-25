@@ -109,8 +109,38 @@ SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now,
 }
 
 uint64_t SchedClient::before_launch(uint64_t key) {
-  (void)key;
-  return 0;  // charging and waiting: Task 5
+  if (state() != SchedState::Registered || slot_ == nullptr) return 0;
+  const uint64_t est = estimator_.estimate(key);
+  const uint64_t start = now_();
+  slot_->last_launch_ns.store(start, std::memory_order_relaxed);
+  slot_->charged_ns.fetch_add(est, std::memory_order_relaxed);
+  int64_t balance = slot_->balance_ns.fetch_sub(static_cast<int64_t>(est), std::memory_order_acq_rel) -
+                    static_cast<int64_t>(est);
+
+  // Over its share: wait for the daemon's refill. A solo job never waits,
+  // and a daemon that has stopped (closed segment) or stopped beating
+  // (stale heartbeat) ends throttling for good: never stuck.
+  bool waited = false;
+  while (balance < 0 && slot_->solo.load(std::memory_order_acquire) == 0) {
+    const uint64_t now = now_();
+    const uint64_t beat = shm_->heartbeat_ns.load(std::memory_order_acquire);
+    if (shm_->closed.load(std::memory_order_acquire) != 0 || (now > beat && now - beat > kStaleNs)) {
+      state_.store(SchedState::Stopped, std::memory_order_release);
+      break;
+    }
+    slot_->waiting.store(1, std::memory_order_release);
+    waited = true;
+    sleep_(kWaitStepNs);
+    balance = slot_->balance_ns.load(std::memory_order_acquire);
+  }
+  if (waited) {
+    slot_->waiting.store(0, std::memory_order_release);
+    const uint64_t dur = now_() - start;
+    slot_->waits.fetch_add(1, std::memory_order_relaxed);
+    slot_->wait_ns.fetch_add(dur, std::memory_order_relaxed);
+    if (on_wait_ != nullptr) on_wait_(start, dur);
+  }
+  return est;
 }
 
 void SchedClient::release() {

@@ -10,7 +10,9 @@
 
 #include "config.hpp"
 #include "guard.hpp"
+#include "loader.hpp"
 #include "log.hpp"
+#include "recorder.hpp"
 #include "sched_core.hpp"
 
 namespace cuscope {
@@ -40,6 +42,29 @@ SchedShm* map_segment() {
   return p == MAP_FAILED ? nullptr : static_cast<SchedShm*>(p);
 }
 
+// A wait, on the launching thread's timeline.
+void record_wait(uint64_t start_ns, uint64_t dur_ns) {
+  Record r{};
+  r.type = RecType::Throttled;
+  r.cpu_ns = start_ns;
+  r.dur_ns = dur_ns > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(dur_ns);
+  record(r);
+}
+
+// Launches on a stream being captured into a graph do not run now: they are
+// neither charged nor delayed. If the driver cannot say, do not charge.
+bool capturing(int variant, CUstream stream) {
+  static const decltype(&::cuStreamIsCapturing) is_capturing[2] = {CS_DRIVER_FN(cuStreamIsCapturing),
+                                                                   CS_DRIVER_FN_PTSZ(cuStreamIsCapturing)};
+  const auto fn = is_capturing[variant];
+  if (fn == nullptr) return true;
+  InternalScope internal;
+  CUstreamCaptureStatus status = CU_STREAM_CAPTURE_STATUS_NONE;
+  return fn(stream, &status) != CUDA_SUCCESS || status != CU_STREAM_CAPTURE_STATUS_NONE;
+}
+
+std::atomic<bool> g_stop_logged{false};
+
 // Created at the first launch and never destroyed (an exit handler may still
 // use it). No lock: a fork must never inherit one held by another thread.
 std::atomic<SchedClient*> g_client{nullptr};
@@ -54,6 +79,7 @@ SchedClient* client() {
   } else {
     made = new SchedClient(map_segment(), static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
   }
+  made->set_on_wait(record_wait);
   SchedClient* expected = nullptr;
   if (!g_client.compare_exchange_strong(expected, made, std::memory_order_acq_rel)) {
     made->release();  // another thread registered first
@@ -74,10 +100,14 @@ SchedClient* client() {
 }  // namespace
 
 uint64_t sched_before_launch(int variant, CUstream stream, uint64_t key) {
-  (void)variant;
-  (void)stream;
   if (config().share_weight == 0 || in_internal()) return 0;
-  return client()->before_launch(key);
+  SchedClient* c = client();
+  if (c->state() != SchedState::Registered || capturing(variant, stream)) return 0;
+  const uint64_t charged = c->before_launch(key);
+  if (c->state() == SchedState::Stopped && !g_stop_logged.exchange(true)) {
+    log_msg("compute sharing off: scheduler stopped (running unthrottled from now on)");
+  }
+  return charged;
 }
 
 void sched_fill(Snapshot& s) {
@@ -96,6 +126,9 @@ void sched_release_at_exit() {
   if (SchedClient* c = g_client.load(std::memory_order_acquire)) c->release();
 }
 
-void sched_after_fork_child() { g_client.store(nullptr, std::memory_order_release); }
+void sched_after_fork_child() {
+  g_client.store(nullptr, std::memory_order_release);
+  g_stop_logged.store(false, std::memory_order_relaxed);
+}
 
 }  // namespace cuscope

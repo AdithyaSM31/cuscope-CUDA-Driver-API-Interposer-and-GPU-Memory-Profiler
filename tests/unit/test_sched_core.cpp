@@ -11,6 +11,16 @@ uint64_t g_fake_ns = 1'000'000'000;
 uint64_t fake_now() { return g_fake_ns; }
 void fake_sleep(uint64_t ns) { g_fake_ns += ns; }
 
+uint64_t g_fake_wait_ns = 0;
+
+// A sleep during which a live daemon beats and grants 100 us of credit.
+SchedShm* g_refill_shm = nullptr;
+void refill_on_sleep(uint64_t ns) {
+  g_fake_ns += ns;
+  g_refill_shm->heartbeat_ns = g_fake_ns;
+  g_refill_shm->slots[0].balance_ns += 100'000;
+}
+
 }  // namespace
 
 TEST(SchedCore, SplitsByWeightAmongActive) {
@@ -131,4 +141,64 @@ TEST(SchedClient, StatsCarryWeightAndReason) {
   EXPECT_TRUE(off.enabled);
   EXPECT_FALSE(off.registered);
   EXPECT_EQ(off.reason, "no scheduler running");
+}
+
+TEST(SchedClient, ChargesTheEstimate) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  EXPECT_EQ(c.before_launch(7), kDefaultEstimateNs);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), kCapNs - int64_t(kDefaultEstimateNs));
+  EXPECT_EQ(shm.slots[0].charged_ns.load(), kDefaultEstimateNs);
+  EXPECT_EQ(shm.slots[0].waits.load(), 0u);
+}
+
+TEST(SchedClient, WaitsUntilRefilled) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  g_refill_shm = &shm;
+  SchedClient c(&shm, 4242, 50, fake_now, refill_on_sleep);
+  shm.slots[0].balance_ns = -300'000;
+  uint64_t waited_ns = 0;
+  c.set_on_wait([](uint64_t, uint64_t dur) { g_fake_wait_ns = dur; });
+  c.before_launch(7);
+  waited_ns = g_fake_wait_ns;
+  EXPECT_EQ(shm.slots[0].waits.load(), 1u);
+  EXPECT_GE(shm.slots[0].balance_ns.load(), 0);
+  EXPECT_EQ(shm.slots[0].wait_ns.load(), waited_ns);
+  EXPECT_EQ(shm.slots[0].waiting.load(), 0u);  // cleared after the wait
+  EXPECT_EQ(c.state(), SchedState::Registered);
+}
+
+TEST(SchedClient, SoloNeverWaits) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  shm.slots[0].balance_ns = -50'000'000;
+  shm.slots[0].solo = 1;
+  c.before_launch(7);
+  EXPECT_EQ(shm.slots[0].waits.load(), 0u);
+}
+
+TEST(SchedClient, StaleHeartbeatStopsThrottling) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);  // fake_sleep advances time; nobody beats
+  shm.slots[0].balance_ns = -50'000'000;
+  c.before_launch(7);
+  EXPECT_EQ(c.state(), SchedState::Stopped);
+  EXPECT_EQ(c.before_launch(7), 0u);
+  EXPECT_TRUE(c.stats().registered);
+  EXPECT_EQ(c.stats().reason, "scheduler stopped");
+}
+
+TEST(SchedClient, ClosedSegmentWhileWaitingStops) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  shm.slots[0].balance_ns = -50'000'000;
+  shm.closed = 1;  // the daemon was stopped
+  c.before_launch(7);
+  EXPECT_EQ(c.state(), SchedState::Stopped);
+  EXPECT_EQ(shm.slots[0].waits.load(), 0u);
 }

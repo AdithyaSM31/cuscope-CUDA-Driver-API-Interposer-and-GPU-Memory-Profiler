@@ -72,3 +72,43 @@ def test_killed_job_slot_is_freed(sched_daemon, mimic_popen):
 def test_no_share_no_sched(mimic):
     r = mimic("share_loop", "shim", env={"MIMIC_SECONDS": "0.2"})
     assert r.code == 0 and r.trace["cuscope"]["sched"] is None
+
+
+# ---- Task 5: launches wait when a job is over its share ----
+
+import threading  # noqa: E402
+
+# Back-to-back launches of 1 ms (mock) kernels: far more GPU time than any
+# share. (usleep(10) sleeps ~70 us on WSL, too slow for the 75% job.)
+FAST = {"MOCK_KERNEL_NS": "1000000", "MIMIC_GAP_US": "0"}
+
+
+def test_two_jobs_split_by_weight(sched_daemon, mimic_pair):
+    a, b = mimic_pair("share_loop", weights=(3, 1), env={**sched_daemon.env, **FAST, "MIMIC_SECONDS": "2.0"})
+    assert a.code == 0 and b.code == 0, a.stderr + b.stderr
+    ga, gb = (x.trace["cuscope"]["sched"]["gpu_ns_charged"] for x in (a, b))
+    assert 0.65 <= ga / (ga + gb) <= 0.85, (ga, gb)
+    assert a.trace["cuscope"]["sched"]["waits"] > 0 and b.trace["cuscope"]["sched"]["waits"] > 0
+
+
+def test_alone_is_never_held_back(sched_daemon, mimic):
+    r = mimic("share_loop", "shim", env={**sched_daemon.env, **FAST, "MIMIC_GAP_US": "10", "CUSCOPE_SHARE": "10",
+                                         "MIMIC_SECONDS": "0.5"})
+    assert r.code == 0, r.stderr
+    assert r.trace["cuscope"]["sched"]["waits"] == 0
+
+
+def test_daemon_stopped_jobs_continue(sched_daemon, mimic_pair):  # Review Focus 2
+    # Two jobs, so neither is solo and both wait; the daemon stops mid-run.
+    threading.Timer(0.3, sched_daemon.stop).start()
+    a, b = mimic_pair("share_loop", weights=(1, 1), env={**sched_daemon.env, **FAST, "MIMIC_SECONDS": "0.5"})
+    for r in (a, b):
+        assert r.code == 0, r.stderr
+        assert r.stderr.count("scheduler stopped") == 1, r.stderr
+
+
+def test_capture_launches_not_charged(sched_daemon, mimic):  # Review Focus 5
+    r = mimic("capture", "shim", env={**sched_daemon.env, "CUSCOPE_SHARE": "50"})
+    assert r.code == 0, r.stderr
+    assert r.trace["cuscope"]["sched"]["registered"] is True
+    assert r.trace["cuscope"]["sched"]["gpu_ns_charged"] == 0

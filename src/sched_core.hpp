@@ -70,6 +70,11 @@ class SchedClient {
   // returns what was charged (0 when not registered).
   uint64_t before_launch(uint64_t key);
 
+  // Called after each wait with when it started and how long it took (the
+  // glue records it on the timeline).
+  using WaitHook = void (*)(uint64_t start_ns, uint64_t dur_ns);
+  void set_on_wait(WaitHook hook) { on_wait_ = hook; }
+
   // Gives the slot back (at exit). Stats stay readable afterwards.
   void release();
 
@@ -83,6 +88,7 @@ class SchedClient {
   Sleep sleep_;
   std::atomic<SchedState> state_{SchedState::NoScheduler};
   Estimator estimator_;
+  WaitHook on_wait_ = nullptr;
   uint64_t released_charged_ = 0, released_waits_ = 0, released_wait_ns_ = 0;
 };
 

@@ -251,15 +251,18 @@ void run(const char* scenario) {
       if (q != 0) release(q);
     }
   } else if (std::strcmp(scenario, "share_loop") == 0) {
-    // Launches for MIMIC_SECONDS (default 1.0) seconds, 100 us apart.
+    // Launches for MIMIC_SECONDS (default 1.0) seconds, MIMIC_GAP_US (default
+    // 100) microseconds apart.
     const char* secs = std::getenv("MIMIC_SECONDS");
     const auto stop = std::chrono::steady_clock::now() +
                       std::chrono::duration<double>(secs != nullptr ? std::atof(secs) : 1.0);
+    const char* gap = std::getenv("MIMIC_GAP_US");
+    const useconds_t gap_us = gap != nullptr ? static_cast<useconds_t>(std::atoi(gap)) : 100;
     long launches = 0;
     while (std::chrono::steady_clock::now() < stop) {
       launch(nullptr);
       ++launches;
-      usleep(100);
+      if (gap_us > 0) usleep(gap_us);
     }
     std::printf("LAUNCHES %ld\n", launches);
   } else if (std::strcmp(scenario, "cap_meminfo") == 0) {

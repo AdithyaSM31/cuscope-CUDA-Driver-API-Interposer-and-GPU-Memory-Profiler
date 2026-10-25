@@ -193,3 +193,18 @@ def mimic_popen(tmp_path_factory):
         if proc.poll() is None:
             proc.kill()
             proc.wait()
+
+
+@pytest.fixture
+def mimic_pair(tmp_path_factory):
+    """mimic_pair(scenario, weights=(a, b), mode="shim", env=None) -> (Result, Result), run at the same time."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def run(scenario: str, weights: tuple, mode: str = "shim", env: dict | None = None):
+        def one(weight):
+            tmp = tmp_path_factory.mktemp(f"{scenario}-w{weight}")
+            return _run([str(BUILD / "mock" / "runtime_mimic"), scenario], mode, True,
+                        {**(env or {}), "CUSCOPE_SHARE": str(weight)}, tmp)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            return tuple(pool.map(one, weights))
+    return run

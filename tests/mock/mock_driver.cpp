@@ -8,6 +8,7 @@
 
 #include "mock_counters.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -94,12 +95,40 @@ void destroy_context_locked() {
   g_count.ctx_destroy++;
 }
 
+// MOCK_KERNEL_NS: every launch takes that long on its stream's virtual clock,
+// and events are stamped with that clock, so measured kernels last exactly
+// MOCK_KERNEL_NS. Unset: events are stamped with the time they are recorded.
+uint64_t kernel_ns() {
+  static const uint64_t ns = [] {
+    const char* v = std::getenv("MOCK_KERNEL_NS");
+    return v != nullptr ? std::strtoull(v, nullptr, 10) : 0ull;
+  }();
+  return ns;
+}
+
+std::unordered_map<CUstream, uint64_t>& stream_clock() {  // guarded by g_mu
+  static auto* m = new std::unordered_map<CUstream, uint64_t>();
+  return *m;
+}
+
+void run_kernel(CUstream stream) {
+  if (kernel_ns() == 0) return;
+  std::lock_guard<std::mutex> lock(g_mu);
+  uint64_t& clock = stream_clock()[stream];
+  clock = std::max(clock, now_ns()) + kernel_ns();
+}
+
 CUresult record_event(CUevent ev, CUstream stream) {
   auto* e = reinterpret_cast<MockEvent*>(ev);
   g_count.event_record++;
   if (stream == kCapturingStream) g_count.event_record_on_capturing++;
   std::lock_guard<std::mutex> lock(g_mu);
   e->t_ns = now_ns();
+  if (kernel_ns() != 0) {
+    uint64_t& clock = stream_clock()[stream];
+    clock = std::max(clock, e->t_ns);
+    e->t_ns = clock;
+  }
   e->queries = 0;
   e->synced = false;
   return CUDA_SUCCESS;
@@ -319,14 +348,16 @@ MOCK_API CUresult cuMemcpyAsync_ptsz(CUdeviceptr dst, CUdeviceptr src, size_t by
 // ---- Launches and streams ----
 
 MOCK_API CUresult cuLaunchKernel(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int,
-                                 unsigned int, unsigned int, unsigned int, CUstream, void**, void**) {
+                                 unsigned int, unsigned int, unsigned int, CUstream stream, void**, void**) {
   g_count.launch++;
+  run_kernel(stream);
   return CUDA_SUCCESS;
 }
 
 MOCK_API CUresult cuLaunchKernel_ptsz(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int,
-                                      unsigned int, unsigned int, unsigned int, CUstream, void**, void**) {
+                                      unsigned int, unsigned int, unsigned int, CUstream stream, void**, void**) {
   g_count.launch_ptsz++;
+  run_kernel(stream);
   return CUDA_SUCCESS;
 }
 

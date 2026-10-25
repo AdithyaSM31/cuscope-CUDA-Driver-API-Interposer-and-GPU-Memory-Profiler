@@ -15,7 +15,7 @@ namespace {
 // correlation id shared by its record and its GPU span.
 template <int V>
 void finish_launch(ApiRecord& rec, CUresult result, RecType type, uint64_t func, CUstream stream, bool timed,
-                   const Timing& timing) {
+                   const Timing& timing, uint64_t charged_ns) {
   rec.done();
   rec.rec.func = func;
   rec.rec.stream = handle(stream);
@@ -32,6 +32,7 @@ void finish_launch(ApiRecord& rec, CUresult result, RecType type, uint64_t func,
     meta.stream = rec.rec.stream;
     meta.func = func;
     meta.api = rec.rec.api;
+    meta.charged_ns = charged_ns;
     gpu_end(V, stream, timing, meta);
   }
 }
@@ -43,14 +44,14 @@ CUresult cs_cuLaunchKernel(CUfunction f, unsigned int gridDimX, unsigned int gri
                            unsigned int blockDimX, unsigned int blockDimY, unsigned int blockDimZ,
                            unsigned int sharedMemBytes, CUstream hStream, void** kernelParams, void** extra) {
   note_call();
-  sched_before_launch(V, hStream, handle(f));  // waits here if the job is over its share
+  const uint64_t charged = sched_before_launch(V, hStream, handle(f));  // waits if the job is over its share
   Timing timing;
   const bool timed = gpu_sample_launch() && gpu_begin(V, hStream, &timing);
   ApiRecord rec(H_cuLaunchKernel);
   CUresult r = forward<V, decltype(&::cuLaunchKernel)>(H_cuLaunchKernel, f, gridDimX, gridDimY, gridDimZ, blockDimX,
                                                        blockDimY, blockDimZ, sharedMemBytes, hStream, kernelParams,
                                                        extra);
-  finish_launch<V>(rec, r, RecType::Launch, handle(f), hStream, timed, timing);
+  finish_launch<V>(rec, r, RecType::Launch, handle(f), hStream, timed, timing, charged);
   return r;
 }
 
@@ -58,12 +59,12 @@ template <int V>
 CUresult cs_cuLaunchKernelEx(const CUlaunchConfig* config, CUfunction f, void** kernelParams, void** extra) {
   note_call();
   CUstream stream = config != nullptr ? config->hStream : nullptr;
-  sched_before_launch(V, stream, handle(f));
+  const uint64_t charged = sched_before_launch(V, stream, handle(f));
   Timing timing;
   const bool timed = gpu_sample_launch() && gpu_begin(V, stream, &timing);
   ApiRecord rec(H_cuLaunchKernelEx);
   CUresult r = forward<V, decltype(&::cuLaunchKernelEx)>(H_cuLaunchKernelEx, config, f, kernelParams, extra);
-  finish_launch<V>(rec, r, RecType::Launch, handle(f), stream, timed, timing);
+  finish_launch<V>(rec, r, RecType::Launch, handle(f), stream, timed, timing, charged);
   return r;
 }
 
@@ -71,12 +72,12 @@ CUresult cs_cuLaunchKernelEx(const CUlaunchConfig* config, CUfunction f, void** 
 template <int V>
 CUresult cs_cuGraphLaunch(CUgraphExec hGraphExec, CUstream hStream) {
   note_call();
-  sched_before_launch(V, hStream, handle(hGraphExec));
+  const uint64_t charged = sched_before_launch(V, hStream, handle(hGraphExec));
   Timing timing;
   const bool timed = gpu_sample_launch() && gpu_begin(V, hStream, &timing);
   ApiRecord rec(H_cuGraphLaunch);
   CUresult r = forward<V, decltype(&::cuGraphLaunch)>(H_cuGraphLaunch, hGraphExec, hStream);
-  finish_launch<V>(rec, r, RecType::GraphLaunch, handle(hGraphExec), hStream, timed, timing);
+  finish_launch<V>(rec, r, RecType::GraphLaunch, handle(hGraphExec), hStream, timed, timing, charged);
   return r;
 }
 
