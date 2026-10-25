@@ -57,6 +57,7 @@ add_library(cuscope_core OBJECT
   src/log.cpp
   src/config.cpp
   src/limits.cpp
+  src/sched_core.cpp
   src/stats.cpp
   src/census.cpp
   src/hook_names.cpp

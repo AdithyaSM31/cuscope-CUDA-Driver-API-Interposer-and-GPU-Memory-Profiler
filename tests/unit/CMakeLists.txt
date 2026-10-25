@@ -15,6 +15,7 @@ add_executable(cuscope_unit_tests
   test_limits.cpp
   test_recorder.cpp
   test_report.cpp
+  test_sched_core.cpp
   test_ring.cpp
   test_stacks.cpp
   test_summary.cpp
