@@ -5,6 +5,7 @@
 
 #include "gputimer.hpp"
 #include "names.hpp"
+#include "sched_client.hpp"
 
 namespace cuscope {
 namespace {
@@ -42,6 +43,7 @@ CUresult cs_cuLaunchKernel(CUfunction f, unsigned int gridDimX, unsigned int gri
                            unsigned int blockDimX, unsigned int blockDimY, unsigned int blockDimZ,
                            unsigned int sharedMemBytes, CUstream hStream, void** kernelParams, void** extra) {
   note_call();
+  sched_before_launch(V, hStream, handle(f));  // waits here if the job is over its share
   Timing timing;
   const bool timed = gpu_sample_launch() && gpu_begin(V, hStream, &timing);
   ApiRecord rec(H_cuLaunchKernel);
@@ -56,6 +58,7 @@ template <int V>
 CUresult cs_cuLaunchKernelEx(const CUlaunchConfig* config, CUfunction f, void** kernelParams, void** extra) {
   note_call();
   CUstream stream = config != nullptr ? config->hStream : nullptr;
+  sched_before_launch(V, stream, handle(f));
   Timing timing;
   const bool timed = gpu_sample_launch() && gpu_begin(V, stream, &timing);
   ApiRecord rec(H_cuLaunchKernelEx);
@@ -68,6 +71,7 @@ CUresult cs_cuLaunchKernelEx(const CUlaunchConfig* config, CUfunction f, void** 
 template <int V>
 CUresult cs_cuGraphLaunch(CUgraphExec hGraphExec, CUstream hStream) {
   note_call();
+  sched_before_launch(V, hStream, handle(hGraphExec));
   Timing timing;
   const bool timed = gpu_sample_launch() && gpu_begin(V, hStream, &timing);
   ApiRecord rec(H_cuGraphLaunch);

@@ -20,7 +20,7 @@ TIMEOUT_S = 10
 
 SCENARIOS = ["dlsym_gpa", "dlsym_default", "via_cudart", "ptsz", "old_version", "gpa_self",
              "capture", "launch", "launch8", "launch200", "copy", "teardown", "release_destroys", "release_keeps", "release_keeps_launch", "fork", "fork_quiet",
-             "cap_exact", "cap_threads", "cap_pinned", "cap_pitch", "cap_driver_fail", "cap_double_free", "cap_teardown", "cap_fork", "cap_meminfo", "cap_reuse"]
+             "cap_exact", "cap_threads", "cap_pinned", "cap_pitch", "cap_driver_fail", "cap_double_free", "cap_teardown", "cap_fork", "cap_meminfo", "cap_reuse", "share_loop"]
 MODES = ["direct", "shim"]
 
 
@@ -168,3 +168,28 @@ def tmp_name_env():
     name = f"/cuscope-test-{uuid.uuid4().hex[:12]}"
     yield {"CUSCOPE_SCHED_NAME": name}
     Path("/dev/shm" + name).unlink(missing_ok=True)
+
+
+@pytest.fixture
+def mimic_popen(tmp_path_factory):
+    """mimic_popen(scenario, mode="shim", env=None) -> Popen, preloaded like mimic()."""
+    procs = []
+
+    def start(scenario: str, mode: str = "shim", env: dict | None = None) -> subprocess.Popen:
+        tmp = tmp_path_factory.mktemp(f"{scenario}-bg")
+        run_env = {k: v for k, v in os.environ.items() if k != "LD_PRELOAD"}
+        run_env.update(LD_LIBRARY_PATH=str(BUILD / "mock" / mode), CUSCOPE_OUT=str(tmp / "t-%p.json"),
+                       LD_PRELOAD=str(BUILD / "libcuscope.so"))
+        if os.environ.get("CUSCOPE_PRELOAD_FIRST"):
+            run_env["LD_PRELOAD"] = os.environ["CUSCOPE_PRELOAD_FIRST"] + " " + run_env["LD_PRELOAD"]
+        run_env.update(env or {})
+        proc = subprocess.Popen([str(BUILD / "mock" / "runtime_mimic"), scenario], env=run_env,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        procs.append(proc)
+        return proc
+
+    yield start
+    for proc in procs:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()

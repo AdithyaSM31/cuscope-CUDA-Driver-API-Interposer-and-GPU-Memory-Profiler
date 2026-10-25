@@ -149,6 +149,16 @@ void write_report(const Snapshot& s, std::ostream& out) {
       << ",\n\"alloc_count\":" << s.alloc_count << ",\"free_count\":" << s.free_count;
 
   const MemLimitStats& m = s.mem_limit;
+  const SchedStats& sh = s.sched;
+  out << ",\n\"sched\":";
+  if (!sh.enabled) {
+    out << "null";
+  } else {
+    out << "{\"weight\":" << sh.weight << ",\"registered\":" << (sh.registered ? "true" : "false")
+        << ",\"gpu_ns_charged\":" << sh.charged_ns << ",\"waits\":" << sh.waits << ",\"wait_ns\":" << sh.wait_ns
+        << ",\"reason\":" << quoted(sh.reason) << "}";
+  }
+
   out << ",\n\"mem_limit\":";
   if (!m.enabled) {
     out << "null";

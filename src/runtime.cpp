@@ -7,6 +7,7 @@
 #include "names.hpp"
 #include "recorder.hpp"
 #include "report.hpp"
+#include "sched_client.hpp"
 #include "stacks.hpp"
 #include "stats.hpp"
 #include "summary.hpp"
@@ -73,6 +74,7 @@ void write_report_at_exit() {
   tracker().finalize();
   tracker().fill(s);
   mem_limit().fill(s);
+  sched_fill(s);
   s.stacks = symbolize_all();
 
   const std::string path = expand_out_path(config().out, s.pid, is_root_process());
@@ -118,6 +120,7 @@ void after_fork_child() {
   stacks_after_fork();
   tracker_after_fork_child();
   mem_limit_after_fork_child();
+  sched_after_fork_child();
   stats::after_fork_child();
   g_forked_child = true;
 }
@@ -156,6 +159,9 @@ __attribute__((constructor)) void cuscope_ctor() {
   // Registered after config() and tracker() are built, so this handler runs
   // before their destructors (exit runs handlers in reverse order). The CUDA
   // runtime registers its own cleanup later, so that cleanup runs first.
+  // The scheduler slot is released after the report has read it: exit
+  // handlers run in reverse order of registration.
+  std::atexit(sched_release_at_exit);
   std::atexit(write_report_at_exit);
 }
 

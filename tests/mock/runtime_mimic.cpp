@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <thread>
 #include <vector>
@@ -249,6 +250,18 @@ void run(const char* scenario) {
     for (CUdeviceptr q : p) {
       if (q != 0) release(q);
     }
+  } else if (std::strcmp(scenario, "share_loop") == 0) {
+    // Launches for MIMIC_SECONDS (default 1.0) seconds, 100 us apart.
+    const char* secs = std::getenv("MIMIC_SECONDS");
+    const auto stop = std::chrono::steady_clock::now() +
+                      std::chrono::duration<double>(secs != nullptr ? std::atof(secs) : 1.0);
+    long launches = 0;
+    while (std::chrono::steady_clock::now() < stop) {
+      launch(nullptr);
+      ++launches;
+      usleep(100);
+    }
+    std::printf("LAUNCHES %ld\n", launches);
   } else if (std::strcmp(scenario, "cap_meminfo") == 0) {
     // Version 3020, as the CUDA runtime and PyTorch ask for it.
     CUdeviceptr p = 0;

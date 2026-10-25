@@ -82,6 +82,7 @@ set(CUSCOPE_SOURCES
   src/gputimer.cpp
   src/wrappers/alloc.cpp
   src/wrappers/meminfo.cpp
+  src/sched_client.cpp
   src/wrappers/memcpy.cpp
   src/wrappers/launch.cpp
   src/wrappers/teardown.cpp

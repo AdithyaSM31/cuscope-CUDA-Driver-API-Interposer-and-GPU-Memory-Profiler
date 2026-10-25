@@ -102,6 +102,15 @@ struct MemLimitStats {
   uint32_t largest_denied_stack = 0;
 };
 
+// Compute sharing at exit (CUSCOPE_SHARE). enabled is false when the job did
+// not ask to share; reason says why a job that asked is not registered.
+struct SchedStats {
+  bool enabled = false, registered = false;
+  uint32_t weight = 0;
+  uint64_t charged_ns = 0, waits = 0, wait_ns = 0;
+  std::string reason;
+};
+
 // Everything known at exit.
 struct Snapshot {
   int pid = 0;
@@ -118,6 +127,7 @@ struct Snapshot {
   std::map<uint32_t, std::vector<StackFrame>> stacks;
   uint64_t dropped_records = 0, unresolved_events = 0, gpu_untimed = 0;
   MemLimitStats mem_limit;
+  SchedStats sched;
 };
 
 }  // namespace cuscope
