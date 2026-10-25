@@ -235,3 +235,39 @@ TEST(SchedCore, LaunchAfterTheTickStartedCountsAsActive) {
   apply_refill(&shm, 5000000, 1000000);
   EXPECT_EQ(shm.slots[0].solo.load(), 1u);
 }
+
+TEST(SchedCore, AllWaitingIsFastForwarded) {
+  // Every active job waiting means nobody may launch: the GPU would idle. The
+  // refill then grants credit by weight until the least indebted job can go.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = 10;
+  shm.slots[0].weight = 3;
+  shm.slots[0].balance_ns = -6000000;
+  shm.slots[0].waiting = 1;
+  shm.slots[1].pid = 11;
+  shm.slots[1].weight = 1;
+  shm.slots[1].balance_ns = -1000000;
+  shm.slots[1].waiting = 1;
+  apply_refill(&shm, 2, 1000000);
+  // The tick adds 750 us and 250 us; job 1 then needs 750 us more, which at a
+  // quarter of the weight is 3 ms of fast-forward: job 0 gets 2.25 ms of it.
+  EXPECT_EQ(shm.slots[1].balance_ns.load(), 0);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), -3000000);
+}
+
+TEST(SchedCore, NoFastForwardWhileAJobCanRun) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = 10;
+  shm.slots[0].weight = 1;
+  shm.slots[0].balance_ns = -6000000;
+  shm.slots[0].waiting = 1;
+  shm.slots[1].pid = 11;
+  shm.slots[1].weight = 1;
+  shm.slots[1].balance_ns = 1000000;  // can launch: the GPU is busy
+  shm.slots[1].last_launch_ns = 1;
+  apply_refill(&shm, 2, 1000000);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), -5500000);
+  EXPECT_EQ(shm.slots[1].balance_ns.load(), 1500000);
+}

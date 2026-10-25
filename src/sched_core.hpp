@@ -42,10 +42,12 @@ class Estimator {
  public:
   uint64_t estimate(uint64_t key) const;
   void observe(uint64_t key, uint64_t actual_ns);
+  uint64_t minimum(uint64_t key) const;
 
  private:
   mutable std::mutex mu_;
   std::unordered_map<uint64_t, uint64_t> average_ns_;
+  std::unordered_map<uint64_t, uint64_t> min_ns_;
 };
 
 enum class SchedState { Registered, NoScheduler, NoFreeSlot, AllocMode, Stopped };
