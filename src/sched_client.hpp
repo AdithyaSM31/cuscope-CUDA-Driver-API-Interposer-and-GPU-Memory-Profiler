@@ -17,6 +17,9 @@ namespace cuscope {
 // Returns the GPU time charged for it, 0 when not sharing.
 uint64_t sched_before_launch(int variant, CUstream stream, uint64_t key);
 
+// The collector resolved a launch's GPU span: correct its charge.
+void sched_on_span(const GpuSpan& span);
+
 // At exit: the job's sharing figures for the report.
 void sched_fill(Snapshot& s);
 

@@ -110,6 +110,13 @@ uint64_t sched_before_launch(int variant, CUstream stream, uint64_t key) {
   return charged;
 }
 
+void sched_on_span(const GpuSpan& span) {
+  if (span.charged_ns == 0) return;
+  if (SchedClient* c = g_client.load(std::memory_order_acquire)) {
+    c->on_span(span.func, span.charged_ns, span.end_ns > span.start_ns ? span.end_ns - span.start_ns : 0);
+  }
+}
+
 void sched_fill(Snapshot& s) {
   s.sched = SchedStats{};
   if (config().share_weight == 0) return;

@@ -14,6 +14,7 @@
 #include "loader.hpp"
 #include "log.hpp"
 #include "recorder.hpp"
+#include "sched_client.hpp"
 
 namespace cuscope {
 
@@ -324,6 +325,9 @@ void poll_state(CtxState* st, uint64_t deadline_ns) {
     // Older than anything added meanwhile, so they go back in front.
     st->pending.insert(st->pending.begin(), batch.begin(), batch.end());
   }
+  // Compute sharing corrects each launch charge with its measured time; no
+  // lock is held here.
+  for (const GpuSpan& span : done) sched_on_span(span);
   if (!done.empty()) {
     std::lock_guard<std::mutex> spans_lock(g_spans_mu);
     spans().insert(spans().end(), done.begin(), done.end());

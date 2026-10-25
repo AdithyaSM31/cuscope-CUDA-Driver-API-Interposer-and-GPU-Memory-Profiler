@@ -70,6 +70,11 @@ class SchedClient {
   // returns what was charged (0 when not registered).
   uint64_t before_launch(uint64_t key);
 
+  // A launch's GPU time is now known: pay back (or pay more than) the
+  // estimate charged for it, and learn from it. Spans charged nothing (not
+  // shared, or captured) are ignored.
+  void on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns);
+
   // Called after each wait with when it started and how long it took (the
   // glue records it on the timeline).
   using WaitHook = void (*)(uint64_t start_ns, uint64_t dur_ns);

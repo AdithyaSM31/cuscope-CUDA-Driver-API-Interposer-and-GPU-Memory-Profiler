@@ -202,3 +202,36 @@ TEST(SchedClient, ClosedSegmentWhileWaitingStops) {
   EXPECT_EQ(c.state(), SchedState::Stopped);
   EXPECT_EQ(shm.slots[0].waits.load(), 0u);
 }
+
+TEST(SchedClient, CorrectionMakesTheChargeExact) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  const uint64_t est = c.before_launch(7);
+  c.on_span(7, est, 1'000'000);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), kCapNs - 1'000'000);
+  EXPECT_EQ(shm.slots[0].charged_ns.load(), 1'000'000u);
+  EXPECT_EQ(c.before_launch(7), 1'000'000u);  // the estimate learned
+}
+
+TEST(SchedClient, UnchargedSpansAreIgnored) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  c.on_span(7, 0, 5'000'000);  // a capture launch, or one made before registering
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), kCapNs);
+  EXPECT_EQ(shm.slots[0].charged_ns.load(), 0u);
+  EXPECT_EQ(c.before_launch(7), kDefaultEstimateNs);  // and taught the estimator nothing
+}
+
+TEST(SchedCore, LaunchAfterTheTickStartedCountsAsActive) {
+  // The daemon reads the clock, then the slots: a job that launched in between
+  // has a last-launch time after the tick's "now" and must still be active.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = 10;
+  shm.slots[0].weight = 1;
+  shm.slots[0].last_launch_ns = 5000001;
+  apply_refill(&shm, 5000000, 1000000);
+  EXPECT_EQ(shm.slots[0].solo.load(), 1u);
+}

@@ -60,8 +60,9 @@ void apply_refill(SchedShm* shm, uint64_t now_ns, uint64_t delta_ns) {
     const SchedSlot& s = shm->slots[i];
     const uint64_t last = s.last_launch_ns.load(std::memory_order_relaxed);
     views[i].used = s.pid.load(std::memory_order_acquire) != 0;
+    // A launch after this tick read the clock (last > now) is as recent as can be.
     views[i].active =
-        s.waiting.load(std::memory_order_relaxed) != 0 || (now_ns >= last && now_ns - last <= kActiveWindowNs);
+        s.waiting.load(std::memory_order_relaxed) != 0 || last > now_ns || now_ns - last <= kActiveWindowNs;
     views[i].weight = s.weight.load(std::memory_order_relaxed);
   }
   const std::vector<RefillStep> steps = plan_refill(views, delta_ns);
@@ -141,6 +142,14 @@ uint64_t SchedClient::before_launch(uint64_t key) {
     if (on_wait_ != nullptr) on_wait_(start, dur);
   }
   return est;
+}
+
+void SchedClient::on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns) {
+  if (charged_ns == 0 || slot_ == nullptr) return;
+  const int64_t diff = static_cast<int64_t>(charged_ns) - static_cast<int64_t>(actual_ns);
+  slot_->balance_ns.fetch_add(diff, std::memory_order_acq_rel);
+  slot_->charged_ns.fetch_sub(static_cast<uint64_t>(diff), std::memory_order_relaxed);  // now = actual
+  estimator_.observe(key, actual_ns);
 }
 
 void SchedClient::release() {

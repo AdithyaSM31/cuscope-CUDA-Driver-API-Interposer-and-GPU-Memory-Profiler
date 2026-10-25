@@ -112,3 +112,17 @@ def test_capture_launches_not_charged(sched_daemon, mimic):  # Review Focus 5
     assert r.code == 0, r.stderr
     assert r.trace["cuscope"]["sched"]["registered"] is True
     assert r.trace["cuscope"]["sched"]["gpu_ns_charged"] == 0
+
+
+# ---- Task 6: charges are corrected to the measured GPU time ----
+
+
+def test_charged_time_matches_measured_kernels(sched_daemon, mimic):
+    r = mimic("share_loop", "shim", env={**sched_daemon.env, "CUSCOPE_SHARE": "50", "MOCK_KERNEL_NS": "1000000",
+                                         "MIMIC_SECONDS": "0.5"})
+    assert r.code == 0, r.stderr
+    launches = int(next(l for l in r.stdout.splitlines() if l.startswith("LAUNCHES ")).split()[1])
+    charged = r.trace["cuscope"]["sched"]["gpu_ns_charged"]
+    # Each mock kernel measures 1 ms; cuEventElapsedTime is float milliseconds,
+    # so allow 1 us per launch of rounding.
+    assert abs(charged - launches * 1_000_000) <= launches * 1_000, (charged, launches)
