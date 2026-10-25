@@ -186,11 +186,10 @@ uint64_t SchedClient::before_launch(uint64_t key) {
 
 void SchedClient::on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns) {
   if (charged_ns == 0 || slot_ == nullptr) return;
-  estimator_.observe(key, actual_ns);
-  const uint64_t cost = std::min(actual_ns, estimator_.minimum(key));  // PROTOTYPE: uncontended cost
-  const int64_t diff = static_cast<int64_t>(charged_ns) - static_cast<int64_t>(cost);
+  const int64_t diff = static_cast<int64_t>(charged_ns) - static_cast<int64_t>(actual_ns);
   slot_->balance_ns.fetch_add(diff, std::memory_order_acq_rel);
   slot_->charged_ns.fetch_sub(static_cast<uint64_t>(diff), std::memory_order_relaxed);  // now = actual
+  estimator_.observe(key, actual_ns);
 }
 
 void SchedClient::release() {
@@ -233,12 +232,6 @@ const char* sched_reason(SchedState state) {
   return "";
 }
 
-uint64_t Estimator::minimum(uint64_t key) const {
-  std::lock_guard<std::mutex> lock(mu_);
-  auto it = min_ns_.find(key);
-  return it == min_ns_.end() ? 0 : it->second;
-}
-
 uint64_t Estimator::estimate(uint64_t key) const {
   std::lock_guard<std::mutex> lock(mu_);
   auto it = average_ns_.find(key);
@@ -247,8 +240,6 @@ uint64_t Estimator::estimate(uint64_t key) const {
 
 void Estimator::observe(uint64_t key, uint64_t actual_ns) {
   std::lock_guard<std::mutex> lock(mu_);
-  auto [m, fresh] = min_ns_.try_emplace(key, actual_ns);
-  if (!fresh && actual_ns < m->second) m->second = actual_ns;
   auto [it, inserted] = average_ns_.try_emplace(key, actual_ns);
   if (!inserted) {
     const int64_t diff = static_cast<int64_t>(actual_ns) - static_cast<int64_t>(it->second);
