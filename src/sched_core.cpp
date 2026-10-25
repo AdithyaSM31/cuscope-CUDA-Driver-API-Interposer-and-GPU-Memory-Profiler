@@ -33,25 +33,46 @@ void sched_shm_init(SchedShm* shm, int32_t daemon_pid, uint64_t now_ns) {
 }
 
 std::vector<RefillStep> plan_refill(const std::vector<ClientView>& clients, uint64_t delta_ns) {
-  std::vector<RefillStep> steps(clients.size(), RefillStep{0, false});
-  unsigned __int128 total_weight = 0;
-  size_t active = 0, last_active = 0;
-  for (size_t i = 0; i < clients.size(); ++i) {
-    if (!clients[i].used || !clients[i].active) continue;
-    total_weight += clients[i].weight;
-    ++active;
-    last_active = i;
+  const size_t n = clients.size();
+  std::vector<RefillStep> steps(n, RefillStep{0, false});
+  auto competing = [&](size_t i) { return clients[i].used && clients[i].active && clients[i].weight > 0; };
+
+  // Solo: used, and no other job is active. A lone job stays solo while idle
+  // too, so its next burst does not wait either.
+  size_t active = 0;
+  for (size_t i = 0; i < n; ++i) active += competing(i) ? 1 : 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (clients[i].used && active - (competing(i) ? 1 : 0) == 0) steps[i].solo = true;
   }
-  if (active == 0 || total_weight == 0) return steps;
-  if (active == 1) {
-    steps[last_active] = RefillStep{static_cast<int64_t>(delta_ns), true};
-    return steps;
-  }
-  for (size_t i = 0; i < clients.size(); ++i) {
-    if (!clients[i].used || !clients[i].active) continue;
-    // 128-bit: delta x weight cannot overflow, and the split loses only rounding.
-    steps[i].add_ns =
-        static_cast<int64_t>(static_cast<unsigned __int128>(delta_ns) * clients[i].weight / total_weight);
+  if (active < 2) return steps;
+
+  // Water-filling: split by weight; a job that reaches the cap takes only
+  // what fits, and the rest is split again among the others. 128-bit:
+  // delta x weight cannot overflow; only rounding is lost.
+  std::vector<bool> open(n);
+  for (size_t i = 0; i < n; ++i) open[i] = competing(i);
+  int64_t remaining = static_cast<int64_t>(delta_ns);
+  for (size_t round = 0; round < n && remaining > 0; ++round) {
+    unsigned __int128 total_weight = 0;
+    for (size_t i = 0; i < n; ++i) total_weight += open[i] ? clients[i].weight : 0;
+    if (total_weight == 0) break;
+    int64_t handed = 0;
+    bool capped = false;
+    for (size_t i = 0; i < n; ++i) {
+      if (!open[i]) continue;
+      const int64_t share = static_cast<int64_t>(static_cast<unsigned __int128>(remaining) * clients[i].weight /
+                                                 total_weight);
+      const int64_t room = std::max<int64_t>(0, kCapNs - clients[i].balance - steps[i].add_ns);
+      const int64_t take = std::min(share, room);
+      steps[i].add_ns += take;
+      handed += take;
+      if (take < share) {  // at the cap: out of the next round
+        open[i] = false;
+        capped = true;
+      }
+    }
+    remaining -= handed;
+    if (!capped) break;
   }
   return steps;
 }
@@ -105,8 +126,11 @@ void apply_refill(SchedShm* shm, uint64_t now_ns, uint64_t delta_ns) {
     const uint64_t last = s.last_launch_ns.load(std::memory_order_relaxed);
     views[i].used = s.pid.load(std::memory_order_acquire) != 0;
     // A launch after this tick read the clock (last > now) is as recent as can be.
-    views[i].active =
-        s.waiting.load(std::memory_order_relaxed) != 0 || last > now_ns || now_ns - last <= kActiveWindowNs;
+    views[i].balance = s.balance_ns.load(std::memory_order_relaxed);
+    // Waiting counts only while in debt: a job frozen (Ctrl-Z, a debugger)
+    // with its flag set stops competing once it has credit again.
+    const bool waiting = s.waiting.load(std::memory_order_relaxed) != 0 && views[i].balance < 0;
+    views[i].active = waiting || last > now_ns || now_ns - last <= kActiveWindowNs;
     views[i].weight = s.weight.load(std::memory_order_relaxed);
   }
   const std::vector<RefillStep> steps = plan_refill(views, delta_ns);

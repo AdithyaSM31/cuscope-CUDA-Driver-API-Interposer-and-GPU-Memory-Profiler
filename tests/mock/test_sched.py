@@ -105,7 +105,10 @@ def test_alone_is_never_held_back(sched_daemon, mimic):
 def test_daemon_stopped_jobs_continue(sched_daemon, mimic_pair):  # Review Focus 2
     # Two jobs, so neither is solo and both wait; the daemon stops mid-run.
     threading.Timer(0.3, sched_daemon.stop).start()
-    a, b = mimic_pair("share_loop", weights=(1, 1), env={**sched_daemon.env, **FAST, "MIMIC_SECONDS": "0.5"})
+    # A 10 us gap still asks for far more than any share (each mock kernel is
+    # 1 ms), and keeps the unthrottled tail after the stop small.
+    a, b = mimic_pair("share_loop", weights=(1, 1),
+                      env={**sched_daemon.env, **FAST, "MIMIC_GAP_US": "10", "MIMIC_SECONDS": "0.5"})
     for r in (a, b):
         assert r.code == 0, r.stderr
         assert r.stderr.count("compute sharing off: scheduler stopped") == 1, r.stderr
@@ -147,7 +150,7 @@ def test_jobs_survive_a_daemon_crash_and_restart(sched_daemon, mimic_pair):
 
     threading.Timer(0.3, crash_and_restart).start()
     a, b = mimic_pair("share_loop", weights=(1, 1),
-                      env={**sched_daemon.env, **FAST, "MIMIC_SECONDS": "0.8"})
+                      env={**sched_daemon.env, **FAST, "MIMIC_GAP_US": "10", "MIMIC_SECONDS": "0.8"})
     for r in (a, b):
         assert r.code == 0, r.stderr
 

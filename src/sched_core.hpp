@@ -5,9 +5,10 @@
 //
 // Every job has a balance of GPU time. Each tick the daemon hands the elapsed
 // time to the active jobs (waiting, or launched within kActiveWindowNs), split
-// by weight, and caps each balance at kCapNs. A job that is the only active
-// one is "solo": its balance is set to the cap and it never waits, so a share
-// is a guaranteed minimum, never a ceiling.
+// by weight, and caps each balance at kCapNs; credit a job cannot take
+// because it is at the cap goes to the other active jobs. A job that no other
+// active job competes with is "solo": its balance is set to the cap and it
+// never waits. So a share is a guaranteed minimum, never a ceiling.
 
 #include <atomic>
 #include <cstdint>
@@ -23,6 +24,7 @@ namespace cuscope {
 struct ClientView {
   bool used, active;
   uint32_t weight;
+  int64_t balance = 0;
 };
 
 struct RefillStep {

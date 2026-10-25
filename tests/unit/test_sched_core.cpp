@@ -66,7 +66,7 @@ TEST(SchedCore, ApplyRefillCapsAndForgivesSolo) {
   shm.slots[1].last_launch_ns = 1;
   apply_refill(&shm, 2, 1'000'000);
   EXPECT_EQ(shm.slots[0].balance_ns.load(), kCapNs);                // capped
-  EXPECT_EQ(shm.slots[1].balance_ns.load(), -5'000'000 + 500'000);  // debt pays down
+  EXPECT_EQ(shm.slots[1].balance_ns.load(), -5'000'000 + 900'000);  // and gets what job 0 could not take
   shm.slots[1].pid = 0;                                             // the other job leaves
   apply_refill(&shm, 3, 1'000'000);
   EXPECT_EQ(shm.slots[0].solo.load(), 1u);
@@ -83,6 +83,7 @@ TEST(SchedCore, SoloClearsWhenSecondJobActive) {  // Review Focus 4
   ASSERT_EQ(shm.slots[0].solo.load(), 1u);
   shm.slots[1].pid = 11;
   shm.slots[1].weight = 1;
+  shm.slots[1].balance_ns = -1'000'000;
   shm.slots[1].waiting = 1;
   apply_refill(&shm, 3, 1'000'000);
   EXPECT_EQ(shm.slots[0].solo.load(), 0u);
@@ -95,9 +96,25 @@ TEST(SchedCore, IdleSlotsAreNotActive) {
   shm.slots[0].pid = 10;
   shm.slots[0].weight = 1;
   shm.slots[0].last_launch_ns = 0;
+  shm.slots[1].pid = 11;
+  shm.slots[1].weight = 1;
+  shm.slots[1].balance_ns = -1'000'000;
+  shm.slots[1].last_launch_ns = kActiveWindowNs;
   apply_refill(&shm, kActiveWindowNs + 1, 1'000'000);
   EXPECT_EQ(shm.slots[0].solo.load(), 0u);
-  EXPECT_EQ(shm.slots[0].balance_ns.load(), 0);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), 0);  // idle: nothing
+  EXPECT_EQ(shm.slots[1].solo.load(), 1u);       // the only active job
+}
+
+TEST(SchedCore, IdleLoneJobKeepsSolo) {
+  // Nothing competes with it, so its next burst must not wait either.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = 10;
+  shm.slots[0].weight = 1;
+  shm.slots[0].last_launch_ns = 0;
+  apply_refill(&shm, kActiveWindowNs + 1, 1'000'000);
+  EXPECT_EQ(shm.slots[0].solo.load(), 1u);
 }
 
 TEST(Estimator, DefaultThenRunningAverage) {
@@ -302,4 +319,29 @@ TEST(SchedClient, StaleSegmentAtRegistrationFailsOpen) {  // Final review C1
   SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
   EXPECT_EQ(c.state(), SchedState::NoScheduler);
   EXPECT_EQ(shm.slots[0].pid.load(), 0);  // and it did not claim a slot
+}
+
+TEST(SchedCore, LightPeerDoesNotHoldTheBusyJobBack) {  // Final review I1
+  // A job that launches a little now and then stays active at the cap: the
+  // credit it cannot take goes to the busy job, not nowhere.
+  auto steps = plan_refill({{true, true, 1, kCapNs}, {true, true, 1, -5'000'000}}, 1'000'000);
+  EXPECT_EQ(steps[0].add_ns, 0);
+  EXPECT_EQ(steps[1].add_ns, 1'000'000);
+}
+
+TEST(SchedCore, FrozenWaiterWithCreditIsNotActive) {  // Final review I1
+  // Stopped (Ctrl-Z, a debugger) while its waiting flag was set: once it has
+  // credit again it is not competing, and the other job is alone.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = 10;
+  shm.slots[0].weight = 1;
+  shm.slots[0].balance_ns = 3'000'000;
+  shm.slots[0].waiting = 1;
+  shm.slots[1].pid = 11;
+  shm.slots[1].weight = 1;
+  shm.slots[1].balance_ns = -1'000'000;
+  shm.slots[1].last_launch_ns = 99'000'000;
+  apply_refill(&shm, 100'000'000, 1'000'000);
+  EXPECT_EQ(shm.slots[1].solo.load(), 1u);
 }
