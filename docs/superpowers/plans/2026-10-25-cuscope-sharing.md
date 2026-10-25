@@ -38,7 +38,7 @@
 ## Review Focus
 
 1. **Extreme weights (1 vs 1000).** Integer division must not starve the weight-1 job of refill. → Task 2 `SchedCore.ExtremeWeightsStillRefill`.
-2. **Daemon stopped (SIGTERM) or restarted while jobs run.** Clients holding the old, now closed segment must fail open, not hang. → Task 4 `test_daemon_stopped_jobs_continue`.
+2. **Daemon stopped (SIGTERM) or restarted while jobs run.** Clients holding the old, now closed segment must fail open, not hang. → Task 5 `test_daemon_stopped_jobs_continue`.
 3. **More than 32 jobs.** The 33rd must run unthrottled with one log line, not crash or overwrite a slot. → Task 4 `SchedClient.FullTableFailsOpen`.
 4. **A second job arriving while the first is solo.** The `solo` flag must clear and both must be throttled from the next tick. → Task 3 `SchedCore.SoloClearsWhenSecondJobActive`.
 5. **Launches during stream capture under `--share`.** They must not be charged or delayed, or graph capture slows and charges twice. → Task 5 `test_capture_launches_not_charged`.
