@@ -68,6 +68,13 @@ void write_cpu_events(const Snapshot& s, EventList& events) {
   const std::string pid = std::to_string(s.pid);
   uint64_t device_bytes = 0;
   for (const Record* r : sorted) {
+    if (r->type == RecType::Throttled) {
+      // A launch waiting for its share of GPU time (compute sharing).
+      events.add("{\"name\":\"throttled\",\"cat\":\"sched\",\"ph\":\"X\",\"ts\":" + micros(r->cpu_ns) +
+                 ",\"dur\":" + micros(r->dur_ns) + ",\"pid\":" + pid + ",\"tid\":" + std::to_string(r->tid) +
+                 ",\"args\":{}}");
+      continue;
+    }
     if (r->type == RecType::AllocDenied) {
       // The call never reached the driver: an instant on the calling thread,
       // not an API span.

@@ -232,3 +232,22 @@ TEST(TraceWriter, NoCapIsNull) {
   ASSERT_TRUE(report.contains("mem_limit"));
   EXPECT_TRUE(report["mem_limit"].is_null());
 }
+
+TEST(TraceWriter, ThrottledSpans) {
+  Snapshot s;
+  s.sched = {true, true, 80, 4'210'000'000, 1, 812'000, ""};
+  Record t = make_record(RecType::Throttled, 0, 5000, 812'000);
+  s.records = {t};
+  json j = write(s);
+  EXPECT_EQ(j["cuscope"]["sched"]["weight"], 80);
+  int throttled = 0;
+  for (const json& e : j["traceEvents"]) {
+    if (e["name"] == "throttled") {
+      ++throttled;
+      EXPECT_EQ(e["cat"], "sched");
+      EXPECT_EQ(e["ph"], "X");
+    }
+    EXPECT_FALSE(e.value("cat", "") == "api") << "a wait is not an API call";
+  }
+  EXPECT_EQ(throttled, 1);
+}

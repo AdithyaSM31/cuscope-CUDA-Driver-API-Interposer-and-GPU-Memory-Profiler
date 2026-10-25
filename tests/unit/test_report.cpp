@@ -137,3 +137,15 @@ TEST(Report, MemoryCapSection) {
 }
 
 TEST(Report, NoCapNoSection) { EXPECT_FALSE(contains(render(sample()), "Memory cap")); }
+
+TEST(Report, SharingSection) {
+  Snapshot s = sample();
+  s.sched = {true, true, 80, 4'210'000'000, 1534, 812'000'000, ""};
+  const std::string text = render(s);
+  EXPECT_TRUE(contains(text, "Sharing: weight 80, 4.210 s GPU time; 1534 launches waited, 812.000 ms in total")) << text;
+  EXPECT_LT(text.find("Memory"), text.find("Sharing"));
+  EXPECT_LT(text.find("Sharing"), text.find("Leaks"));
+  s.sched = {true, false, 80, 0, 0, 0, "no scheduler running"};
+  EXPECT_TRUE(contains(render(s), "Sharing: weight 80, not registered (no scheduler running)")) << render(s);
+  EXPECT_FALSE(contains(render(sample()), "Sharing"));
+}

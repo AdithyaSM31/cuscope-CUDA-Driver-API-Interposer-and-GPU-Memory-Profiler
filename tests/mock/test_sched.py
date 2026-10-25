@@ -89,6 +89,10 @@ def test_two_jobs_split_by_weight(sched_daemon, mimic_pair):
     ga, gb = (x.trace["cuscope"]["sched"]["gpu_ns_charged"] for x in (a, b))
     assert 0.65 <= ga / (ga + gb) <= 0.85, (ga, gb)
     assert a.trace["cuscope"]["sched"]["waits"] > 0 and b.trace["cuscope"]["sched"]["waits"] > 0
+    for r in (a, b):  # each wait is on the timeline
+        throttled = [e for e in r.trace["traceEvents"] if e["name"] == "throttled"]
+        assert len(throttled) == r.trace["cuscope"]["sched"]["waits"]
+        assert "Sharing: weight" in r.stderr
 
 
 def test_alone_is_never_held_back(sched_daemon, mimic):
@@ -104,7 +108,8 @@ def test_daemon_stopped_jobs_continue(sched_daemon, mimic_pair):  # Review Focus
     a, b = mimic_pair("share_loop", weights=(1, 1), env={**sched_daemon.env, **FAST, "MIMIC_SECONDS": "0.5"})
     for r in (a, b):
         assert r.code == 0, r.stderr
-        assert r.stderr.count("scheduler stopped") == 1, r.stderr
+        assert r.stderr.count("compute sharing off: scheduler stopped") == 1, r.stderr
+        assert "scheduler stopped during the run" in r.stderr  # the summary says so too
 
 
 def test_capture_launches_not_charged(sched_daemon, mimic):  # Review Focus 5

@@ -115,7 +115,9 @@ def test_summary_sections():
     last = 0
     for header in ["== cuscope summary (pid 1234, mode full) ==", "Memory",
                    "Memory cap: 2.00 GiB, peak charged 1.99 GiB (99.7%)",
-                   "1 allocation denied (512.0 MiB); largest 512.0 MiB device at main", "Leaks (1, 1.0 MiB)", "Invalid frees: none",
+                   "1 allocation denied (512.0 MiB); largest 512.0 MiB device at main",
+                   "Sharing: weight 80, 4.210 s GPU time; 1534 launches waited, 812.000 ms in total",
+                   "Leaks (1, 1.0 MiB)", "Invalid frees: none",
                    "Top kernels", "spin_kernel(long long)", "Copies", "HtoD pinned",
                    "Completeness: dropped=0 unresolved=0 untimed=0"]:
         at = r.stdout.find(header, last)

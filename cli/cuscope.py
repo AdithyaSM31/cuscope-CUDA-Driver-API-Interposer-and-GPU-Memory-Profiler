@@ -229,6 +229,14 @@ def print_summary(report: dict, frames_per_site: int) -> None:
             print(f"  {n} allocation{'' if n == 1 else 's'} denied ({bytes_text(cap['denied_bytes'])}); "
                   f"largest {bytes_text(largest['bytes'])} {largest['kind']} at {site_text(largest['stack'])}")
 
+    sched = report.get("sched")
+    if sched and not sched["registered"]:
+        print(f"Sharing: weight {sched['weight']}, not registered ({sched['reason']})")
+    elif sched:
+        stopped = f" ({sched['reason']} during the run)" if sched["reason"] else ""
+        print(f"Sharing: weight {sched['weight']}, {time_text(sched['gpu_ns_charged'])} GPU time; "
+              f"{sched['waits']} launches waited, {time_text(sched['wait_ns'])} in total{stopped}")
+
     leaks = report["leaks"]
     if not leaks:
         print("Leaks: none")

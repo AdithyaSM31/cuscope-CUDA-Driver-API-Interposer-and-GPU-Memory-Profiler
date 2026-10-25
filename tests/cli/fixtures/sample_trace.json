@@ -3,6 +3,7 @@
 "cuscope":{"version":"0.1.0","pid":1234,"mode":"full",
 "peak_bytes":{"device":3145728,"managed":0,"host_pinned":67108864,"async":0,"device_total":3145728},
 "alloc_count":3,"free_count":2,
+"sched":{"weight":80,"registered":true,"gpu_ns_charged":4210000000,"waits":1534,"wait_ns":812000000,"reason":""},
 "mem_limit":{"limit_bytes":2147483648,"peak_charged_bytes":2140000000,"denied_count":1,"denied_bytes":536870912,"largest_denied":{"bytes":536870912,"kind":"device","stack":1}},
 "leaks":[{"ptr":"0x7f0000000000","bytes":1048576,"kind":"device","stack":1,"at_ctx_teardown":false}],
 "invalid_frees":[],

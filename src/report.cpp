@@ -86,6 +86,19 @@ void print_mem_limit(const Snapshot& s, FILE* out) {
                call_site(s, m.largest_denied_stack).c_str());
 }
 
+// Only when the job asked to share the GPU (CUSCOPE_SHARE).
+void print_sharing(const Snapshot& s, FILE* out) {
+  const SchedStats& sh = s.sched;
+  if (!sh.enabled) return;
+  if (!sh.registered) {
+    std::fprintf(out, "Sharing: weight %u, not registered (%s)\n", sh.weight, sh.reason.c_str());
+    return;
+  }
+  std::fprintf(out, "Sharing: weight %u, %s GPU time; %" PRIu64 " launches waited, %s in total%s\n", sh.weight,
+               time_text(sh.charged_ns).c_str(), sh.waits, time_text(sh.wait_ns).c_str(),
+               sh.reason.empty() ? "" : (" (" + sh.reason + " during the run)").c_str());
+}
+
 void print_leaks(const Snapshot& s, FILE* out) {
   if (s.leaks.empty()) {
     std::fprintf(out, "Leaks: none\n");
@@ -184,6 +197,7 @@ void print_summary(const Snapshot& s, const Summary& sum, FILE* out) {
   }
   print_memory(s, out);
   print_mem_limit(s, out);
+  print_sharing(s, out);
   print_leaks(s, out);
   print_invalid_frees(s, out);
   print_kernels(sum, sampled, out);
