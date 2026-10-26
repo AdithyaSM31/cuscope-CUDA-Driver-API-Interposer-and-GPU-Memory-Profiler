@@ -2,17 +2,33 @@
 
 [![ci](https://github.com/AdithyaSM31/cuscope-CUDA-Driver-API-Interposer-and-GPU-Memory-Profiler/actions/workflows/ci.yml/badge.svg)](https://github.com/AdithyaSM31/cuscope-CUDA-Driver-API-Interposer-and-GPU-Memory-Profiler/actions/workflows/ci.yml)
 
-cuscope records every GPU allocation, copy and kernel launch of an unmodified CUDA program
-(a static or shared CUDA runtime build, or PyTorch) by sitting between the program and the
-CUDA driver, and gives you a leak report, memory and timing summaries, and a timeline for
-[Perfetto](https://ui.perfetto.dev). It can also give each process a GPU memory budget
-(`--mem-limit 2G`) and a weighted share of GPU time (`--share 80` with `cuscope sched`), so
-jobs sharing one GPU stay within the share you gave them.
+**A CUDA driver-API interposer that profiles GPU memory and kernels in unmodified programs.**
+
+cuscope sits between a program and the CUDA driver with `LD_PRELOAD` and records every GPU
+allocation, copy and kernel launch. It works the same whether the program links the CUDA
+runtime statically (the `nvcc` default), links it shared, or is PyTorch. You get a leak
+report with source lines, memory and timing summaries, and a timeline for
+[Perfetto](https://ui.perfetto.dev). For GPUs shared by several jobs it can also cap each
+process's GPU memory (`--mem-limit 2G`) and divide GPU time by weight (`--share 80`).
 
 ![cuscope trace of tests/cuda/multistream in Perfetto: four concurrent kernels on four GPU stream tracks](docs/img/perfetto-multistream.webp)
 
 *`tests/cuda/multistream` in Perfetto: the launch and synchronise calls on the CPU thread,
 and four 5 ms kernels running at once on four GPU stream tracks.*
+
+## At a glance
+
+- **No changes to the program.** One preloaded library catches the driver calls on all three
+  paths a program can take to reach them, including the CUDA runtime's private lookups.
+- **Agrees with PyTorch.** On ResNet-18 training, caching-allocator bytes and kernel
+  launches per step match PyTorch's own counts exactly; kernel time is within 2.6% of
+  `torch.profiler` ([validation](#validation)).
+- **Low overhead.** +1.6% on a training step with every kernel timed, +0.3% for memory only
+  ([overhead](#overhead)).
+- **Controls for a shared GPU.** Per-process memory caps that PyTorch handles like a full
+  GPU, and a scheduler daemon that gives competing jobs GPU time by weight.
+- **Tested without a GPU.** A mock driver, including WSL's loader shim, runs the
+  interception tests in CI, plain and under AddressSanitizer and ThreadSanitizer.
 
 ## Quickstart
 
@@ -25,24 +41,15 @@ python3 cli/cuscope.py run --out trace.json -- ./build/tests/cuda/multistream
 ```
 
 The summary goes to stderr when the program exits; open `trace.json` in
-[ui.perfetto.dev](https://ui.perfetto.dev). For any other program, put it after `--`:
+[ui.perfetto.dev](https://ui.perfetto.dev). Any other program goes after `--`:
 
 ```bash
 python3 cli/cuscope.py run --out train.json -- python3 train.py
 python3 cli/cuscope.py summary train.json        # leaks and invalid frees with file:line
 ```
 
-Options: `--mode alloc` (memory only, no GPU timing), `--sample-every N` (time 1 in N kernel
-launches), `--stack-depth N`, `--log FILE`, `--mem-limit SIZE` (a per-process GPU memory
-cap, below), `--share N` (a weight for GPU time, below). The program's stdout and exit code are unchanged;
-`run` becomes the program (like `env`), so Ctrl-C and other signals go to it alone.
-`CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) bounds how long cuscope waits at exit and at
-context teardown for GPU work it is timing. Put `%p` (the pid) in `--out` when several
-processes use CUDA: without it, the first process to do CUDA work writes the exact path and
-any other writes `name.<pid>.json`.
-
-What `cuscope summary` prints for `tests/cuda/leak.cu` (the summary at exit is the same,
-with `main (leak+0x8a7f)` in place of the source line):
+What `cuscope summary` prints for [`tests/cuda/leak.cu`](tests/cuda/leak.cu) (the summary at
+exit is the same, with `main (leak+0x8a7f)` in place of the source line):
 
 ```text
 == cuscope summary (pid 31714, mode full) ==
@@ -57,6 +64,22 @@ Top kernels: none
 Copies: none
 Completeness: dropped=0 unresolved=0 untimed=0
 ```
+
+| Option | Effect |
+|---|---|
+| `--out PATH` | Trace path; `%p` becomes the pid (default `cuscope-%p.json`) |
+| `--mode alloc` | Memory only, no GPU timing (default `full`) |
+| `--sample-every N` | Time every Nth kernel launch per thread |
+| `--stack-depth N` | Frames kept per call-site stack (default 16) |
+| `--log FILE` | Write cuscope's messages and summary to a file instead of stderr |
+| `--mem-limit SIZE` | Cap the process's GPU memory, e.g. `2G` ([memory caps](#memory-caps)) |
+| `--share N` | Weight for GPU time when jobs compete, 1–1000 ([compute sharing](#compute-sharing)) |
+
+The program's stdout and exit code are unchanged. `run` becomes the program (like `env`), so
+Ctrl-C and other signals go to it alone. `CUSCOPE_FLUSH_TIMEOUT_MS` (default 2000) bounds how
+long cuscope waits at exit for GPU work it is timing. When several processes use CUDA, put
+`%p` in `--out`: otherwise the first process to do CUDA work writes the exact path and the
+others write `name.<pid>.json`.
 
 ## How it works
 
@@ -76,103 +99,37 @@ with `LD_PRELOAD` and catches driver calls on all three paths a program can take
    instead of the real pointer.
 
 **The WSL loader shim.** On WSL, `libcuda.so.1` is not the driver but a small loader that
-fills its own table of over 700 driver functions by calling `dlsym` on the real driver. If cuscope's
-override handed the shim a wrapper, the wrapper would call the shim, which would call the
-wrapper, forever. The override therefore checks which module called it and passes libcuda's
-own lookups straight through. That check has to match `libcuda.` exactly: the first version
-matched the prefix `libcuda`, which also matches the shared runtime, `libcudart.so.13`, so
-every program built with `-cudart shared` (and PyTorch's main runtime) went through
-unrecorded. The symbol census on the real GPU caught it.
+fills its own table of over 700 driver functions by calling `dlsym` on the real driver. If
+cuscope's override handed the shim a wrapper, the wrapper would call the shim, which would
+call the wrapper, forever. The override therefore checks which module called it and passes
+libcuda's own lookups straight through. That check has to match `libcuda.` exactly: the
+first version matched the prefix `libcuda`, which also matches the shared runtime,
+`libcudart.so.13`, so every program built with `-cudart shared` (and PyTorch's main runtime)
+went through unrecorded. The symbol census on the real GPU caught it.
 
 **Wrapping only the right function.** A wrapper is written for one C signature, but the same
 base name can mean different functions. The runtime asks for `cuMemAlloc` at version 3020,
 and at version 13000 the driver's `cuCtxSynchronize` is a different function with an extra
 argument. So at start-up cuscope resolves, for each hooked function and both stream variants,
 the exact pointer its wrapper was written for (the version is listed per hook in
-`src/hooks.def`). At lookup time it compares pointers, not version numbers: an exact match
-gets the wrapper, and anything else passes through untouched. Each wrapper's signature is
-checked against `cuda.h` at compile time, and `tools/check_exports.py` checks every hook
-against the installed driver.
+[`src/hooks.def`](src/hooks.def)). At lookup time it compares pointers, not version numbers:
+an exact match gets the wrapper, and anything else passes through untouched. Each wrapper's
+signature is checked against `cuda.h` at compile time, and `tools/check_exports.py` checks
+every hook against the installed driver.
 
 **Recording.** A wrapper forwards the call unchanged and returns its result, then writes one
 64-byte record into a ring buffer owned by its thread. Recording never blocks: a full ring
 drops the record and counts it. A collector thread drains the rings every 2 ms. In `full`
 mode each launch and copy also gets a CUDA event before and after it on its stream; the
 collector converts them to times on the CPU clock using a reference event recorded when the
-context was first seen. On WSL the driver shuts itself down at exit before the CUDA runtime's
-own cleanup, so cuscope registers an exit handler after the driver's, which runs first and
-collects pending events while the driver still answers, waiting at most
-`CUSCOPE_FLUSH_TIMEOUT_MS`. At exit cuscope writes the
-Chrome Trace JSON and prints the summary.
+context was first seen.
+
+**Exit on WSL.** The driver shuts itself down at exit before the CUDA runtime's own cleanup.
+cuscope registers an exit handler after the driver's, so it runs first and collects pending
+events while the driver still answers, waiting at most `CUSCOPE_FLUSH_TIMEOUT_MS`. Then it
+writes the Chrome Trace JSON and prints the summary.
 
 [docs/DESIGN.md](docs/DESIGN.md) has the details, including the bugs these choices fixed.
-
-## Memory caps
-
-```bash
-python3 cli/cuscope.py run --mem-limit 2.25G -- python3 train.py
-```
-
-With a cap (`--mem-limit` or `CUSCOPE_MEM_LIMIT`, e.g. `512M`, `2G`, `1.5GiB`), every
-device, stream-ordered and managed allocation first reserves its bytes against the cap. One
-that would pass it fails with `CUDA_ERROR_OUT_OF_MEMORY` without reaching the driver, exactly
-as on a full GPU, and `cuMemGetInfo` reports a GPU the size of the cap. Pinned host memory
-does not count. Frees, context teardown and fork give bytes back. PyTorch needs no changes:
-when an allocation fails it frees its cached blocks and retries, so a capped job keeps what
-it uses and drops the rest. Each denial is in the trace, and the summary gains a section (job A of the demo below):
-
-```
-Memory cap: 2.25 GiB, peak charged 2.23 GiB (99.1%)
-  2 allocations denied (362.0 MiB); largest 200.0 MiB device at c10::cuda::CUDACachingAllocator::Native::DeviceCachingAllocator::alloc_block(...) (libc10_cuda.so+0x3c46a)
-```
-
-Two ResNet-18 training jobs sharing the 6 GiB RTX 3060 ([docs/memcaps.md](docs/memcaps.md)):
-
-| | job A reserved | job B reserved | together | step times |
-|---|---|---|---|---|
-| uncapped | 3.91 GiB | 4.78 GiB | **8.70 GiB** on a 6 GiB GPU | 60 / 103 ms |
-| capped 2.25G / 3G | 2.21 GiB | 2.97 GiB | **5.18 GiB** | 60 / 103 ms |
-
-Uncapped, PyTorch's cache makes each job hold far more than it uses (1.49 and 2.60 GiB). On
-native Linux the later job is expected to run out of memory (not measured here); WSL2 pages
-the excess to system RAM
-instead. Capped, both jobs finish inside their budgets at the same speed.
-
-## Compute sharing
-
-```bash
-python3 cli/cuscope.py sched &                                   # the scheduler daemon
-python3 cli/cuscope.py run --share 80 -- python3 train.py
-python3 cli/cuscope.py run --share 20 -- python3 eval.py
-```
-
-Jobs started with `--share N` register with the daemon and get GPU time by weight when they
-compete; a job alone gets the whole GPU. Each kernel or graph launch charges the job an
-estimate of its GPU time, corrected once cuscope has measured the kernel; a job over its
-share waits before its next launch until the daemon (refilling every millisecond) has given
-it more. A launch is only ever delayed, never failed or changed. Without the daemon a job
-runs unthrottled and says so once. Waits appear as `throttled` spans on the timeline, and
-the summary gains a line (job A of the 80/20 benchmark below):
-
-```
-Sharing: weight 80, 19.875 s GPU time; 3489 launches waited, 3.710 s in total
-```
-
-Two jobs running the same GPU-filling kernel on the RTX 3060
-([docs/sharing.md](docs/sharing.md)):
-
-| | job A kernels/s | job B kernels/s | split of the work |
-|---|---|---|---|
-| one job alone, with or without the daemon | 497 | | |
-| two jobs, no scheduler | 186 | 186 | 50 / 50 |
-| `--share 50` / `--share 50` | 185 | 185 | 50 / 50 |
-| `--share 80` / `--share 20` | 409 | 50 | 89 / 11 |
-
-Sharing costs no throughput: the 50/50 pair does as much work as the unscheduled one, and
-at 80/20 the heavy job runs 2.2 times faster than without a scheduler. The scheduler divides
-*measured* GPU time by weight (79/21), but the driver time-slices the two processes (measured
-on WSL) and a kernel's measured time includes the other job's slices, so unequal weights come
-out more unequal in real work.
 
 ## Validation
 
@@ -190,6 +147,75 @@ The 17,052,936-byte gap is memory PyTorch does not manage: two cuBLAS handles al
 8,520,704 bytes each inside `cublasCreate_v2`, and cuDNN handles add 11,528 bytes. cuscope
 attributes every allocation to the library that made it, from its call stack.
 
+## Memory caps
+
+```bash
+python3 cli/cuscope.py run --mem-limit 2.25G -- python3 train.py
+```
+
+With a cap (`--mem-limit` or `CUSCOPE_MEM_LIMIT`, e.g. `512M`, `2G`, `1.5GiB`), every
+device, stream-ordered and managed allocation first reserves its bytes against the cap. One
+that would pass it fails with `CUDA_ERROR_OUT_OF_MEMORY` without reaching the driver, exactly
+as on a full GPU, and `cuMemGetInfo` reports a GPU the size of the cap. Pinned host memory
+does not count. Frees, context teardown and fork give bytes back.
+
+PyTorch needs no changes: when an allocation fails it frees its cached blocks and retries,
+so a capped job keeps what it uses and drops the rest. Each denial is in the trace, and the
+summary gains a section (job A of the demo below):
+
+```text
+Memory cap: 2.25 GiB, peak charged 2.23 GiB (99.1%)
+  2 allocations denied (362.0 MiB); largest 200.0 MiB device at c10::cuda::CUDACachingAllocator::Native::DeviceCachingAllocator::alloc_block(...) (libc10_cuda.so+0x3c46a)
+```
+
+Two ResNet-18 training jobs sharing the 6 GiB RTX 3060 ([docs/memcaps.md](docs/memcaps.md)):
+
+| | job A reserved | job B reserved | together | step times |
+|---|---|---|---|---|
+| uncapped | 3.91 GiB | 4.78 GiB | **8.70 GiB** on a 6 GiB GPU | 60 / 103 ms |
+| capped 2.25G / 3G | 2.21 GiB | 2.97 GiB | **5.18 GiB** | 60 / 103 ms |
+
+Uncapped, PyTorch's cache makes each job hold far more than it uses (1.49 and 2.60 GiB). On
+native Linux the later job is expected to run out of memory (not measured here); WSL2 pages
+the excess to system RAM instead. Capped, both jobs finish inside their budgets at the same
+speed.
+
+## Compute sharing
+
+```bash
+python3 cli/cuscope.py sched &                                   # the scheduler daemon
+python3 cli/cuscope.py run --share 80 -- python3 train.py
+python3 cli/cuscope.py run --share 20 -- python3 eval.py
+```
+
+Jobs started with `--share N` register with the daemon and get GPU time by weight when they
+compete; a job alone gets the whole GPU. Each kernel or graph launch charges the job an
+estimate of its GPU time, corrected once cuscope has measured the kernel. A job over its
+share waits before its next launch until the daemon (refilling every millisecond) has given
+it more. A launch is only ever delayed, never failed or changed. Without the daemon a job
+runs unthrottled and says so once. Waits appear as `throttled` spans on the timeline, and
+the summary gains a line (job A of the 80/20 benchmark below):
+
+```text
+Sharing: weight 80, 19.875 s GPU time; 3489 launches waited, 3.710 s in total
+```
+
+Two jobs running the same GPU-filling kernel on the RTX 3060
+([docs/sharing.md](docs/sharing.md)):
+
+| | job A kernels/s | job B kernels/s | split of the work |
+|---|---|---|---|
+| one job alone, with or without the daemon | 497 | | |
+| two jobs, no scheduler | 186 | 186 | 50 / 50 |
+| `--share 50` / `--share 50` | 185 | 185 | 50 / 50 |
+| `--share 80` / `--share 20` | 409 | 50 | 89 / 11 |
+
+Sharing costs no throughput: the 50/50 pair does as much work as the unscheduled one, and at
+80/20 the heavy job runs 2.2 times faster than without a scheduler. The scheduler divides
+*measured* GPU time by weight (79/21). The driver time-slices the two processes, though
+(measured on WSL), and a kernel's measured time includes the other job's slices, so unequal
+weights come out more unequal in real work.
+
 ## Overhead
 
 Medians on the same machine; details and notes in [docs/overhead.md](docs/overhead.md).
@@ -206,42 +232,56 @@ around each launch and copy (a capture check, a context lookup and two event rec
 microseconds each on WSL; real kernels hide most of it. A memory cap adds one atomic
 reservation per allocation. `--share` (here a job alone with the daemon running) adds a
 capture check, a clock read, an estimate lookup and a few atomics per launch, about 2.5 µs
-on top of `full`. Microsecond-scale
-calls on WSL vary by several percent between runs (the negative figures are noise), and the
-laptop GPU's clock moves with power and temperature: this run's baseline training step is
-84.5 ms against 60.6 ms in earlier runs.
+on top of `full`.
+
+Microsecond-scale calls on WSL vary by several percent between runs (the negative figures
+are noise), and the laptop GPU's clock moves with power and temperature: this run's baseline
+training step is 84.5 ms against 60.6 ms in earlier runs.
 
 ## Limitations
+
+**Coverage**
 
 - **Platform.** Linux and WSL2, one GPU, CUDA 13.0 (tested with Windows driver 617.14). The
   hook table records the driver function versions of that release.
 - **Not hooked** (listed by the symbol census, [docs/census/SUMMARY.md](docs/census/SUMMARY.md)):
   memsets; 2D, 3D, peer and batched copies; cooperative and host-function launches;
   `cuMemHostRegister`; memory-pool management; the virtual memory APIs (`cuMemCreate`,
-  `cuMemMap`). PyTorch must run with `expandable_segments:False`, which uses those VMM APIs.
+  `cuMemMap`). PyTorch must run with `expandable_segments:False`, since `True` uses those
+  VMM APIs.
 - **PyTorch's caching allocator** is seen as the segments it requests, not as tensors.
-- **CUDA graphs** are one span per graph launch. Launches made while a stream is being captured
-  are recorded but not timed, so no event ever enters the program's graph.
+- **CUDA graphs** are one span per graph launch. Launches made while a stream is being
+  captured are recorded but not timed, so no event ever enters the program's graph.
 - **Primary-context release and reset** are hooked in the v1 form the CUDA runtime uses. A
-  driver-API program that calls `cuDevicePrimaryCtxRelease_v2` by name bypasses those two hooks.
+  driver-API program that calls `cuDevicePrimaryCtxRelease_v2` by name bypasses those two
+  hooks.
+
+**Accuracy**
+
 - **Timing.** Event spans include any time the GPU waited for the kernel to be submitted, so
   on a starved GPU they read slightly long (+2.6% against `torch.profiler` above). Times are
-  `float` milliseconds from a per-context reference event: resolution is about 0.5 µs, falling
-  to a few microseconds after a minute of running. Bandwidth for pageable copies is GPU time
-  only and excludes the driver's CPU staging copy, so it overstates the wall-clock rate.
+  `float` milliseconds from a per-context reference event: resolution is about 0.5 µs,
+  falling to a few microseconds after a minute of running. Bandwidth for pageable copies is
+  GPU time only and excludes the driver's CPU staging copy, so it overstates the wall-clock
+  rate.
 - **Stream-ordered frees** (`cudaFreeAsync`) count as free when called, not when the stream
   reaches them.
-- **Exit.** The trace is written by an exit handler: `_exit`, `abort` and fatal signals leave
-  no trace. Records stay in memory until exit (64 bytes per call). GPU work still running
-  after `CUSCOPE_FLUSH_TIMEOUT_MS` at exit is counted in `unresolved_events`, not timed.
-  On WSL the driver shuts
-  itself down before the CUDA runtime releases its context, so memory the program never freed
-  is reported as leaked at exit; leaks at an explicit `cudaDeviceReset` are reported as freed
-  at context teardown.
+- **Leak sites** skip the CUDA runtime's frames: functions in libcudart or libcuda, and in
+  the static runtime, names starting `cuda` plus an uppercase letter (`cudaMalloc`) or
+  `__cuda`. A program function named that way (`cudaAllocHelper`) is skipped too.
 - **Caller check.** cuscope tells libcuda's own `dlsym` calls apart by the caller's return
   address; a library that tail-calls `dlsym` would be attributed to its caller. Every lookup
   cuscope does not answer itself is a tail jump to the real `dlsym`, so `RTLD_NEXT` and
   `RTLD_DEFAULT` behave as they would without cuscope.
+
+**Processes and exit**
+
+- **Exit.** The trace is written by an exit handler: `_exit`, `abort` and fatal signals leave
+  no trace. Records stay in memory until exit (64 bytes per call). GPU work still running
+  after `CUSCOPE_FLUSH_TIMEOUT_MS` at exit is counted in `unresolved_events`, not timed. On
+  WSL the driver shuts itself down before the CUDA runtime releases its context, so memory
+  the program never freed is reported as leaked at exit; leaks at an explicit
+  `cudaDeviceReset` are reported as freed at context teardown.
 - **Processes that do no CUDA work** (shells, compilers, worker processes that inherit
   `LD_PRELOAD`, a forked child whose only CUDA calls are the runtime's inherited exit
   cleanup) print nothing and write no trace. Work means an allocation, free, copy or launch.
@@ -249,9 +289,9 @@ laptop GPU's clock moves with power and temperature: this run's baseline trainin
   (any real CUDA program) cannot safely mark itself as the run's owner of the path, so a
   program it later executes (not forks) that also uses CUDA may overwrite its trace. Use
   `%p` for multi-process runs.
-- **Leak sites** skip the CUDA runtime's frames: functions in libcudart or libcuda, and in
-  the static runtime, names starting `cuda` plus an uppercase letter (`cudaMalloc`) or
-  `__cuda`. A program function named that way (`cudaAllocHelper`) is skipped too.
+
+**Memory caps and compute sharing**
+
 - **Memory caps** bound what the program allocates through the hooked calls, not the
   process's total GPU memory: the CUDA context and driver allocations are outside it, as are
   the virtual memory APIs (`cuMemCreate`, `cuMemMap`; PyTorch's `expandable_segments:True`).
@@ -261,23 +301,37 @@ laptop GPU's clock moves with power and temperature: this run's baseline trainin
 - **Compute sharing** delays launches; it cannot pre-empt a running or queued kernel, so one
   long kernel holds the GPU until it finishes. Copies are not charged. Under time-slicing
   (measured on WSL) a kernel's measured time includes the other job's slices, so unequal
-  weights come out more unequal in real work (80/20 measured, 89/11 work). It needs `full` mode, and the
-  daemon's table holds 32 jobs per user.
-- **Sanitizers.** The ASan and TSan CI jobs run the unit tests only: a sanitizer runtime calls
-  `dlsym` while initialising, which reaches cuscope's instrumented override too early.
+  weights come out more unequal in real work (80/20 measured, 89/11 work). It needs `full`
+  mode, and the daemon's table holds 32 jobs per user.
+
+**CI**
+
+- **Sanitizers.** The ASan and TSan CI jobs run the unit tests only: a sanitizer runtime
+  calls `dlsym` while initialising, which reaches cuscope's instrumented override too early.
 
 ## Testing
 
-- `ctest --test-dir build`: unit tests, the mock-driver suite (no GPU: a mock libcuda in direct
-  and WSL-shim modes, plus a fake `libcudart.so.13`), CLI tests, and GPU tests on the real
-  driver when one is present.
+- `ctest --test-dir build`: unit tests, the mock-driver suite (no GPU: a mock libcuda in
+  direct and WSL-shim modes, plus a fake `libcudart.so.13`), CLI tests, and GPU tests on the
+  real driver when one is present.
 - `python3 tools/check_exports.py`: proves, against the installed driver, that every hook
   matches the function its wrapper was written for.
-- `python3 tools/census.py run && python3 tools/census.py check`: the Day 2 symbol census.
-- `python3 tools/validate_pytorch.py` and `python3 bench/run_bench.py`: the tables above.
+- `python3 tools/census.py run && python3 tools/census.py check`: the symbol census, which
+  lists every driver function the CUDA runtime and PyTorch ask for.
+- `python3 tools/validate_pytorch.py`, `python3 bench/run_bench.py` and
+  `python3 tools/bench_share.py`: the validation, overhead and sharing tables above.
 - CI runs the GPU-free suites on every push, plain and under ASan and TSan.
 
-Design, decisions and findings: [docs/DESIGN.md](docs/DESIGN.md).
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| [`src/`](src) | The preloaded library: `dlsym` and `cuGetProcAddress` interposition, wrappers, recorder, collector, trace writer, memory cap and scheduler client |
+| [`cli/cuscope.py`](cli/cuscope.py) | The `cuscope run`, `summary` and `sched` commands |
+| [`tools/`](tools) | The scheduler daemon, the symbol census, export checks, the PyTorch validation, the memory-caps demo and the sharing benchmark |
+| [`tests/`](tests) | Unit tests, the mock driver and its suite, CUDA test programs, GPU tests |
+| [`bench/`](bench) | The overhead benchmark |
+| [`docs/`](docs) | [Design](docs/DESIGN.md), [setup](docs/SETUP.md), [validation](docs/validation.md), [overhead](docs/overhead.md), [memory caps](docs/memcaps.md), [sharing](docs/sharing.md) |
 
 ## Roadmap
 
