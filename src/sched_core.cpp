@@ -305,10 +305,12 @@ uint64_t Estimator::estimate(uint64_t key) const {
 
 void Estimator::observe(uint64_t key, uint64_t actual_ns) {
   std::lock_guard<std::mutex> lock(mu_);
-  auto [it, inserted] = average_ns_.try_emplace(key, actual_ns);
+  const uint64_t clamped = std::max<uint64_t>(1, actual_ns);
+  auto [it, inserted] = average_ns_.try_emplace(key, clamped);
   if (!inserted) {
     const int64_t diff = static_cast<int64_t>(actual_ns) - static_cast<int64_t>(it->second);
-    it->second = static_cast<uint64_t>(static_cast<int64_t>(it->second) + diff / 8);  // alpha = 1/8
+    const int64_t updated = static_cast<int64_t>(it->second) + diff / 8;  // alpha = 1/8
+    it->second = static_cast<uint64_t>(std::max<int64_t>(1, updated));
   }
 }
 

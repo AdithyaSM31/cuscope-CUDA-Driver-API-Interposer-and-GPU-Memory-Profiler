@@ -130,6 +130,30 @@ TEST(Estimator, DefaultThenRunningAverage) {
   EXPECT_EQ(e.estimate(7), 900'000u);  // 800 + (1600 - 800) / 8
 }
 
+TEST(Estimator, ClampsZeroEstimate) {
+  Estimator e;
+  e.observe(7, 0);
+  EXPECT_GE(e.estimate(7), 1u);
+  e.observe(7, 800'000);
+  EXPECT_GT(e.estimate(7), 1u);
+}
+
+TEST(SchedClient, ZeroMeasurementDoesNotStick) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 80, fake_now, fake_sleep);
+  uint64_t charge1 = c.before_launch(7);
+  EXPECT_EQ(charge1, kDefaultEstimateNs);
+  c.on_span(7, charge1, 0);  // first span measures 0 ns
+
+  uint64_t charge2 = c.before_launch(7);
+  EXPECT_GT(charge2, 0u);  // next charge is > 0
+
+  c.on_span(7, charge2, 800'000);  // later real measurement
+  uint64_t charge3 = c.before_launch(7);
+  EXPECT_GT(charge3, charge2);  // real measurement is applied
+}
+
 TEST(SchedClient, ClaimsAndReleasesASlot) {
   SchedShm shm{};
   sched_shm_init(&shm, 1, fake_now());
