@@ -203,11 +203,12 @@ def mimic_pair(tmp_path_factory):
     def run(scenario: str, weights: tuple, mode: str = "shim", env: dict | None = None):
         base_tmp = tmp_path_factory.mktemp(f"{scenario}-pair")
 
-        def one(weight):
-            tmp = base_tmp / f"w{weight}"
+        def one(item):
+            idx, weight = item
+            tmp = base_tmp / f"job{idx}_w{weight}"
             tmp.mkdir(parents=True, exist_ok=True)
             return _run([str(BUILD / "mock" / "runtime_mimic"), scenario], mode, True,
                         {**(env or {}), "CUSCOPE_SHARE": str(weight)}, tmp)
         with ThreadPoolExecutor(max_workers=2) as pool:
-            return tuple(pool.map(one, weights))
+            return tuple(pool.map(one, enumerate(weights)))
     return run

@@ -260,8 +260,8 @@ def test_too_small_segment_job(mimic, tmp_name_env):
 
 
 def test_stopped_client_re_registers_when_daemon_restarts(sched_daemon, mimic_popen):
-    env = {**sched_daemon.env, **FAST, "CUSCOPE_SHARE": "50", "MIMIC_SECONDS": "5",
-           "CUSCOPE_RECHECK_NS": "50000000"}  # 50 ms recheck for fast test
+    env = {**sched_daemon.env, **FAST, "CUSCOPE_SHARE": "50", "MIMIC_SECONDS": "30",
+           "MIMIC_GAP_US": "1000", "CUSCOPE_RECHECK_NS": "50000000"}  # 50 ms recheck for fast test
     p1 = mimic_popen("share_loop", env=env)
     p2 = mimic_popen("share_loop", env=env)
     wait_until(lambda: len(sched_daemon.status()) == 2, timeout=5)
