@@ -570,3 +570,62 @@ TEST(SchedCore, DaemonTickIntervalIdleVsActive) {
   EXPECT_EQ(daemon_tick_interval(&shm), kIdleTickNs);
 }
 
+TEST(SchedClient, GraphLaunchKeyChargingAndEstimator) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 80, fake_now, fake_sleep);
+
+  const uint64_t graph_key = 0xabcdef1234ull;
+  // First launch of graph key uses default estimate
+  uint64_t charge1 = c.before_launch(graph_key);
+  EXPECT_EQ(charge1, kDefaultEstimateNs);
+  EXPECT_EQ(shm.slots[0].charged_ns.load(), kDefaultEstimateNs);
+
+  // Graph execution resolves on GPU taking 2 ms
+  c.on_span(graph_key, charge1, 2'000'000);
+  EXPECT_EQ(shm.slots[0].charged_ns.load(), 2'000'000u);
+
+  // Subsequent launch of the same graph key uses updated estimate
+  uint64_t charge2 = c.before_launch(graph_key);
+  EXPECT_GT(charge2, kDefaultEstimateNs);
+}
+
+TEST(SchedClient, SeveralThreadsWaitingAtOnce) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  shm.slots[1].pid = 999;  // Peer job makes this non-solo
+  shm.slots[1].weight = 10;
+  shm.slots[1].last_launch_ns = fake_now();
+
+  SchedClient c(&shm, 4242, 10, fake_now, short_sleep);
+  shm.slots[0].balance_ns = -1'000'000;  // Start in debt
+
+  std::atomic<int> completed{0};
+  constexpr int kThreads = 4;
+  std::vector<std::thread> threads;
+  threads.reserve(kThreads);
+
+  for (int i = 0; i < kThreads; ++i) {
+    threads.emplace_back([&, i] {
+      c.before_launch(100 + i);
+      completed.fetch_add(1, std::memory_order_relaxed);
+    });
+  }
+
+  // Wait until threads enter waiting state
+  while (shm.slots[0].waiting.load() == 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(50));
+  }
+
+  // Refill credit to release waiters
+  shm.slots[0].balance_ns.store(10'000'000, std::memory_order_release);
+
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  EXPECT_EQ(completed.load(), kThreads);
+  EXPECT_EQ(shm.slots[0].waiting.load(), 0u);
+}
+
+

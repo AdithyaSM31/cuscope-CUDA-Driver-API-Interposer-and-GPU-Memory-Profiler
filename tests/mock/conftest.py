@@ -201,8 +201,11 @@ def mimic_pair(tmp_path_factory):
     from concurrent.futures import ThreadPoolExecutor
 
     def run(scenario: str, weights: tuple, mode: str = "shim", env: dict | None = None):
+        base_tmp = tmp_path_factory.mktemp(f"{scenario}-pair")
+
         def one(weight):
-            tmp = tmp_path_factory.mktemp(f"{scenario}-w{weight}")
+            tmp = base_tmp / f"w{weight}"
+            tmp.mkdir(parents=True, exist_ok=True)
             return _run([str(BUILD / "mock" / "runtime_mimic"), scenario], mode, True,
                         {**(env or {}), "CUSCOPE_SHARE": str(weight)}, tmp)
         with ThreadPoolExecutor(max_workers=2) as pool:

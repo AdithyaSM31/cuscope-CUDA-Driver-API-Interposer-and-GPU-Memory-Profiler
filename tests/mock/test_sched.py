@@ -238,7 +238,15 @@ def test_too_small_segment_daemon(tmp_name_env):
     r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
     assert r.returncode == 1, r.stdout
     assert "File exists" not in r.stderr, r.stderr
-    assert "too small" in r.stderr or "version" in r.stderr, r.stderr
+    assert "too small" in r.stderr, r.stderr
+
+
+def test_version_mismatch_small_segment_daemon(tmp_name_env):
+    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
+    _plant_segment(name, version=2, size=64)
+    r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
+    assert r.returncode == 1, r.stdout
+    assert "version 2" in r.stderr, r.stderr
 
 
 def test_too_small_segment_job(mimic, tmp_name_env):
@@ -268,11 +276,34 @@ def test_stopped_client_re_registers_when_daemon_restarts(sched_daemon, mimic_po
     slots = sched_daemon.status()
     pids = {s["pid"] for s in slots}
     assert p1.pid in pids and p2.pid in pids
+    assert all(s["solo"] == 0 for s in slots), slots
 
     p1.kill()
     p2.kill()
     p1.wait()
     p2.wait()
+
+
+def test_table_full_fails_open_and_logs(sched_daemon, mimic):
+    import struct
+    fd = os.open("/dev/shm" + sched_daemon.name, os.O_RDWR)
+    try:
+        # Header is 32 bytes, each SchedSlot is 56 bytes.
+        # Use our own PID so reaper does not consider the slots dead.
+        my_pid = os.getpid()
+        for i in range(32):
+            os.lseek(fd, 32 + i * 56, os.SEEK_SET)
+            os.write(fd, struct.pack("<i", my_pid))
+    finally:
+        os.close(fd)
+
+    r = mimic("launch", "shim", env={**sched_daemon.env, "CUSCOPE_SHARE": "50"})
+    assert r.code == 0, r.stderr
+    assert "compute sharing off: no free slot" in r.stderr
+    sched = r.trace["cuscope"]["sched"]
+    assert sched["registered"] is False
+    assert sched["reason"] == "no free slot"
+
 
 
 
