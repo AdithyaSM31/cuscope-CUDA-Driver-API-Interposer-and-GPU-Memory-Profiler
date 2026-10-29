@@ -302,7 +302,9 @@ training step is 84.5 ms against 60.6 ms in earlier runs.
   long kernel holds the GPU until it finishes. Copies are not charged. Under time-slicing
   (measured on WSL) a kernel's measured time includes the other job's slices, so unequal
   weights come out more unequal in real work (80/20 measured, 89/11 work). It needs `full`
-  mode, and the daemon's table holds 32 jobs per user.
+  mode, and the daemon's table holds 32 jobs per user. A job that executes (`exec`) a program
+  without cuscope leaves its slot registered with the daemon until the process exits (the
+  reaper frees it then).
 
 **CI**
 

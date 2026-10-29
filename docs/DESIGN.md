@@ -199,22 +199,24 @@ changes what a program sees, and it does so only as a full GPU would.
 launch, and waiting and solo flags. Jobs with `CUSCOPE_SHARE` claim a slot at their first
 launch.
 
-- **Refill.** Every millisecond the daemon hands the elapsed time to the active jobs (waiting
-  while in debt, or launched in the last 50 ms) by weight, capped at 20 ms of credit. Credit a
-  capped job cannot take goes to the others by weight (water-filling), so a lightly active
-  peer does not hold a busy job to its share. A job no other active job competes with is
-  *solo*: full credit, debt forgiven, and it never waits, even after idling. A launch made
-  after the tick read the clock still counts as active.
+- **Refill.** Every millisecond (or 10 ms when no jobs are active) the daemon hands the elapsed
+  time to the active jobs (waiting while in debt, or launched in the last 50 ms) by weight, capped
+  at 20 ms of credit. Credit a capped job cannot take goes to the others by weight (water-filling),
+  so a lightly active peer does not hold a busy job to its share. A job no other active job
+  competes with is *solo*: full credit, debt forgiven, and it never waits, even after idling.
+  A launch made after the tick read the clock still counts as active.
 - **Charge and correct.** A launch charges an estimate (a running average of that kernel's
-  measured time, 50 µs until measured) and waits in 200 µs steps while the balance is
-  negative. When the collector resolves the kernel's GPU span, the charge is corrected to the
-  measured time. Launches on a capturing stream are not charged.
+  measured time, bounded to 4096 entries and clamped to >= 1 ns; 50 µs until measured) and waits in
+  200 µs steps while the balance is negative. When the collector resolves the kernel's GPU span,
+  the charge is corrected to the measured time; if a driver launch fails, the charge is refunded
+  without touching the estimator. Launches on a capturing stream are not charged.
 - **Never idle.** Under time-slicing each job's measured time includes the other's slices, so
   every job can run short at once. When all active jobs are waiting, the daemon grants credit
   by weight until the least indebted can launch.
-- **Fail open.** No segment, a closed or stale one, a full table, or alloc mode at the first
+- **Fail open.** No segment, a closed or stale one, a version or size mismatch, a full table, or alloc mode at the first
   launch; or, while waiting, a stale heartbeat, a slot that is no longer the job's, or a wait
-  over 30 s: the job runs unthrottled and logs once. The client is created with a
+  over 30 s: the job runs unthrottled and logs once. If a new daemon starts later, stopped clients
+  periodically re-register and resume compute sharing. The client is created with a
   compare-and-swap, never a lock, so a fork cannot inherit one held. At exit the slot is
   released first in state, so a thread still waiting returns without touching it.
 - **Restart and ownership.** A daemon that finds a segment nobody serves (the old daemon
@@ -258,7 +260,7 @@ launch.
   `capture_race` (a global-mode capture while timed work is pending), `exit_busy` (exit with
   a kernel running), `fork_after_cuda` (one trace, the parent's), `cap_exact` (the fifth
   64 MiB allocation under a 256 MiB cap is denied, static and shared runtime), `share_load`
-  (two jobs at 50/50 split within 40-60%), and
+  (two jobs at 3:1 split within 65-85%), and
   `hello` built static and shared, which must give identical reports.
 - **Driver checks**: `tools/check_exports.py`, and `tools/census.py` for the Day 2 gate.
 - **PyTorch** ([validation.md](validation.md)) and **overhead** ([overhead.md](overhead.md)).
