@@ -110,8 +110,8 @@ class SchedClient {
   SchedStats stats() const;
 
  private:
-  SchedShm* shm_;
-  SchedSlot* slot_ = nullptr;
+  std::atomic<SchedShm*> shm_{nullptr};
+  std::atomic<SchedSlot*> slot_{nullptr};
   int32_t pid_;
   uint32_t weight_;
   Clock now_;
@@ -119,7 +119,7 @@ class SchedClient {
   std::atomic<SchedState> state_{SchedState::NoScheduler};
   Estimator estimator_;
   WaitHook on_wait_ = nullptr;
-  uint64_t accum_charged_ = 0, accum_waits_ = 0, accum_wait_ns_ = 0;
+  std::atomic<uint64_t> accum_charged_{0}, accum_waits_{0}, accum_wait_ns_{0};
   uint64_t released_charged_ = 0, released_waits_ = 0, released_wait_ns_ = 0;
 };
 

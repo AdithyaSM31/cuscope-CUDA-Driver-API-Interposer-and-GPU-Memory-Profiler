@@ -71,7 +71,8 @@ ExistingSegment map_existing(const std::string& name, bool writable) {
       uint64_t magic = 0;
       uint32_t ver = 0;
       if (pread(fd, &magic, sizeof(magic), 0) == sizeof(magic) &&
-          pread(fd, &ver, sizeof(ver), sizeof(magic)) == sizeof(ver) && magic == kSchedMagic) {
+          pread(fd, &ver, sizeof(ver), sizeof(magic)) == sizeof(ver) && magic == kSchedMagic &&
+          ver != kSchedVersion) {
         res.version_mismatch = true;
         res.version = ver;
       }

@@ -182,7 +182,8 @@ int64_t daemon_tick_interval(const SchedShm* shm) {
 }
 
 SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now, Sleep sleep)
-    : shm_(shm), pid_(pid), weight_(weight), now_(now), sleep_(sleep) {
+    : pid_(pid), weight_(weight), now_(now), sleep_(sleep) {
+  shm_.store(shm, std::memory_order_relaxed);
   // A segment nobody serves (left by a daemon that died) is no scheduler:
   if (shm != nullptr && (shm->magic != kSchedMagic || shm->version != kSchedVersion)) {
     state_ = SchedState::VersionMismatch;
@@ -205,7 +206,7 @@ SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now,
     s.charged_ns.store(0, std::memory_order_relaxed);
     s.waits.store(0, std::memory_order_relaxed);
     s.wait_ns.store(0, std::memory_order_relaxed);
-    slot_ = &s;
+    slot_.store(&s, std::memory_order_release);
     state_ = SchedState::Registered;
     return;
   }
@@ -213,8 +214,11 @@ SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now,
 }
 
 uint64_t SchedClient::before_launch(uint64_t key) {
-  if (state() != SchedState::Registered || slot_ == nullptr) return 0;
-  SchedSlot* const slot = slot_;
+  if (state() != SchedState::Registered) return 0;
+  SchedSlot* const slot = slot_.load(std::memory_order_acquire);
+  if (slot == nullptr) return 0;
+  SchedShm* const shm = shm_.load(std::memory_order_acquire);
+  if (shm == nullptr) return 0;
   const uint64_t est = estimator_.estimate(key);
   const uint64_t start = now_();
   slot->last_launch_ns.store(start, std::memory_order_relaxed);
@@ -228,13 +232,13 @@ uint64_t SchedClient::before_launch(uint64_t key) {
   bool waited = false;
   while (balance < 0 && slot->solo.load(std::memory_order_acquire) == 0 && state() == SchedState::Registered) {
     const uint64_t now = now_();
-    const uint64_t beat = shm_->heartbeat_ns.load(std::memory_order_acquire);
+    const uint64_t beat = shm->heartbeat_ns.load(std::memory_order_acquire);
     // Stop throttling for good when the daemon has stopped (closed segment),
     // stopped beating, or no longer serves this slot (a restarted daemon
     // re-initialised it): never stuck.
     // A wait longer than kMaxWaitNs means the daemon is not refilling at all
     // (a corrupt or foreign segment that still beats): give up as well.
-    if (shm_->closed.load(std::memory_order_acquire) != 0 || (now > beat && now - beat > kStaleNs) ||
+    if (shm->closed.load(std::memory_order_acquire) != 0 || (now > beat && now - beat > kStaleNs) ||
         slot->pid.load(std::memory_order_acquire) != pid_ || now - start >= kMaxWaitNs) {
       state_.store(SchedState::Stopped, std::memory_order_release);
       break;
@@ -257,28 +261,33 @@ uint64_t SchedClient::before_launch(uint64_t key) {
 }
 
 void SchedClient::on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns) {
-  if (charged_ns == 0 || slot_ == nullptr || state() == SchedState::Released) return;
+  if (charged_ns == 0 || state() == SchedState::Released) return;
+  SchedSlot* const slot = slot_.load(std::memory_order_acquire);
+  if (slot == nullptr) return;
   const int64_t diff = static_cast<int64_t>(charged_ns) - static_cast<int64_t>(actual_ns);
-  slot_->balance_ns.fetch_add(diff, std::memory_order_acq_rel);
-  slot_->charged_ns.fetch_sub(static_cast<uint64_t>(diff), std::memory_order_relaxed);  // now = actual
+  slot->balance_ns.fetch_add(diff, std::memory_order_acq_rel);
+  slot->charged_ns.fetch_sub(static_cast<uint64_t>(diff), std::memory_order_relaxed);  // now = actual
   estimator_.observe(key, actual_ns);
 }
 
 void SchedClient::refund(uint64_t charged_ns) {
-  if (charged_ns == 0 || slot_ == nullptr || state() == SchedState::Released) return;
-  slot_->balance_ns.fetch_add(static_cast<int64_t>(charged_ns), std::memory_order_acq_rel);
-  slot_->charged_ns.fetch_sub(charged_ns, std::memory_order_relaxed);
+  if (charged_ns == 0 || state() == SchedState::Released) return;
+  SchedSlot* const slot = slot_.load(std::memory_order_acquire);
+  if (slot == nullptr) return;
+  slot->balance_ns.fetch_add(static_cast<int64_t>(charged_ns), std::memory_order_acq_rel);
+  slot->charged_ns.fetch_sub(charged_ns, std::memory_order_relaxed);
 }
 
 void SchedClient::release() {
-  if (slot_ == nullptr || state() == SchedState::Released) return;
-  released_charged_ = slot_->charged_ns.load(std::memory_order_relaxed);
-  released_waits_ = slot_->waits.load(std::memory_order_relaxed);
-  released_wait_ns_ = slot_->wait_ns.load(std::memory_order_relaxed);
+  SchedSlot* const slot = slot_.load(std::memory_order_acquire);
+  if (slot == nullptr || state() == SchedState::Released) return;
+  released_charged_ = slot->charged_ns.load(std::memory_order_relaxed);
+  released_waits_ = slot->waits.load(std::memory_order_relaxed);
+  released_wait_ns_ = slot->wait_ns.load(std::memory_order_relaxed);
   // First: waiting threads leave their loop and spans stop correcting.
   state_.store(SchedState::Released, std::memory_order_release);
-  slot_->waiting.store(0, std::memory_order_relaxed);
-  slot_->pid.store(0, std::memory_order_release);  // last: the slot is free
+  slot->waiting.store(0, std::memory_order_relaxed);
+  slot->pid.store(0, std::memory_order_release);  // last: the slot is free
 }
 
 bool SchedClient::re_register(SchedShm* new_shm) {
@@ -294,10 +303,11 @@ bool SchedClient::re_register(SchedShm* new_shm) {
   for (SchedSlot& s : new_shm->slots) {
     int32_t expected = 0;
     if (!s.pid.compare_exchange_strong(expected, pid_, std::memory_order_acq_rel)) continue;
-    if (slot_ != nullptr) {
-      accum_charged_ += slot_->charged_ns.load(std::memory_order_relaxed);
-      accum_waits_ += slot_->waits.load(std::memory_order_relaxed);
-      accum_wait_ns_ += slot_->wait_ns.load(std::memory_order_relaxed);
+    SchedSlot* prev_slot = slot_.load(std::memory_order_relaxed);
+    if (prev_slot != nullptr) {
+      accum_charged_.fetch_add(prev_slot->charged_ns.load(std::memory_order_relaxed), std::memory_order_relaxed);
+      accum_waits_.fetch_add(prev_slot->waits.load(std::memory_order_relaxed), std::memory_order_relaxed);
+      accum_wait_ns_.fetch_add(prev_slot->wait_ns.load(std::memory_order_relaxed), std::memory_order_relaxed);
     }
     s.weight.store(weight_, std::memory_order_relaxed);
     s.balance_ns.store(kCapNs, std::memory_order_relaxed);
@@ -307,8 +317,8 @@ bool SchedClient::re_register(SchedShm* new_shm) {
     s.charged_ns.store(0, std::memory_order_relaxed);
     s.waits.store(0, std::memory_order_relaxed);
     s.wait_ns.store(0, std::memory_order_relaxed);
-    slot_ = &s;
-    shm_ = new_shm;
+    shm_.store(new_shm, std::memory_order_release);
+    slot_.store(&s, std::memory_order_release);
     state_.store(SchedState::Registered, std::memory_order_release);
     return true;
   }
@@ -322,14 +332,15 @@ SchedStats SchedClient::stats() const {
   const SchedState st = state();
   s.registered = st == SchedState::Registered || st == SchedState::Stopped || st == SchedState::Released;
   s.reason = sched_reason(st);
-  if (slot_ != nullptr && st != SchedState::Released) {
-    s.charged_ns = accum_charged_ + slot_->charged_ns.load(std::memory_order_relaxed);
-    s.waits = accum_waits_ + slot_->waits.load(std::memory_order_relaxed);
-    s.wait_ns = accum_wait_ns_ + slot_->wait_ns.load(std::memory_order_relaxed);
+  SchedSlot* const slot = slot_.load(std::memory_order_acquire);
+  if (slot != nullptr && st != SchedState::Released) {
+    s.charged_ns = accum_charged_.load(std::memory_order_relaxed) + slot->charged_ns.load(std::memory_order_relaxed);
+    s.waits = accum_waits_.load(std::memory_order_relaxed) + slot->waits.load(std::memory_order_relaxed);
+    s.wait_ns = accum_wait_ns_.load(std::memory_order_relaxed) + slot->wait_ns.load(std::memory_order_relaxed);
   } else {
-    s.charged_ns = accum_charged_ + released_charged_;
-    s.waits = accum_waits_ + released_waits_;
-    s.wait_ns = accum_wait_ns_ + released_wait_ns_;
+    s.charged_ns = accum_charged_.load(std::memory_order_relaxed) + released_charged_;
+    s.waits = accum_waits_.load(std::memory_order_relaxed) + released_waits_;
+    s.wait_ns = accum_wait_ns_.load(std::memory_order_relaxed) + released_wait_ns_;
   }
   return s;
 }
