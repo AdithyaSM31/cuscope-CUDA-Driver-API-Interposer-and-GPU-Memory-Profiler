@@ -107,6 +107,11 @@ void launch(CUstream stream, cuuint64_t flags = CU_GET_PROC_ADDRESS_LEGACY_STREA
   CHECK(fn(reinterpret_cast<CUfunction>(0x1234), 1, 1, 1, 1, 1, 1, 0, stream, nullptr, nullptr));
 }
 
+CUresult try_launch(CUstream stream, cuuint64_t flags = CU_GET_PROC_ADDRESS_LEGACY_STREAM) {
+  auto fn = get<decltype(&cuLaunchKernel)>("cuLaunchKernel", CUDA_VERSION, flags);
+  return result("launch", fn(reinterpret_cast<CUfunction>(0x1234), 1, 1, 1, 1, 1, 1, 0, stream, nullptr, nullptr));
+}
+
 void run(const char* scenario) {
   const bool via_default = std::strcmp(scenario, "dlsym_default") == 0;
   const bool via_cudart = std::strcmp(scenario, "via_cudart") == 0;
@@ -265,6 +270,10 @@ void run(const char* scenario) {
       if (gap_us > 0) usleep(gap_us);
     }
     std::printf("LAUNCHES %ld\n", launches);
+  } else if (std::strcmp(scenario, "launch_fail") == 0) {
+    CUdeviceptr p = alloc(64);
+    try_launch(nullptr);
+    release(p);
   } else if (std::strcmp(scenario, "cap_meminfo") == 0) {
     // Version 3020, as the CUDA runtime and PyTorch ask for it.
     CUdeviceptr p = 0;

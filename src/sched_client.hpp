@@ -20,6 +20,9 @@ uint64_t sched_before_launch(int variant, CUstream stream, uint64_t key);
 // The collector resolved a launch's GPU span: correct its charge.
 void sched_on_span(const GpuSpan& span);
 
+// A launch failed: return the estimate to the balance.
+void sched_refund(uint64_t charged_ns);
+
 // At exit: the job's sharing figures for the report.
 void sched_fill(Snapshot& s);
 

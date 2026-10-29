@@ -21,6 +21,7 @@ void finish_launch(ApiRecord& rec, CUresult result, RecType type, uint64_t func,
   rec.rec.stream = handle(stream);
   if (result != CUDA_SUCCESS) {
     if (timed) gpu_cancel(timing);
+    if (charged_ns > 0) sched_refund(charged_ns);
     return;
   }
   rec.rec.type = type;

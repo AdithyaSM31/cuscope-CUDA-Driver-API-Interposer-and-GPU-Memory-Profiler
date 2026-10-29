@@ -191,3 +191,13 @@ def test_job_ignores_a_segment_open_to_others(mimic, tmp_name_env):
     assert r.code == 0, r.stderr
     sched = r.trace["cuscope"]["sched"]
     assert (sched["registered"], sched["reason"]) == (False, "scheduler segment is not private to this user")
+
+
+def test_failed_launch_is_refunded(sched_daemon, mimic):
+    r = mimic("launch_fail", "shim", env={**sched_daemon.env, "CUSCOPE_SHARE": "50", "MOCK_LAUNCH_ERROR": "1"})
+    assert r.code == 0, r.stderr
+    assert r.trace is not None, (r.code, r.stdout, r.stderr)
+    sched = r.trace["cuscope"]["sched"]
+    assert sched["registered"] is True
+    assert sched["gpu_ns_charged"] == 0, sched
+

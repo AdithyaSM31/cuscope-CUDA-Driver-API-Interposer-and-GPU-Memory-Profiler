@@ -349,6 +349,7 @@ MOCK_API CUresult cuMemcpyAsync_ptsz(CUdeviceptr dst, CUdeviceptr src, size_t by
 
 MOCK_API CUresult cuLaunchKernel(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int,
                                  unsigned int, unsigned int, unsigned int, CUstream stream, void**, void**) {
+  if (std::getenv("MOCK_LAUNCH_ERROR") != nullptr) return CUDA_ERROR_LAUNCH_FAILED;
   g_count.launch++;
   run_kernel(stream);
   return CUDA_SUCCESS;
@@ -356,6 +357,7 @@ MOCK_API CUresult cuLaunchKernel(CUfunction, unsigned int, unsigned int, unsigne
 
 MOCK_API CUresult cuLaunchKernel_ptsz(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int,
                                       unsigned int, unsigned int, unsigned int, CUstream stream, void**, void**) {
+  if (std::getenv("MOCK_LAUNCH_ERROR") != nullptr) return CUDA_ERROR_LAUNCH_FAILED;
   g_count.launch_ptsz++;
   run_kernel(stream);
   return CUDA_SUCCESS;

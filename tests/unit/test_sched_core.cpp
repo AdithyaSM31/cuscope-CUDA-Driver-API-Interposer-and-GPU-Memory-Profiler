@@ -166,6 +166,24 @@ TEST(SchedClient, ClaimsAndReleasesASlot) {
   EXPECT_EQ(shm.slots[0].pid.load(), 0);
 }
 
+TEST(SchedClient, FailedLaunchRefundsCharge) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 80, fake_now, fake_sleep);
+  uint64_t charged = c.before_launch(7);
+  EXPECT_EQ(charged, kDefaultEstimateNs);
+  EXPECT_EQ(shm.slots[0].charged_ns.load(), kDefaultEstimateNs);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), kCapNs - static_cast<int64_t>(kDefaultEstimateNs));
+
+  c.refund(charged);
+  EXPECT_EQ(shm.slots[0].charged_ns.load(), 0u);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), kCapNs);
+
+  // Estimator should be untouched (still default estimate, not 0)
+  uint64_t next_charge = c.before_launch(7);
+  EXPECT_EQ(next_charge, kDefaultEstimateNs);
+}
+
 TEST(SchedClient, FullTableFailsOpen) {  // Review Focus 3
   SchedShm shm{};
   sched_shm_init(&shm, 1, fake_now());

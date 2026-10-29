@@ -84,6 +84,9 @@ class SchedClient {
   // shared, or captured) are ignored.
   void on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns);
 
+  // A launch failed: return the estimate to the balance without touching the estimator.
+  void refund(uint64_t charged_ns);
+
   // Called after each wait with when it started and how long it took (the
   // glue records it on the timeline).
   using WaitHook = void (*)(uint64_t start_ns, uint64_t dur_ns);

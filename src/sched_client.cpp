@@ -127,6 +127,13 @@ void sched_on_span(const GpuSpan& span) {
   }
 }
 
+void sched_refund(uint64_t charged_ns) {
+  if (charged_ns == 0) return;
+  if (SchedClient* c = g_client.load(std::memory_order_acquire)) {
+    c->refund(charged_ns);
+  }
+}
+
 void sched_fill(Snapshot& s) {
   s.sched = SchedStats{};
   if (config().share_weight == 0) return;

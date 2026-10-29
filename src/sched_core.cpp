@@ -254,6 +254,12 @@ void SchedClient::on_span(uint64_t key, uint64_t charged_ns, uint64_t actual_ns)
   estimator_.observe(key, actual_ns);
 }
 
+void SchedClient::refund(uint64_t charged_ns) {
+  if (charged_ns == 0 || slot_ == nullptr || state() == SchedState::Released) return;
+  slot_->balance_ns.fetch_add(static_cast<int64_t>(charged_ns), std::memory_order_acq_rel);
+  slot_->charged_ns.fetch_sub(charged_ns, std::memory_order_relaxed);
+}
+
 void SchedClient::release() {
   if (slot_ == nullptr || state() == SchedState::Released) return;
   released_charged_ = slot_->charged_ns.load(std::memory_order_relaxed);
