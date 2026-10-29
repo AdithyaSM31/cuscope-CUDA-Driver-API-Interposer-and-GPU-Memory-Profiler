@@ -130,7 +130,7 @@ void apply_refill(SchedShm* shm, uint64_t now_ns, uint64_t delta_ns) {
   for (int i = 0; i < kSchedSlots; ++i) {
     const SchedSlot& s = shm->slots[i];
     const uint64_t last = s.last_launch_ns.load(std::memory_order_relaxed);
-    views[i].used = s.pid.load(std::memory_order_acquire) != 0;
+    views[i].used = s.pid.load(std::memory_order_acquire) > 0;
     // A launch after this tick read the clock (last > now) is as recent as can be.
     views[i].balance = s.balance_ns.load(std::memory_order_relaxed);
     // Waiting counts only while in debt: a job frozen (Ctrl-Z, a debugger)
@@ -152,6 +152,25 @@ void apply_refill(SchedShm* shm, uint64_t now_ns, uint64_t delta_ns) {
     add_capped(s, steps[i].add_ns);
   }
   fast_forward_if_all_waiting(shm, views);
+}
+
+bool reap_dead_slot(SchedSlot& slot, const std::function<bool(int32_t)>& is_alive) {
+  int32_t pid = slot.pid.load(std::memory_order_acquire);
+  if (pid <= 0 || is_alive(pid)) return false;
+  if (!slot.pid.compare_exchange_strong(pid, kReapingPid, std::memory_order_acq_rel)) return false;
+  slot.waiting.store(0, std::memory_order_relaxed);
+  slot.solo.store(0, std::memory_order_relaxed);
+  slot.balance_ns.store(0, std::memory_order_relaxed);
+  slot.last_launch_ns.store(0, std::memory_order_relaxed);
+  slot.pid.store(0, std::memory_order_release);
+  return true;
+}
+
+void reap_dead_slots(SchedShm* shm, const std::function<bool(int32_t)>& is_alive) {
+  if (shm == nullptr) return;
+  for (SchedSlot& s : shm->slots) {
+    reap_dead_slot(s, is_alive);
+  }
 }
 
 SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now, Sleep sleep)

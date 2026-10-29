@@ -79,7 +79,7 @@ int print_status(const std::string& name) {
   for (int i = 0; i < kSchedSlots; ++i) {
     const SchedSlot& s = shm->slots[i];
     const int32_t pid = s.pid.load();
-    if (pid == 0) continue;
+    if (pid <= 0) continue;
     std::printf("%d %d %u %lld %u %u\n", i, pid, s.weight.load(), static_cast<long long>(s.balance_ns.load()),
                 s.solo.load(), s.waiting.load());
   }
@@ -131,16 +131,7 @@ SchedShm* create(const std::string& name) {
 }
 
 void free_dead_slots(SchedShm* shm) {
-  for (SchedSlot& s : shm->slots) {
-    const int32_t pid = s.pid.load(std::memory_order_acquire);
-    if (pid == 0 || alive(pid)) continue;
-    s.waiting = 0;
-    s.solo = 0;
-    s.balance_ns = 0;
-    s.last_launch_ns = 0;
-    int32_t expected = pid;
-    s.pid.compare_exchange_strong(expected, 0, std::memory_order_acq_rel);  // last: the slot is free
-  }
+  reap_dead_slots(shm, alive);
 }
 
 // --verbose: once a second, each job's share of the GPU time charged in that
@@ -153,7 +144,7 @@ class Reporter {
       const SchedSlot& s = shm->slots[i];
       const int32_t pid = s.pid.load();
       const uint64_t c = s.charged_ns.load(), w = s.wait_ns.load();
-      if (pid != 0 && pid == pid_[i]) {
+      if (pid > 0 && pid == pid_[i]) {
         charged[i] = c - charged_[i];
         waited[i] = w - waited_[i];
         total += charged[i];

@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -37,6 +38,10 @@ std::vector<RefillStep> plan_refill(const std::vector<ClientView>& clients, uint
 
 // One daemon tick: reads the slots, plans the refill and applies it.
 void apply_refill(SchedShm* shm, uint64_t now_ns, uint64_t delta_ns);
+
+// Frees dead slots safely without ABA clobbering: CAS pid -> kReapingPid, resets fields, then stores 0.
+bool reap_dead_slot(SchedSlot& slot, const std::function<bool(int32_t)>& is_alive);
+void reap_dead_slots(SchedShm* shm, const std::function<bool(int32_t)>& is_alive);
 
 // A launch's expected GPU time, per launch key (CUfunction or CUgraphExec): a
 // running average of what it measured, kDefaultEstimateNs until it has been.

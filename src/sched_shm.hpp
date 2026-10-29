@@ -24,6 +24,7 @@ constexpr uint64_t kWaitStepNs = 200'000;          // a waiting launch sleeps th
 constexpr uint64_t kStaleNs = 100'000'000;         // a heartbeat older than this: daemon gone
 constexpr uint64_t kReapEveryNs = 100'000'000;     // the daemon frees dead jobs' slots
 constexpr uint64_t kMaxWaitNs = 30'000'000'000;    // a single wait longer than this: give up throttling
+constexpr int32_t kReapingPid = -1;                 // slot is being reaped; unclaimable
 
 // One job. pid 0 means the slot is free.
 struct SchedSlot {

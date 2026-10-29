@@ -391,3 +391,55 @@ TEST(SchedClient, AWaitThatNeverEndsIsCutOff) {  // Final review I3
   EXPECT_GE(fake_now() - start, kMaxWaitNs);
   EXPECT_LT(fake_now() - start, kMaxWaitNs + 1'000'000);
 }
+
+TEST(SchedCore, ReapsDeadSlot) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = 100;
+  shm.slots[0].balance_ns = 5'000'000;
+  shm.slots[0].waiting = 1;
+  shm.slots[0].solo = 1;
+  shm.slots[0].last_launch_ns = 12345;
+
+  EXPECT_TRUE(reap_dead_slot(shm.slots[0], [](int32_t) { return false; }));
+  EXPECT_EQ(shm.slots[0].pid.load(), 0);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), 0);
+  EXPECT_EQ(shm.slots[0].waiting.load(), 0u);
+  EXPECT_EQ(shm.slots[0].solo.load(), 0u);
+  EXPECT_EQ(shm.slots[0].last_launch_ns.load(), 0u);
+}
+
+TEST(SchedCore, ReaperRaceDoesNotClobberNewJob) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = 100;
+  shm.slots[0].balance_ns = 5'000'000;
+
+  // Between checking alive and CAS, dead pid 100 is replaced by new job 200
+  auto alive_check_with_race = [&](int32_t pid) {
+    if (pid == 100) {
+      shm.slots[0].pid = 200;
+      shm.slots[0].balance_ns = 20'000'000;
+      shm.slots[0].last_launch_ns = 999;
+      return false;  // 100 was dead
+    }
+    return true;
+  };
+
+  EXPECT_FALSE(reap_dead_slot(shm.slots[0], alive_check_with_race));
+  EXPECT_EQ(shm.slots[0].pid.load(), 200);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), 20'000'000);
+  EXPECT_EQ(shm.slots[0].last_launch_ns.load(), 999u);
+}
+
+TEST(SchedCore, NegativePidIgnoredInRefill) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+  shm.slots[0].pid = kReapingPid;
+  shm.slots[0].weight = 10;
+  shm.slots[0].last_launch_ns = 1;
+
+  apply_refill(&shm, 1'000'000, 1'000'000);
+  EXPECT_EQ(shm.slots[0].balance_ns.load(), 0);
+}
+
