@@ -104,6 +104,9 @@ class SchedClient {
   // stays valid (the segment is never unmapped). Stats stay readable.
   void release();
 
+  // Re-registers with a new scheduler segment after being Stopped.
+  bool re_register(SchedShm* new_shm);
+
   SchedStats stats() const;
 
  private:
@@ -116,6 +119,7 @@ class SchedClient {
   std::atomic<SchedState> state_{SchedState::NoScheduler};
   Estimator estimator_;
   WaitHook on_wait_ = nullptr;
+  uint64_t accum_charged_ = 0, accum_waits_ = 0, accum_wait_ns_ = 0;
   uint64_t released_charged_ = 0, released_waits_ = 0, released_wait_ns_ = 0;
 };
 

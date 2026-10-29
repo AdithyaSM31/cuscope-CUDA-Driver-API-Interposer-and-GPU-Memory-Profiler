@@ -281,6 +281,40 @@ void SchedClient::release() {
   slot_->pid.store(0, std::memory_order_release);  // last: the slot is free
 }
 
+bool SchedClient::re_register(SchedShm* new_shm) {
+  if (state() == SchedState::Released || state() == SchedState::AllocMode) return false;
+  if (new_shm == nullptr || new_shm->magic != kSchedMagic || new_shm->version != kSchedVersion) {
+    return false;
+  }
+  const uint64_t t = now_();
+  const uint64_t beat = new_shm->heartbeat_ns.load(std::memory_order_acquire);
+  if (new_shm->closed.load(std::memory_order_acquire) != 0 || (t > beat && t - beat > kStaleNs)) {
+    return false;
+  }
+  for (SchedSlot& s : new_shm->slots) {
+    int32_t expected = 0;
+    if (!s.pid.compare_exchange_strong(expected, pid_, std::memory_order_acq_rel)) continue;
+    if (slot_ != nullptr) {
+      accum_charged_ += slot_->charged_ns.load(std::memory_order_relaxed);
+      accum_waits_ += slot_->waits.load(std::memory_order_relaxed);
+      accum_wait_ns_ += slot_->wait_ns.load(std::memory_order_relaxed);
+    }
+    s.weight.store(weight_, std::memory_order_relaxed);
+    s.balance_ns.store(kCapNs, std::memory_order_relaxed);
+    s.last_launch_ns.store(now_(), std::memory_order_relaxed);
+    s.waiting.store(0, std::memory_order_relaxed);
+    s.solo.store(0, std::memory_order_relaxed);
+    s.charged_ns.store(0, std::memory_order_relaxed);
+    s.waits.store(0, std::memory_order_relaxed);
+    s.wait_ns.store(0, std::memory_order_relaxed);
+    slot_ = &s;
+    shm_ = new_shm;
+    state_.store(SchedState::Registered, std::memory_order_release);
+    return true;
+  }
+  return false;
+}
+
 SchedStats SchedClient::stats() const {
   SchedStats s;
   s.enabled = true;
@@ -289,13 +323,13 @@ SchedStats SchedClient::stats() const {
   s.registered = st == SchedState::Registered || st == SchedState::Stopped || st == SchedState::Released;
   s.reason = sched_reason(st);
   if (slot_ != nullptr && st != SchedState::Released) {
-    s.charged_ns = slot_->charged_ns.load(std::memory_order_relaxed);
-    s.waits = slot_->waits.load(std::memory_order_relaxed);
-    s.wait_ns = slot_->wait_ns.load(std::memory_order_relaxed);
+    s.charged_ns = accum_charged_ + slot_->charged_ns.load(std::memory_order_relaxed);
+    s.waits = accum_waits_ + slot_->waits.load(std::memory_order_relaxed);
+    s.wait_ns = accum_wait_ns_ + slot_->wait_ns.load(std::memory_order_relaxed);
   } else {
-    s.charged_ns = released_charged_;
-    s.waits = released_waits_;
-    s.wait_ns = released_wait_ns_;
+    s.charged_ns = accum_charged_ + released_charged_;
+    s.waits = accum_waits_ + released_waits_;
+    s.wait_ns = accum_wait_ns_ + released_wait_ns_;
   }
   return s;
 }

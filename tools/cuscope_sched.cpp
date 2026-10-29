@@ -30,6 +30,7 @@ namespace {
 volatile std::sig_atomic_t g_stop = 0;
 
 void on_signal(int) { g_stop = 1; }
+void on_wake(int) {}
 
 uint64_t now_ns() {
   timespec ts;
@@ -226,6 +227,10 @@ int run(const std::string& name, bool verbose) {
   sigaction(SIGTERM, &sa, nullptr);
   sigaction(SIGHUP, &sa, nullptr);  // its terminal closed
 
+  struct sigaction sa_wake {};
+  sa_wake.sa_handler = on_wake;
+  sigaction(SIGUSR1, &sa_wake, nullptr);
+
   Reporter reporter;
   uint64_t last = now_ns(), last_reap = last, last_report = last;
   timespec deadline;
@@ -239,7 +244,10 @@ int run(const std::string& name, bool verbose) {
       deadline.tv_nsec -= 1'000'000'000;
       ++deadline.tv_sec;
     }
-    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, nullptr);
+    const int ret = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, nullptr);
+    if (ret == EINTR) {
+      clock_gettime(CLOCK_MONOTONIC, &deadline);
+    }
     const uint64_t now = now_ns();
     shm->heartbeat_ns.store(now, std::memory_order_release);
     apply_refill(shm, now, now - last);

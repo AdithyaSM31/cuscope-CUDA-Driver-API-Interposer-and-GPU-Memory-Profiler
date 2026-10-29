@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import time
 from pathlib import Path
 
 from conftest import SCHED
@@ -248,5 +249,30 @@ def test_too_small_segment_job(mimic, tmp_name_env):
     sched = r.trace["cuscope"]["sched"]
     assert sched["registered"] is False
     assert sched["reason"] == "scheduler is a different version (restart cuscope sched)"
+
+
+def test_stopped_client_re_registers_when_daemon_restarts(sched_daemon, mimic_popen):
+    env = {**sched_daemon.env, **FAST, "CUSCOPE_SHARE": "50", "MIMIC_SECONDS": "5",
+           "CUSCOPE_RECHECK_NS": "50000000"}  # 50 ms recheck for fast test
+    p1 = mimic_popen("share_loop", env=env)
+    p2 = mimic_popen("share_loop", env=env)
+    wait_until(lambda: len(sched_daemon.status()) == 2, timeout=5)
+
+    # Daemon killed: jobs continue running unthrottled
+    sched_daemon.kill()
+    time.sleep(0.15)  # wait for heartbeat to go stale (> 100 ms)
+
+    # New daemon starts: jobs re-register and are throttled again
+    sched_daemon.start()
+    wait_until(lambda: len(sched_daemon.status()) == 2, timeout=5)
+    slots = sched_daemon.status()
+    pids = {s["pid"] for s in slots}
+    assert p1.pid in pids and p2.pid in pids
+
+    p1.kill()
+    p2.kill()
+    p1.wait()
+    p2.wait()
+
 
 

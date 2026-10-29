@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <csignal>
 
 #include "config.hpp"
 #include "guard.hpp"
@@ -81,6 +82,7 @@ bool capturing(int variant, CUstream stream) {
 }
 
 std::atomic<bool> g_stop_logged{false};
+std::atomic<uint64_t> g_last_recheck{0};
 
 // Created at the first launch and never destroyed (an exit handler may still
 // use it). No lock: a fork must never inherit one held by another thread.
@@ -90,12 +92,13 @@ SchedClient* client() {
   if (SchedClient* c = g_client.load(std::memory_order_acquire)) return c;
   const uint32_t weight = config().share_weight;
   SchedClient* made = nullptr;
+  SchedShm* shm = nullptr;
   if (config().mode == Config::Mode::Alloc) {
     made = new SchedClient(nullptr, static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
     made->fail_open(SchedState::AllocMode);
   } else {
     bool unsafe = false, mismatch = false;
-    SchedShm* shm = map_segment(&unsafe, &mismatch);
+    shm = map_segment(&unsafe, &mismatch);
     made = new SchedClient(shm, static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
     if (unsafe) made->fail_open(SchedState::Unsafe);
     if (mismatch) made->fail_open(SchedState::VersionMismatch);
@@ -107,7 +110,13 @@ SchedClient* client() {
     return expected;  // `made` is leaked on purpose: it is tiny and this race is one-off
   }
   switch (made->state()) {
-    case SchedState::Registered: break;
+    case SchedState::Registered:
+      if (shm != nullptr) {
+        if (int32_t dpid = shm->daemon_pid.load(std::memory_order_relaxed)) {
+          kill(dpid, SIGUSR1);
+        }
+      }
+      break;
     case SchedState::NoScheduler:
       log_msg("compute sharing off: no scheduler running (start cuscope sched)");
       break;
@@ -123,6 +132,30 @@ SchedClient* client() {
 uint64_t sched_before_launch(int variant, CUstream stream, uint64_t key) {
   if (config().share_weight == 0 || in_internal()) return 0;
   SchedClient* c = client();
+  if (c->state() == SchedState::Stopped) {
+    static const uint64_t recheck_interval_ns = []() -> uint64_t {
+      if (const char* env = std::getenv("CUSCOPE_RECHECK_NS")) {
+        return static_cast<uint64_t>(std::strtoull(env, nullptr, 10));
+      }
+      return 1'000'000'000ull;
+    }();
+    const uint64_t now = mono_now();
+    uint64_t prev = g_last_recheck.load(std::memory_order_relaxed);
+    if (now >= prev + recheck_interval_ns && g_last_recheck.compare_exchange_strong(prev, now)) {
+      bool unsafe = false, mismatch = false;
+      if (SchedShm* new_shm = map_segment(&unsafe, &mismatch)) {
+        if (c->re_register(new_shm)) {
+          g_stop_logged.store(false, std::memory_order_relaxed);
+          if (int32_t dpid = new_shm->daemon_pid.load(std::memory_order_relaxed)) {
+            kill(dpid, SIGUSR1);
+          }
+          log_msg("compute sharing re-enabled: re-registered with scheduler");
+        } else {
+          munmap(new_shm, sizeof(SchedShm));
+        }
+      }
+    }
+  }
   if (c->state() != SchedState::Registered || capturing(variant, stream)) return 0;
   const uint64_t charged = c->before_launch(key);
   if (c->state() == SchedState::Stopped && !g_stop_logged.exchange(true)) {
@@ -164,6 +197,7 @@ void sched_release_at_exit() {
 void sched_after_fork_child() {
   g_client.store(nullptr, std::memory_order_release);
   g_stop_logged.store(false, std::memory_order_relaxed);
+  g_last_recheck.store(0, std::memory_order_relaxed);
 }
 
 }  // namespace cuscope

@@ -238,6 +238,34 @@ TEST(SchedClient, WrongMagicFailsOpen) {
   EXPECT_FALSE(c.stats().registered);
 }
 
+TEST(SchedClient, ReRegistersAfterDaemonRestart) {
+  SchedShm shm1{};
+  sched_shm_init(&shm1, 1, fake_now());
+  SchedClient c(&shm1, 4242, 80, fake_now, fake_sleep);
+  EXPECT_EQ(c.state(), SchedState::Registered);
+
+  // Daemon 1 stops
+  shm1.slots[0].balance_ns = -50'000'000;
+  shm1.closed = 1;
+  c.before_launch(7);
+  EXPECT_EQ(c.state(), SchedState::Stopped);
+
+  // While stopped, launches return 0 and do not charge
+  EXPECT_EQ(c.before_launch(7), 0u);
+
+  // Daemon 2 starts with a new segment
+  SchedShm shm2{};
+  sched_shm_init(&shm2, 2, fake_now());
+  EXPECT_TRUE(c.re_register(&shm2));
+  EXPECT_EQ(c.state(), SchedState::Registered);
+  EXPECT_EQ(shm2.slots[0].pid.load(), 4242);
+
+  // Now it charges and throttles again
+  uint64_t charged = c.before_launch(7);
+  EXPECT_GT(charged, 0u);
+  EXPECT_EQ(shm2.slots[0].charged_ns.load(), charged);
+}
+
 TEST(SchedClient, StatsCarryWeightAndReason) {
   SchedShm shm{};
   sched_shm_init(&shm, 1, fake_now());
