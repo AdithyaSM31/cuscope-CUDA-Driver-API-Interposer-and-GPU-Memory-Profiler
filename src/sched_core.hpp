@@ -57,7 +57,8 @@ class Estimator {
 
 // Released: the slot was given back at exit; other threads stop waiting.
 // Unsafe: the segment is owned by another user or open to others; not used.
-enum class SchedState { Registered, NoScheduler, NoFreeSlot, AllocMode, Stopped, Released, Unsafe };
+// VersionMismatch: segment magic or version does not match kSchedMagic / kSchedVersion.
+enum class SchedState { Registered, NoScheduler, NoFreeSlot, AllocMode, Stopped, Released, Unsafe, VersionMismatch };
 
 // One job's side of the scheduler, on a mapped segment (or an in-memory one
 // in tests). The clock and sleep are passed in so tests control time.

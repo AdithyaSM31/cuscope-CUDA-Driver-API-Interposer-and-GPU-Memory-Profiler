@@ -201,3 +201,52 @@ def test_failed_launch_is_refunded(sched_daemon, mimic):
     assert sched["registered"] is True
     assert sched["gpu_ns_charged"] == 0, sched
 
+
+def _plant_segment(name: str, version: int, size: int = 4096) -> None:
+    import struct
+    fd = os.open("/dev/shm" + name, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        os.ftruncate(fd, size)
+        if size >= 12:
+            os.write(fd, struct.pack("<QI", 0x6375736368656421, version))
+    finally:
+        os.close(fd)
+
+
+def test_version_mismatch_daemon(tmp_name_env):
+    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
+    _plant_segment(name, version=2, size=4096)
+    r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
+    assert r.returncode == 1, r.stdout
+    assert "version 2" in r.stderr or "version" in r.stderr, r.stderr
+
+
+def test_version_mismatch_job(mimic, tmp_name_env):
+    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
+    _plant_segment(name, version=2, size=4096)
+    r = mimic("share_loop", "shim", env={**tmp_name_env, "CUSCOPE_SHARE": "50", "MIMIC_SECONDS": "0.2"})
+    assert r.code == 0, r.stderr
+    sched = r.trace["cuscope"]["sched"]
+    assert sched["registered"] is False
+    assert sched["reason"] == "scheduler is a different version (restart cuscope sched)"
+
+
+def test_too_small_segment_daemon(tmp_name_env):
+    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
+    _plant_segment(name, version=1, size=64)
+    r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
+    assert r.returncode == 1, r.stdout
+    assert "File exists" not in r.stderr, r.stderr
+    assert "too small" in r.stderr or "version" in r.stderr, r.stderr
+
+
+def test_too_small_segment_job(mimic, tmp_name_env):
+    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
+    _plant_segment(name, version=1, size=64)
+    r = mimic("share_loop", "shim", env={**tmp_name_env, "CUSCOPE_SHARE": "50", "MIMIC_SECONDS": "0.2"})
+    assert r.code == 0, r.stderr
+    sched = r.trace["cuscope"]["sched"]
+    assert sched["registered"] is False
+    assert sched["reason"] == "scheduler is a different version (restart cuscope sched)"
+
+

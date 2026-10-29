@@ -30,9 +30,10 @@ void sleep_ns(uint64_t ns) {
 }
 
 // The daemon's segment, mapped read-write; nullptr if there is none, or if it
-// is not private to this user (*unsafe is then set).
-SchedShm* map_segment(bool* unsafe) {
+// is not private to this user (*unsafe is then set), or if its version/size mismatches (*version_mismatch is set).
+SchedShm* map_segment(bool* unsafe, bool* version_mismatch) {
   *unsafe = false;
+  *version_mismatch = false;
   const int fd = shm_open(sched_shm_name().c_str(), O_RDWR, 0);
   if (fd < 0) return nullptr;
   if (!sched_shm_private(fd)) {
@@ -41,12 +42,21 @@ SchedShm* map_segment(bool* unsafe) {
     return nullptr;
   }
   struct stat st {};
-  void* p = MAP_FAILED;
-  if (fstat(fd, &st) == 0 && static_cast<size_t>(st.st_size) >= sizeof(SchedShm)) {
-    p = mmap(nullptr, sizeof(SchedShm), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (fstat(fd, &st) != 0 || static_cast<size_t>(st.st_size) < sizeof(SchedShm)) {
+    close(fd);
+    *version_mismatch = true;
+    return nullptr;
   }
+  void* p = mmap(nullptr, sizeof(SchedShm), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   close(fd);
-  return p == MAP_FAILED ? nullptr : static_cast<SchedShm*>(p);
+  if (p == MAP_FAILED) return nullptr;
+  auto* shm = static_cast<SchedShm*>(p);
+  if (shm->magic != kSchedMagic || shm->version != kSchedVersion) {
+    munmap(p, sizeof(SchedShm));
+    *version_mismatch = true;
+    return nullptr;
+  }
+  return shm;
 }
 
 // A wait, on the launching thread's timeline.
@@ -84,10 +94,11 @@ SchedClient* client() {
     made = new SchedClient(nullptr, static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
     made->fail_open(SchedState::AllocMode);
   } else {
-    bool unsafe = false;
-    SchedShm* shm = map_segment(&unsafe);
+    bool unsafe = false, mismatch = false;
+    SchedShm* shm = map_segment(&unsafe, &mismatch);
     made = new SchedClient(shm, static_cast<int32_t>(getpid()), weight, mono_now, sleep_ns);
     if (unsafe) made->fail_open(SchedState::Unsafe);
+    if (mismatch) made->fail_open(SchedState::VersionMismatch);
   }
   made->set_on_wait(record_wait);
   SchedClient* expected = nullptr;

@@ -39,24 +39,57 @@ uint64_t now_ns() {
 
 bool alive(int32_t pid) { return pid > 0 && (kill(pid, 0) == 0 || errno == EPERM); }
 
+struct ExistingSegment {
+  SchedShm* shm = nullptr;
+  bool foreign = false;
+  bool version_mismatch = false;
+  bool too_small = false;
+  uint32_t version = 0;
+};
+
 // Maps an existing segment, or returns nullptr. A segment that is not
-// private to this user is never used: *foreign is set instead.
-SchedShm* map_existing(const std::string& name, bool writable, bool* foreign) {
-  *foreign = false;
+// private to this user is never used: foreign is set instead.
+// If the version or size does not match, version_mismatch or too_small is set.
+ExistingSegment map_existing(const std::string& name, bool writable) {
+  ExistingSegment res;
   const int fd = shm_open(name.c_str(), writable ? O_RDWR : O_RDONLY, 0);
-  if (fd < 0) return nullptr;
+  if (fd < 0) return res;
   if (!sched_shm_private(fd)) {
     close(fd);
-    *foreign = true;
-    return nullptr;
+    res.foreign = true;
+    return res;
   }
   struct stat st {};
-  void* p = MAP_FAILED;
-  if (fstat(fd, &st) == 0 && static_cast<size_t>(st.st_size) >= sizeof(SchedShm)) {
-    p = mmap(nullptr, sizeof(SchedShm), writable ? PROT_READ | PROT_WRITE : PROT_READ, MAP_SHARED, fd, 0);
+  if (fstat(fd, &st) != 0) {
+    close(fd);
+    return res;
   }
+  if (static_cast<size_t>(st.st_size) < sizeof(SchedShm)) {
+    res.too_small = true;
+    if (static_cast<size_t>(st.st_size) >= 12) {
+      uint64_t magic = 0;
+      uint32_t ver = 0;
+      if (pread(fd, &magic, sizeof(magic), 0) == sizeof(magic) &&
+          pread(fd, &ver, sizeof(ver), sizeof(magic)) == sizeof(ver) && magic == kSchedMagic) {
+        res.version_mismatch = true;
+        res.version = ver;
+      }
+    }
+    close(fd);
+    return res;
+  }
+  void* p = mmap(nullptr, sizeof(SchedShm), writable ? PROT_READ | PROT_WRITE : PROT_READ, MAP_SHARED, fd, 0);
   close(fd);
-  return p == MAP_FAILED ? nullptr : static_cast<SchedShm*>(p);
+  if (p == MAP_FAILED) return res;
+  auto* shm = static_cast<SchedShm*>(p);
+  if (shm->magic != kSchedMagic || shm->version != kSchedVersion) {
+    res.version_mismatch = true;
+    res.version = shm->magic == kSchedMagic ? shm->version : 0;
+    munmap(p, sizeof(SchedShm));
+    return res;
+  }
+  res.shm = shm;
+  return res;
 }
 
 // A segment a live daemon is serving.
@@ -66,12 +99,20 @@ bool serving(const SchedShm* shm) {
 }
 
 int print_status(const std::string& name) {
-  bool foreign = false;
-  SchedShm* shm = map_existing(name, /*writable=*/false, &foreign);
-  if (foreign) {
+  ExistingSegment existing = map_existing(name, /*writable=*/false);
+  if (existing.foreign) {
     std::fprintf(stderr, "cuscope-sched: %s is not private to this user\n", name.c_str());
     return 1;
   }
+  if (existing.version_mismatch) {
+    std::fprintf(stderr, "cuscope-sched: segment has version %u, expected %u\n", existing.version, kSchedVersion);
+    return 1;
+  }
+  if (existing.too_small) {
+    std::fprintf(stderr, "cuscope-sched: segment is too small\n");
+    return 1;
+  }
+  SchedShm* shm = existing.shm;
   if (!serving(shm)) {
     std::fprintf(stderr, "cuscope-sched: no scheduler running\n");
     return 1;
@@ -83,31 +124,39 @@ int print_status(const std::string& name) {
     std::printf("%d %d %u %lld %u %u\n", i, pid, s.weight.load(), static_cast<long long>(s.balance_ns.load()),
                 s.solo.load(), s.waiting.load());
   }
+  munmap(shm, sizeof(SchedShm));
   return 0;
 }
 
 // Creates the segment, or takes over one whose daemon has died. nullptr (and a
 // message) if another daemon is serving it or it cannot be created.
 SchedShm* create(const std::string& name) {
-  bool foreign = false;
-  SchedShm* existing = map_existing(name, /*writable=*/true, &foreign);
-  if (foreign) {
+  ExistingSegment existing = map_existing(name, /*writable=*/true);
+  if (existing.foreign) {
     std::fprintf(stderr,
                  "cuscope-sched: %s is not private to this user (another user could control it); "
                  "refusing to use it\n",
                  name.c_str());
     return nullptr;
   }
-  if (existing != nullptr) {
-    if (serving(existing)) {
-      std::fprintf(stderr, "cuscope-sched: already running (pid %d)\n", existing->daemon_pid.load());
+  if (existing.version_mismatch) {
+    std::fprintf(stderr, "cuscope-sched: segment has version %u, expected %u\n", existing.version, kSchedVersion);
+    return nullptr;
+  }
+  if (existing.too_small) {
+    std::fprintf(stderr, "cuscope-sched: segment is too small\n");
+    return nullptr;
+  }
+  if (existing.shm != nullptr) {
+    if (serving(existing.shm)) {
+      std::fprintf(stderr, "cuscope-sched: already running (pid %d)\n", existing.shm->daemon_pid.load());
       return nullptr;
     }
     // Left behind by a daemon that crashed. Jobs may still map it: close it
     // (they then run unthrottled, as after a clean stop) and start a new
     // segment, rather than re-initialise slots that live jobs think are theirs.
-    existing->closed.store(1, std::memory_order_release);
-    munmap(existing, sizeof(SchedShm));
+    existing.shm->closed.store(1, std::memory_order_release);
+    munmap(existing.shm, sizeof(SchedShm));
     shm_unlink(name.c_str());
   }
   const int fd = shm_open(name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);

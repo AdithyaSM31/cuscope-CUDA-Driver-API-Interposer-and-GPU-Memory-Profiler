@@ -202,6 +202,27 @@ TEST(SchedClient, ClosedSegmentFailsOpen) {
   EXPECT_EQ(SchedClient(nullptr, 4242, 80, fake_now, fake_sleep).state(), SchedState::NoScheduler);
 }
 
+TEST(SchedClient, VersionMismatchFailsOpen) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  shm.version = kSchedVersion + 1;
+  SchedClient c(&shm, 4242, 80, fake_now, fake_sleep);
+  EXPECT_EQ(c.state(), SchedState::VersionMismatch);
+  EXPECT_EQ(c.stats().reason, "scheduler is a different version (restart cuscope sched)");
+  EXPECT_FALSE(c.stats().registered);
+  EXPECT_EQ(c.before_launch(7), 0u);
+}
+
+TEST(SchedClient, WrongMagicFailsOpen) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  shm.magic = 0xdeadbeefULL;
+  SchedClient c(&shm, 4242, 80, fake_now, fake_sleep);
+  EXPECT_EQ(c.state(), SchedState::VersionMismatch);
+  EXPECT_EQ(c.stats().reason, "scheduler is a different version (restart cuscope sched)");
+  EXPECT_FALSE(c.stats().registered);
+}
+
 TEST(SchedClient, StatsCarryWeightAndReason) {
   SchedShm shm{};
   sched_shm_init(&shm, 1, fake_now());

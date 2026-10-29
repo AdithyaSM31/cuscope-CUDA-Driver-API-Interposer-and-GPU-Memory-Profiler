@@ -176,11 +176,13 @@ void reap_dead_slots(SchedShm* shm, const std::function<bool(int32_t)>& is_alive
 SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now, Sleep sleep)
     : shm_(shm), pid_(pid), weight_(weight), now_(now), sleep_(sleep) {
   // A segment nobody serves (left by a daemon that died) is no scheduler:
-  // a job registered there would wait for refills that never come.
+  if (shm != nullptr && (shm->magic != kSchedMagic || shm->version != kSchedVersion)) {
+    state_ = SchedState::VersionMismatch;
+    return;
+  }
   const uint64_t t = now();
   const uint64_t beat = shm != nullptr ? shm->heartbeat_ns.load(std::memory_order_acquire) : 0;
-  if (shm == nullptr || shm->magic != kSchedMagic || shm->version != kSchedVersion ||
-      shm->closed.load(std::memory_order_acquire) != 0 || (t > beat && t - beat > kStaleNs)) {
+  if (shm == nullptr || shm->closed.load(std::memory_order_acquire) != 0 || (t > beat && t - beat > kStaleNs)) {
     state_ = SchedState::NoScheduler;
     return;
   }
@@ -299,6 +301,7 @@ const char* sched_reason(SchedState state) {
     case SchedState::Stopped: return "scheduler stopped";
     case SchedState::Released: return "";
     case SchedState::Unsafe: return "scheduler segment is not private to this user";
+    case SchedState::VersionMismatch: return "scheduler is a different version (restart cuscope sched)";
   }
   return "";
 }
