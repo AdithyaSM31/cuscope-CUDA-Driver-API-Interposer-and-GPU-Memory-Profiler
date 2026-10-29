@@ -43,6 +43,9 @@ void apply_refill(SchedShm* shm, uint64_t now_ns, uint64_t delta_ns);
 bool reap_dead_slot(SchedSlot& slot, const std::function<bool(int32_t)>& is_alive);
 void reap_dead_slots(SchedShm* shm, const std::function<bool(int32_t)>& is_alive);
 
+// The daemon tick interval: kTickNs (1 ms) when any slot is in use, kIdleTickNs (10 ms) when idle.
+int64_t daemon_tick_interval(const SchedShm* shm);
+
 // A launch's expected GPU time, per launch key (CUfunction or CUgraphExec): a
 // running average of what it measured, kDefaultEstimateNs until it has been.
 class Estimator {

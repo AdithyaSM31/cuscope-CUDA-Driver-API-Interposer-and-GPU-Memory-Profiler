@@ -233,7 +233,8 @@ int run(const std::string& name, bool verbose) {
   while (!g_stop) {
     // Absolute deadlines: a late wake-up does not push later ticks back, and
     // whatever time passed is handed out in full.
-    deadline.tv_nsec += kTickNs;
+    const int64_t tick_ns = daemon_tick_interval(shm);
+    deadline.tv_nsec += tick_ns;
     if (deadline.tv_nsec >= 1'000'000'000) {
       deadline.tv_nsec -= 1'000'000'000;
       ++deadline.tv_sec;

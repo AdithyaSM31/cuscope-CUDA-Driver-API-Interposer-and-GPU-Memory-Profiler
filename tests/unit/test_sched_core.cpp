@@ -521,3 +521,24 @@ TEST(SchedCore, NegativePidIgnoredInRefill) {
   EXPECT_EQ(shm.slots[0].balance_ns.load(), 0);
 }
 
+TEST(SchedCore, DaemonTickIntervalIdleVsActive) {
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, 0);
+
+  // Empty table: idle interval (10 ms)
+  EXPECT_EQ(daemon_tick_interval(&shm), kIdleTickNs);
+  EXPECT_EQ(daemon_tick_interval(nullptr), kIdleTickNs);
+
+  // Slot being reaped (-1): still idle
+  shm.slots[0].pid = kReapingPid;
+  EXPECT_EQ(daemon_tick_interval(&shm), kIdleTickNs);
+
+  // One slot in use: active interval (1 ms)
+  shm.slots[0].pid = 42;
+  EXPECT_EQ(daemon_tick_interval(&shm), kTickNs);
+
+  // Job exits: returns to idle
+  shm.slots[0].pid = 0;
+  EXPECT_EQ(daemon_tick_interval(&shm), kIdleTickNs);
+}
+

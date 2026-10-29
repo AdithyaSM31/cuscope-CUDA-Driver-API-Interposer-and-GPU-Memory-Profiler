@@ -173,6 +173,14 @@ void reap_dead_slots(SchedShm* shm, const std::function<bool(int32_t)>& is_alive
   }
 }
 
+int64_t daemon_tick_interval(const SchedShm* shm) {
+  if (shm == nullptr) return kIdleTickNs;
+  for (const SchedSlot& s : shm->slots) {
+    if (s.pid.load(std::memory_order_relaxed) > 0) return kTickNs;
+  }
+  return kIdleTickNs;
+}
+
 SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now, Sleep sleep)
     : shm_(shm), pid_(pid), weight_(weight), now_(now), sleep_(sleep) {
   // A segment nobody serves (left by a daemon that died) is no scheduler:

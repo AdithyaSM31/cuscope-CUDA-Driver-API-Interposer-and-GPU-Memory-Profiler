@@ -17,6 +17,7 @@ constexpr uint32_t kSchedVersion = 1;
 constexpr int kSchedSlots = 32;
 
 constexpr int64_t kTickNs = 1'000'000;             // the daemon refills every 1 ms
+constexpr int64_t kIdleTickNs = 10'000'000;         // tick every 10 ms when idle
 constexpr uint64_t kActiveWindowNs = 50'000'000;   // launched within 50 ms = active
 constexpr int64_t kCapNs = 20'000'000;             // at most 20 ms of credit
 constexpr uint64_t kDefaultEstimateNs = 50'000;    // a launch never measured
