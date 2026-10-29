@@ -315,12 +315,22 @@ uint64_t Estimator::estimate(uint64_t key) const {
 void Estimator::observe(uint64_t key, uint64_t actual_ns) {
   std::lock_guard<std::mutex> lock(mu_);
   const uint64_t clamped = std::max<uint64_t>(1, actual_ns);
-  auto [it, inserted] = average_ns_.try_emplace(key, clamped);
-  if (!inserted) {
+  auto it = average_ns_.find(key);
+  if (it == average_ns_.end()) {
+    if (average_ns_.size() >= kMaxEntries) {
+      average_ns_.clear();
+    }
+    average_ns_.emplace(key, clamped);
+  } else {
     const int64_t diff = static_cast<int64_t>(actual_ns) - static_cast<int64_t>(it->second);
     const int64_t updated = static_cast<int64_t>(it->second) + diff / 8;  // alpha = 1/8
     it->second = static_cast<uint64_t>(std::max<int64_t>(1, updated));
   }
+}
+
+size_t Estimator::size() const {
+  std::lock_guard<std::mutex> lock(mu_);
+  return average_ns_.size();
 }
 
 }  // namespace cuscope

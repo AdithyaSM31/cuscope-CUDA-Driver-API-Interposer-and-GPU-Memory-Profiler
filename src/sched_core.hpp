@@ -47,8 +47,11 @@ void reap_dead_slots(SchedShm* shm, const std::function<bool(int32_t)>& is_alive
 // running average of what it measured, kDefaultEstimateNs until it has been.
 class Estimator {
  public:
+  static constexpr size_t kMaxEntries = 4096;
+
   uint64_t estimate(uint64_t key) const;
   void observe(uint64_t key, uint64_t actual_ns);
+  size_t size() const;
 
  private:
   mutable std::mutex mu_;

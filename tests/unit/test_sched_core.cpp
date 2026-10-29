@@ -138,6 +138,21 @@ TEST(Estimator, ClampsZeroEstimate) {
   EXPECT_GT(e.estimate(7), 1u);
 }
 
+TEST(Estimator, BoundedCapacity) {
+  Estimator e;
+  for (uint64_t i = 1; i <= Estimator::kMaxEntries; ++i) {
+    e.observe(i, 100'000);
+  }
+  EXPECT_EQ(e.size(), Estimator::kMaxEntries);
+  EXPECT_EQ(e.estimate(1), 100'000u);
+
+  // Exceeding capacity clears the table and inserts the new entry
+  e.observe(Estimator::kMaxEntries + 1, 200'000);
+  EXPECT_EQ(e.size(), 1u);
+  EXPECT_EQ(e.estimate(Estimator::kMaxEntries + 1), 200'000u);
+  EXPECT_EQ(e.estimate(1), kDefaultEstimateNs);  // evicted
+}
+
 TEST(SchedClient, ZeroMeasurementDoesNotStick) {
   SchedShm shm{};
   sched_shm_init(&shm, 1, fake_now());
