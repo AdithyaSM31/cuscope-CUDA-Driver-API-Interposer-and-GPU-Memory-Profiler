@@ -1,6 +1,8 @@
 # cuscope
 
 [![ci](https://github.com/AdithyaSM31/cuscope-CUDA-Driver-API-Interposer-and-GPU-Memory-Profiler/actions/workflows/ci.yml/badge.svg)](https://github.com/AdithyaSM31/cuscope-CUDA-Driver-API-Interposer-and-GPU-Memory-Profiler/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/AdithyaSM31/cuscope-CUDA-Driver-API-Interposer-and-GPU-Memory-Profiler)](https://github.com/AdithyaSM31/cuscope-CUDA-Driver-API-Interposer-and-GPU-Memory-Profiler/releases)
+[![license](https://img.shields.io/github/license/AdithyaSM31/cuscope-CUDA-Driver-API-Interposer-and-GPU-Memory-Profiler)](LICENSE)
 
 **A CUDA driver-API interposer that profiles GPU memory and kernels in unmodified programs.**
 
@@ -192,9 +194,12 @@ Jobs started with `--share N` register with the daemon and get GPU time by weigh
 compete; a job alone gets the whole GPU. Each kernel or graph launch charges the job an
 estimate of its GPU time, corrected once cuscope has measured the kernel. A job over its
 share waits before its next launch until the daemon (refilling every millisecond) has given
-it more. A launch is only ever delayed, never failed or changed. Without the daemon a job
-runs unthrottled and says so once. Waits appear as `throttled` spans on the timeline, and
-the summary gains a line (job A of the 80/20 benchmark below):
+it more. A launch is only ever delayed, never failed or changed. A job that finds no daemon,
+or whose daemon stops, runs unthrottled and says so once; when a daemon starts again, the job
+rejoins it within about a second. A job ignores a daemon whose shared-memory layout differs
+from its own (v0.3.1 changed it), so restart `cuscope sched` after upgrading. Waits appear as
+`throttled` spans on the timeline, and the summary gains a line (job A of the 80/20 benchmark
+below):
 
 ```text
 Sharing: weight 80, 19.854 s GPU time; 4847 launches waited, 5.144 s in total
