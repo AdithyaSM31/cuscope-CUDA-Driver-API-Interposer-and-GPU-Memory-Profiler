@@ -199,12 +199,15 @@ changes what a program sees, and it does so only as a full GPU would.
 launch, and waiting and solo flags. Jobs with `CUSCOPE_SHARE` claim a slot at their first
 launch.
 
-- **Refill.** Every millisecond (or 10 ms when no jobs are active) the daemon hands the elapsed
-  time to the active jobs (waiting while in debt, or launched in the last 50 ms) by weight, capped
-  at 20 ms of credit. Credit a capped job cannot take goes to the others by weight (water-filling),
-  so a lightly active peer does not hold a busy job to its share. A job no other active job
-  competes with is *solo*: full credit, debt forgiven, and it never waits, even after idling.
-  A launch made after the tick read the clock still counts as active.
+- **Refill.** Every millisecond (every 10 ms while no job is registered) the daemon hands the
+  elapsed time to the active jobs (waiting while in debt, or launched in the last 50 ms) by
+  weight, capped at 20 ms of credit. Credit a capped job cannot take goes to the others by
+  weight (water-filling), so a lightly active peer does not hold a busy job to its share. A job
+  no other active job competes with is *solo*: full credit, debt forgiven, and it never waits,
+  even after idling. A launch made after the tick read the clock still counts as active. A job
+  that registers sends the daemon SIGUSR1 so it ticks at once: a job alone is made solo before
+  it can queue work past its starting credit. (A version 1 daemon has no handler for it, which
+  is why the segment is version 2.)
 - **Charge and correct.** A launch charges an estimate (a running average of that kernel's
   measured time, bounded to 4096 entries and clamped to >= 1 ns; 50 µs until measured) and waits in
   200 µs steps while the balance is negative. When the collector resolves the kernel's GPU span,
@@ -213,17 +216,25 @@ launch.
 - **Never idle.** Under time-slicing each job's measured time includes the other's slices, so
   every job can run short at once. When all active jobs are waiting, the daemon grants credit
   by weight until the least indebted can launch.
-- **Fail open.** No segment, a closed or stale one, a version or size mismatch, a full table, or alloc mode at the first
-  launch; or, while waiting, a stale heartbeat, a slot that is no longer the job's, or a wait
-  over 30 s: the job runs unthrottled and logs once. If a new daemon starts later, stopped clients
-  periodically re-register and resume compute sharing. The client is created with a
-  compare-and-swap, never a lock, so a fork cannot inherit one held. At exit the slot is
-  released first in state, so a thread still waiting returns without touching it.
+- **Fail open.** No segment, a closed or stale one, another version's or a truncated one, a
+  full table, or alloc mode at the first launch; at any launch, a closed segment or a stale
+  heartbeat (a solo job never waits, so the wait loop alone would not see it); or, while
+  waiting, a slot that is no longer the job's or a wait over 30 s: the job runs unthrottled and
+  logs once. The client is created with a compare-and-swap, never a lock, so a fork cannot
+  inherit one held. At exit the slot is released first in state, so a thread still waiting
+  returns without touching it.
+- **Rejoin.** A stopped job looks for a serving segment at most once a second and registers
+  again: with a new daemon, or with the same one after a heartbeat gap, where it takes back its
+  own slot rather than holding a second. Never with the daemon that held one of its launches
+  for 30 s: that daemon beats but does not refill.
 - **Restart and ownership.** A daemon that finds a segment nobody serves (the old daemon
   crashed) closes and unlinks it and creates a fresh one; jobs on the old one see it closed
-  and run unthrottled. A segment not owned by this user, or open to group or others, is
-  never used: the daemon refuses to start and a job fails open, since anyone who could
-  write it could hold the user's jobs. SIGINT, SIGTERM and SIGHUP stop the daemon cleanly.
+  and run unthrottled. One of another version, or truncated, is replaced the same way if its
+  daemon is gone (unlinked, not closed, since its layout is not this one); while that daemon
+  lives, the new one refuses to start and names it. A segment not owned by this user, or open
+  to group or others, is never used: the daemon refuses to start and a job fails open, since
+  anyone who could write it could hold the user's jobs. SIGINT, SIGTERM and SIGHUP stop the
+  daemon cleanly; every handler is installed before the segment exists.
 - **Measured, not exclusive.** The split is of measured GPU time. Under WSL's time-slicing
   unequal weights come out more unequal in real work; see [sharing.md](sharing.md).
 
