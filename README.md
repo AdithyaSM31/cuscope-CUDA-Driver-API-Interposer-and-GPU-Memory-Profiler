@@ -197,7 +197,7 @@ runs unthrottled and says so once. Waits appear as `throttled` spans on the time
 the summary gains a line (job A of the 80/20 benchmark below):
 
 ```text
-Sharing: weight 80, 19.875 s GPU time; 3489 launches waited, 3.710 s in total
+Sharing: weight 80, 19.854 s GPU time; 4847 launches waited, 5.144 s in total
 ```
 
 Two jobs running the same GPU-filling kernel on the RTX 3060
@@ -205,14 +205,14 @@ Two jobs running the same GPU-filling kernel on the RTX 3060
 
 | | job A kernels/s | job B kernels/s | split of the work |
 |---|---|---|---|
-| one job alone, with or without the daemon | 497 | | |
-| two jobs, no scheduler | 186 | 186 | 50 / 50 |
-| `--share 50` / `--share 50` | 185 | 185 | 50 / 50 |
-| `--share 80` / `--share 20` | 409 | 50 | 89 / 11 |
+| one job alone, with or without the daemon | 601–622 | | |
+| two jobs, no scheduler | 226 | 226 | 50 / 50 |
+| `--share 50` / `--share 50` | 225 | 225 | 50 / 50 |
+| `--share 80` / `--share 20` | 491 | 60 | 89 / 11 |
 
 Sharing costs no throughput: the 50/50 pair does as much work as the unscheduled one, and at
 80/20 the heavy job runs 2.2 times faster than without a scheduler. The scheduler divides
-*measured* GPU time by weight (79/21). The driver time-slices the two processes, though
+*measured* GPU time by weight (79.6/20.4). The driver time-slices the two processes, though
 (measured on WSL), and a kernel's measured time includes the other job's slices, so unequal
 weights come out more unequal in real work.
 
@@ -242,8 +242,8 @@ training step is 84.5 ms against 60.6 ms in earlier runs.
 
 **Coverage**
 
-- **Platform.** Linux and WSL2, one GPU, CUDA 13.0 (tested with Windows driver 617.14). The
-  hook table records the driver function versions of that release.
+- **Platform.** Linux and WSL2, one GPU, CUDA 13.0 (tested with Windows drivers 617.14 and
+  621.01). The hook table records the driver function versions of that CUDA release.
 - **Not hooked** (listed by the symbol census, [docs/census/SUMMARY.md](docs/census/SUMMARY.md)):
   memsets; 2D, 3D, peer and batched copies; cooperative and host-function launches;
   `cuMemHostRegister`; memory-pool management; the virtual memory APIs (`cuMemCreate`,
