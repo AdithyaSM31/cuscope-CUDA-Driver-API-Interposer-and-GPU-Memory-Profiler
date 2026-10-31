@@ -340,3 +340,7 @@ training step is 84.5 ms against 60.6 ms in earlier runs.
 - **Exclusive scheduling.** Jobs take turns on the GPU, so measured time equals real work and
   unequal shares come out exact under time-slicing too.
 - More of the census list: memsets, 2D/3D copies and the VMM APIs.
+
+## License
+
+cuscope is licensed under the [MIT License](LICENSE).
