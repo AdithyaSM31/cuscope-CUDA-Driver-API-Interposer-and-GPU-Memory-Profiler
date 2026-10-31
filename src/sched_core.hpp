@@ -104,7 +104,9 @@ class SchedClient {
   // stays valid (the segment is never unmapped). Stats stay readable.
   void release();
 
-  // Re-registers with a new scheduler segment after being Stopped.
+  // After a stop, joins a segment again: a new daemon's, or the same one
+  // after a heartbeat gap (this job's old slot there is taken back, never a
+  // second one). Never the daemon that held a launch for kMaxWaitNs.
   bool re_register(SchedShm* new_shm);
 
   SchedStats stats() const;
@@ -120,6 +122,7 @@ class SchedClient {
   Estimator estimator_;
   WaitHook on_wait_ = nullptr;
   std::atomic<uint64_t> accum_charged_{0}, accum_waits_{0}, accum_wait_ns_{0};
+  std::atomic<int32_t> gave_up_on_daemon_{0};  // its pid, after a wait over kMaxWaitNs
   uint64_t released_charged_ = 0, released_waits_ = 0, released_wait_ns_ = 0;
 };
 

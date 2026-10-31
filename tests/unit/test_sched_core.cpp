@@ -629,3 +629,51 @@ TEST(SchedClient, SeveralThreadsWaitingAtOnce) {
 }
 
 
+
+TEST(SchedClient, ReRegisterOnTheSameSegmentKeepsOneSlot) {
+  // A heartbeat gap (a VM paused) stops a job while its daemon lives on; when
+  // the daemon beats again the job rejoins the same segment, in one slot.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  shm.slots[0].balance_ns = -1'000'000;  // nobody refills: the heartbeat goes stale
+  c.before_launch(7);
+  ASSERT_EQ(c.state(), SchedState::Stopped);
+  shm.heartbeat_ns = fake_now();
+  ASSERT_TRUE(c.re_register(&shm));
+  int held = 0;
+  for (const SchedSlot& s : shm.slots) held += s.pid.load() == 4242;
+  EXPECT_EQ(held, 1);
+}
+
+TEST(SchedClient, AStopForWaitingTooLongIsFinalForThatDaemon) {
+  // A daemon that beats but never refills held a launch for kMaxWaitNs:
+  // rejoining it would hold the next launch just as long. A new daemon is fine.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  g_refill_shm = &shm;
+  SchedClient c(&shm, 4242, 50, fake_now, beat_on_sleep);
+  shm.slots[0].balance_ns = -50'000'000;
+  c.before_launch(7);
+  ASSERT_EQ(c.state(), SchedState::Stopped);
+  EXPECT_FALSE(c.re_register(&shm));
+  EXPECT_EQ(c.state(), SchedState::Stopped);
+  SchedShm fresh{};
+  sched_shm_init(&fresh, 2, fake_now());
+  EXPECT_TRUE(c.re_register(&fresh));
+}
+
+
+TEST(SchedClient, ASoloJobNoticesTheDaemonStopped) {
+  // A solo job never waits, so it must not rely on the wait loop to notice
+  // the daemon is gone: otherwise it never re-registers with a new one.
+  SchedShm shm{};
+  sched_shm_init(&shm, 1, fake_now());
+  SchedClient c(&shm, 4242, 50, fake_now, fake_sleep);
+  shm.slots[0].solo = 1;
+  c.before_launch(7);
+  ASSERT_EQ(c.state(), SchedState::Registered);
+  g_fake_ns += kStaleNs + 1;  // the daemon stopped beating
+  EXPECT_EQ(c.before_launch(7), 0u);
+  EXPECT_EQ(c.state(), SchedState::Stopped);
+}

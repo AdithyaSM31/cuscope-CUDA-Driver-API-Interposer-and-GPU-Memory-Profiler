@@ -184,13 +184,14 @@ int64_t daemon_tick_interval(const SchedShm* shm) {
 SchedClient::SchedClient(SchedShm* shm, int32_t pid, uint32_t weight, Clock now, Sleep sleep)
     : pid_(pid), weight_(weight), now_(now), sleep_(sleep) {
   shm_.store(shm, std::memory_order_relaxed);
-  // A segment nobody serves (left by a daemon that died) is no scheduler:
   if (shm != nullptr && (shm->magic != kSchedMagic || shm->version != kSchedVersion)) {
     state_ = SchedState::VersionMismatch;
     return;
   }
   const uint64_t t = now();
   const uint64_t beat = shm != nullptr ? shm->heartbeat_ns.load(std::memory_order_acquire) : 0;
+  // A segment nobody serves (left by a daemon that died) is no scheduler:
+  // a job registered there would wait for refills that never come.
   if (shm == nullptr || shm->closed.load(std::memory_order_acquire) != 0 || (t > beat && t - beat > kStaleNs)) {
     state_ = SchedState::NoScheduler;
     return;
@@ -219,8 +220,15 @@ uint64_t SchedClient::before_launch(uint64_t key) {
   if (slot == nullptr) return 0;
   SchedShm* const shm = shm_.load(std::memory_order_acquire);
   if (shm == nullptr) return 0;
-  const uint64_t est = estimator_.estimate(key);
   const uint64_t start = now_();
+  // Every launch, not only a waiting one, notices a daemon that is gone: a
+  // solo job never waits, and must still find a new daemon when one starts.
+  const uint64_t beat = shm->heartbeat_ns.load(std::memory_order_acquire);
+  if (shm->closed.load(std::memory_order_acquire) != 0 || (start > beat && start - beat > kStaleNs)) {
+    state_.store(SchedState::Stopped, std::memory_order_release);
+    return 0;
+  }
+  const uint64_t est = estimator_.estimate(key);
   slot->last_launch_ns.store(start, std::memory_order_relaxed);
   slot->charged_ns.fetch_add(est, std::memory_order_relaxed);
   int64_t balance = slot->balance_ns.fetch_sub(static_cast<int64_t>(est), std::memory_order_acq_rel) -
@@ -228,7 +236,7 @@ uint64_t SchedClient::before_launch(uint64_t key) {
 
   // Over its share: wait for the daemon's refill. A solo job never waits,
   // and a daemon that has stopped (closed segment) or stopped beating
-  // (stale heartbeat) ends throttling for good: never stuck.
+  // (stale heartbeat) ends throttling until a new daemon is found: never stuck.
   bool waited = false;
   while (balance < 0 && slot->solo.load(std::memory_order_acquire) == 0 && state() == SchedState::Registered) {
     const uint64_t now = now_();
@@ -240,6 +248,9 @@ uint64_t SchedClient::before_launch(uint64_t key) {
     // (a corrupt or foreign segment that still beats): give up as well.
     if (shm->closed.load(std::memory_order_acquire) != 0 || (now > beat && now - beat > kStaleNs) ||
         slot->pid.load(std::memory_order_acquire) != pid_ || now - start >= kMaxWaitNs) {
+      if (now - start >= kMaxWaitNs) {
+        gave_up_on_daemon_.store(shm->daemon_pid.load(std::memory_order_relaxed), std::memory_order_relaxed);
+      }
       state_.store(SchedState::Stopped, std::memory_order_release);
       break;
     }
@@ -300,9 +311,22 @@ bool SchedClient::re_register(SchedShm* new_shm) {
   if (new_shm->closed.load(std::memory_order_acquire) != 0 || (t > beat && t - beat > kStaleNs)) {
     return false;
   }
-  for (SchedSlot& s : new_shm->slots) {
-    int32_t expected = 0;
-    if (!s.pid.compare_exchange_strong(expected, pid_, std::memory_order_acq_rel)) continue;
+  const int32_t gave_up = gave_up_on_daemon_.load(std::memory_order_relaxed);
+  if (gave_up != 0 && new_shm->daemon_pid.load(std::memory_order_relaxed) == gave_up) return false;
+  // A slot holding this pid is this job's own from before the stop (the
+  // daemon kept serving it through a heartbeat gap): take it back rather
+  // than hold a second one. Otherwise any free slot.
+  auto claim = [&](int32_t from) -> SchedSlot* {
+    for (SchedSlot& s : new_shm->slots) {
+      int32_t expected = from;
+      if (s.pid.compare_exchange_strong(expected, pid_, std::memory_order_acq_rel)) return &s;
+    }
+    return nullptr;
+  };
+  SchedSlot* claimed = claim(pid_);
+  if (claimed == nullptr) claimed = claim(0);
+  if (claimed != nullptr) {
+    SchedSlot& s = *claimed;
     SchedSlot* prev_slot = slot_.load(std::memory_order_relaxed);
     if (prev_slot != nullptr) {
       accum_charged_.fetch_add(prev_slot->charged_ns.load(std::memory_order_relaxed), std::memory_order_relaxed);
