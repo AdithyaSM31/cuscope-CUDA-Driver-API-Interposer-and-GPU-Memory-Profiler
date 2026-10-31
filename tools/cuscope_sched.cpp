@@ -30,7 +30,7 @@ namespace {
 volatile std::sig_atomic_t g_stop = 0;
 
 void on_signal(int) { g_stop = 1; }
-void on_wake(int) {}
+void on_wake(int) {}  // SIGUSR1 from a new job: tick now
 
 uint64_t now_ns() {
   timespec ts;
@@ -43,14 +43,15 @@ bool alive(int32_t pid) { return pid > 0 && (kill(pid, 0) == 0 || errno == EPERM
 struct ExistingSegment {
   SchedShm* shm = nullptr;
   bool foreign = false;
-  bool version_mismatch = false;
-  bool too_small = false;
-  uint32_t version = 0;
+  bool other = false;      // another version's, or not a whole segment
+  uint32_t version = 0;    // when `other` and its magic is ours
+  int32_t daemon_pid = 0;  // likewise
 };
 
-// Maps an existing segment, or returns nullptr. A segment that is not
-// private to this user is never used: foreign is set instead.
-// If the version or size does not match, version_mismatch or too_small is set.
+// Maps an existing segment, or returns nullptr. A segment that is not private
+// to this user is never used: foreign is set instead. One of another version,
+// or too small, is not mapped: other is set, with the version and daemon pid
+// from its header when the magic is ours (every version starts with them).
 ExistingSegment map_existing(const std::string& name, bool writable) {
   ExistingSegment res;
   const int fd = shm_open(name.c_str(), writable ? O_RDWR : O_RDONLY, 0);
@@ -65,32 +66,27 @@ ExistingSegment map_existing(const std::string& name, bool writable) {
     close(fd);
     return res;
   }
-  if (static_cast<size_t>(st.st_size) < sizeof(SchedShm)) {
-    res.too_small = true;
-    if (static_cast<size_t>(st.st_size) >= 12) {
-      uint64_t magic = 0;
-      uint32_t ver = 0;
-      if (pread(fd, &magic, sizeof(magic), 0) == sizeof(magic) &&
-          pread(fd, &ver, sizeof(ver), sizeof(magic)) == sizeof(ver) && magic == kSchedMagic &&
-          ver != kSchedVersion) {
-        res.version_mismatch = true;
-        res.version = ver;
-      }
-    }
+  struct {
+    uint64_t magic;
+    uint32_t version;
+    int32_t daemon_pid;
+  } head{};
+  const bool has_head = static_cast<size_t>(st.st_size) >= sizeof(head) &&
+                        pread(fd, &head, sizeof(head), 0) == static_cast<ssize_t>(sizeof(head));
+  if (static_cast<size_t>(st.st_size) < sizeof(SchedShm) || !has_head || head.magic != kSchedMagic ||
+      head.version != kSchedVersion) {
     close(fd);
+    res.other = true;
+    if (has_head && head.magic == kSchedMagic) {
+      res.version = head.version;
+      res.daemon_pid = head.daemon_pid;
+    }
     return res;
   }
   void* p = mmap(nullptr, sizeof(SchedShm), writable ? PROT_READ | PROT_WRITE : PROT_READ, MAP_SHARED, fd, 0);
   close(fd);
   if (p == MAP_FAILED) return res;
-  auto* shm = static_cast<SchedShm*>(p);
-  if (shm->magic != kSchedMagic || shm->version != kSchedVersion) {
-    res.version_mismatch = true;
-    res.version = shm->magic == kSchedMagic ? shm->version : 0;
-    munmap(p, sizeof(SchedShm));
-    return res;
-  }
-  res.shm = shm;
+  res.shm = static_cast<SchedShm*>(p);
   return res;
 }
 
@@ -106,12 +102,9 @@ int print_status(const std::string& name) {
     std::fprintf(stderr, "cuscope-sched: %s is not private to this user\n", name.c_str());
     return 1;
   }
-  if (existing.version_mismatch) {
-    std::fprintf(stderr, "cuscope-sched: segment has version %u, expected %u\n", existing.version, kSchedVersion);
-    return 1;
-  }
-  if (existing.too_small) {
-    std::fprintf(stderr, "cuscope-sched: segment is too small\n");
+  if (existing.other && alive(existing.daemon_pid)) {
+    std::fprintf(stderr, "cuscope-sched: a scheduler of version %u is running (pid %d); this is version %u\n",
+                 existing.version, existing.daemon_pid, kSchedVersion);
     return 1;
   }
   SchedShm* shm = existing.shm;
@@ -141,13 +134,15 @@ SchedShm* create(const std::string& name) {
                  name.c_str());
     return nullptr;
   }
-  if (existing.version_mismatch) {
-    std::fprintf(stderr, "cuscope-sched: segment has version %u, expected %u\n", existing.version, kSchedVersion);
-    return nullptr;
-  }
-  if (existing.too_small) {
-    std::fprintf(stderr, "cuscope-sched: segment is too small\n");
-    return nullptr;
+  if (existing.other) {
+    if (alive(existing.daemon_pid)) {
+      std::fprintf(stderr, "cuscope-sched: a scheduler of version %u is running (pid %d); stop it first\n",
+                   existing.version, existing.daemon_pid);
+      return nullptr;
+    }
+    // Left by a daemon of another version that is gone. Its layout is not
+    // ours, so it is not marked closed: its jobs see the heartbeat stop.
+    shm_unlink(name.c_str());
   }
   if (existing.shm != nullptr) {
     if (serving(existing.shm)) {
@@ -219,18 +214,19 @@ class Reporter {
 };
 
 int run(const std::string& name, bool verbose) {
-  SchedShm* shm = create(name);
-  if (shm == nullptr) return 1;
-
+  // Every handler before the segment exists: a job that registers at once
+  // sends SIGUSR1, whose default action would end the daemon.
   struct sigaction sa {};
   sa.sa_handler = on_signal;
   sigaction(SIGINT, &sa, nullptr);
   sigaction(SIGTERM, &sa, nullptr);
   sigaction(SIGHUP, &sa, nullptr);  // its terminal closed
+  struct sigaction wake {};
+  wake.sa_handler = on_wake;
+  sigaction(SIGUSR1, &wake, nullptr);
 
-  struct sigaction sa_wake {};
-  sa_wake.sa_handler = on_wake;
-  sigaction(SIGUSR1, &sa_wake, nullptr);
+  SchedShm* shm = create(name);
+  if (shm == nullptr) return 1;
 
   Reporter reporter;
   uint64_t last = now_ns(), last_reap = last, last_report = last;
@@ -245,9 +241,8 @@ int run(const std::string& name, bool verbose) {
       deadline.tv_nsec -= 1'000'000'000;
       ++deadline.tv_sec;
     }
-    const int ret = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, nullptr);
-    if (ret == EINTR) {
-      clock_gettime(CLOCK_MONOTONIC, &deadline);
+    if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, nullptr) == EINTR) {
+      clock_gettime(CLOCK_MONOTONIC, &deadline);  // woken: tick now, and count on from here
     }
     const uint64_t now = now_ns();
     shm->heartbeat_ns.store(now, std::memory_order_release);

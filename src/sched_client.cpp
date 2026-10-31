@@ -81,6 +81,15 @@ bool capturing(int variant, CUstream stream) {
   return fn(stream, &status) != CUDA_SUCCESS || status != CU_STREAM_CAPTURE_STATUS_NONE;
 }
 
+// The daemon ticks every 10 ms while no job is registered: a new job wakes it
+// so that a job alone is made solo at once, not after spending its starting
+// credit. The pid comes from a segment of this version (whose daemon handles
+// SIGUSR1), private to this user, with a heartbeat under 100 ms old.
+void wake_daemon(const SchedShm* shm) {
+  if (shm == nullptr) return;
+  if (const int32_t pid = shm->daemon_pid.load(std::memory_order_relaxed); pid > 0) kill(pid, SIGUSR1);
+}
+
 std::atomic<bool> g_stop_logged{false};
 std::atomic<uint64_t> g_last_recheck{0};
 
@@ -111,11 +120,7 @@ SchedClient* client() {
   }
   switch (made->state()) {
     case SchedState::Registered:
-      if (shm != nullptr) {
-        if (int32_t dpid = shm->daemon_pid.load(std::memory_order_relaxed)) {
-          kill(dpid, SIGUSR1);
-        }
-      }
+      wake_daemon(shm);
       break;
     case SchedState::NoScheduler:
       log_msg("compute sharing off: no scheduler running (start cuscope sched)");
@@ -145,10 +150,8 @@ uint64_t sched_before_launch(int variant, CUstream stream, uint64_t key) {
       bool unsafe = false, mismatch = false;
       if (SchedShm* new_shm = map_segment(&unsafe, &mismatch)) {
         if (c->re_register(new_shm)) {
+          wake_daemon(new_shm);
           g_stop_logged.store(false, std::memory_order_relaxed);
-          if (int32_t dpid = new_shm->daemon_pid.load(std::memory_order_relaxed)) {
-            kill(dpid, SIGUSR1);
-          }
           log_msg("compute sharing re-enabled: re-registered with scheduler");
         } else {
           munmap(new_shm, sizeof(SchedShm));

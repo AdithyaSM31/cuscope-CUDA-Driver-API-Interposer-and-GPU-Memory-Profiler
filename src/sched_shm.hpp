@@ -13,7 +13,8 @@
 namespace cuscope {
 
 constexpr uint64_t kSchedMagic = 0x6375736368656421ULL;  // "cusched!"
-constexpr uint32_t kSchedVersion = 1;
+// 2: jobs wake the daemon with SIGUSR1, which a version 1 daemon does not handle.
+constexpr uint32_t kSchedVersion = 2;
 constexpr int kSchedSlots = 32;
 
 constexpr int64_t kTickNs = 1'000'000;             // the daemon refills every 1 ms

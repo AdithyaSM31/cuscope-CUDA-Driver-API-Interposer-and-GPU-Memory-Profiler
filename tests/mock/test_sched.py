@@ -203,50 +203,65 @@ def test_failed_launch_is_refunded(sched_daemon, mimic):
     assert sched["gpu_ns_charged"] == 0, sched
 
 
-def _plant_segment(name: str, version: int, size: int = 4096) -> None:
+def _plant_segment(name: str, version: int, size: int = 4096, daemon_pid: int = 0) -> None:
+    """A segment as another cuscope version would leave it: magic, version, daemon pid."""
     import struct
     fd = os.open("/dev/shm" + name, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         os.ftruncate(fd, size)
-        if size >= 12:
-            os.write(fd, struct.pack("<QI", 0x6375736368656421, version))
+        header = struct.pack("<QIi", 0x6375736368656421, version, daemon_pid)
+        os.write(fd, header[:min(size, len(header))])
     finally:
         os.close(fd)
 
 
-def test_version_mismatch_daemon(tmp_name_env):
-    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
-    _plant_segment(name, version=2, size=4096)
-    r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
-    assert r.returncode == 1, r.stdout
-    assert "version 2" in r.stderr or "version" in r.stderr, r.stderr
+def _serves(env: dict) -> bool:
+    return subprocess.run([str(SCHED), "--status"], env=env, capture_output=True).returncode == 0
+
+
+def test_daemon_refuses_a_live_daemon_of_another_version(tmp_name_env):
+    other = subprocess.Popen(["sleep", "30"])  # stands in for the other version's daemon
+    try:
+        _plant_segment(tmp_name_env["CUSCOPE_SCHED_NAME"], version=99, daemon_pid=other.pid)
+        r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True,
+                           timeout=5)
+        assert r.returncode == 1, r.stderr
+        assert "version 99" in r.stderr and str(other.pid) in r.stderr, r.stderr
+    finally:
+        other.kill()
+        other.wait()
+
+
+def test_daemon_takes_over_a_stale_segment_of_another_version(tmp_name_env):
+    _plant_segment(tmp_name_env["CUSCOPE_SCHED_NAME"], version=99)  # its daemon is gone
+    env = {**os.environ, **tmp_name_env}
+    daemon = subprocess.Popen([str(SCHED)], env=env, stderr=subprocess.PIPE, text=True)
+    try:
+        wait_until(lambda: _serves(env), timeout=5)
+    finally:
+        daemon.terminate()
+        daemon.wait(timeout=5)
+
+
+def test_daemon_takes_over_a_stale_segment_too_small(tmp_name_env):
+    _plant_segment(tmp_name_env["CUSCOPE_SCHED_NAME"], version=1, size=64)
+    env = {**os.environ, **tmp_name_env}
+    daemon = subprocess.Popen([str(SCHED)], env=env, stderr=subprocess.PIPE, text=True)
+    try:
+        wait_until(lambda: _serves(env), timeout=5)
+    finally:
+        daemon.terminate()
+        daemon.wait(timeout=5)
 
 
 def test_version_mismatch_job(mimic, tmp_name_env):
     name = tmp_name_env["CUSCOPE_SCHED_NAME"]
-    _plant_segment(name, version=2, size=4096)
+    _plant_segment(name, version=99, size=4096)
     r = mimic("share_loop", "shim", env={**tmp_name_env, "CUSCOPE_SHARE": "50", "MIMIC_SECONDS": "0.2"})
     assert r.code == 0, r.stderr
     sched = r.trace["cuscope"]["sched"]
     assert sched["registered"] is False
     assert sched["reason"] == "scheduler is a different version (restart cuscope sched)"
-
-
-def test_too_small_segment_daemon(tmp_name_env):
-    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
-    _plant_segment(name, version=1, size=64)
-    r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
-    assert r.returncode == 1, r.stdout
-    assert "File exists" not in r.stderr, r.stderr
-    assert "too small" in r.stderr, r.stderr
-
-
-def test_version_mismatch_small_segment_daemon(tmp_name_env):
-    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
-    _plant_segment(name, version=2, size=64)
-    r = subprocess.run([str(SCHED)], env={**os.environ, **tmp_name_env}, capture_output=True, text=True, timeout=5)
-    assert r.returncode == 1, r.stdout
-    assert "version 2" in r.stderr, r.stderr
 
 
 def test_too_small_segment_job(mimic, tmp_name_env):
@@ -305,5 +320,40 @@ def test_table_full_fails_open_and_logs(sched_daemon, mimic):
     assert sched["reason"] == "no free slot"
 
 
+def test_a_job_leaves_a_v030_daemon_alone(mimic, tmp_name_env):
+    """New jobs wake their daemon with SIGUSR1; a v0.3.0 daemon has no handler and
+    would die. Its segment is version 1: a job must see another version, and not
+    register with it or signal it."""
+    import mmap
+    import struct
+    import threading
 
+    name = tmp_name_env["CUSCOPE_SCHED_NAME"]
+    other = subprocess.Popen(["sleep", "30"])  # a daemon with SIGUSR1's default action
+    _plant_segment(name, version=1, size=1 << 16, daemon_pid=other.pid)
+    fd = os.open("/dev/shm" + name, os.O_RDWR)
+    seg = mmap.mmap(fd, 1 << 16)
+    os.close(fd)
+    beating = True
+
+    def beat():  # keeps the heartbeat fresh, as a live daemon would
+        while beating:
+            struct.pack_into("<Q", seg, 16, time.clock_gettime_ns(time.CLOCK_MONOTONIC))
+            time.sleep(0.01)
+
+    t = threading.Thread(target=beat)
+    t.start()
+    try:
+        r = mimic("launch", "shim", env={**tmp_name_env, "CUSCOPE_SHARE": "50"})
+        assert r.code == 0, r.stderr
+        sched = r.trace["cuscope"]["sched"]
+        assert (sched["registered"], sched["reason"]) == (False, "scheduler is a different version (restart cuscope sched)")
+        time.sleep(0.1)
+        assert other.poll() is None, f"the daemon was killed (status {other.returncode})"
+    finally:
+        beating = False
+        t.join()
+        seg.close()
+        other.kill()
+        other.wait()
 
